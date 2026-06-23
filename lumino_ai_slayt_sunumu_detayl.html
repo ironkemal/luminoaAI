@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lumino AI - HTGF Pitch Deck</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        brand: {
+                            50: '#f0f4f8', 100: '#d9e2ec', 200: '#bcccdc',
+                            500: '#1a56db', 700: '#103d96', 900: '#061a40',
+                        },
+                        accent: { teal: '#0d9488', orange: '#ea580c', purple: '#7c3aed' }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body { 
+            background-color: #f8fafc; color: #334155; 
+            margin: 0; padding: 0; overflow: hidden;
+        }
+        
+        /* Sunum Ana Konteyneri */
+        #presentation-container {
+            width: 100vw; height: 100vh;
+            display: flex; flex-direction: column;
+        }
+
+        /* Slayt Alanı */
+        #slides-area {
+            flex: 1; position: relative; overflow: hidden;
+        }
+
+        /* Tekil Slayt */
+        .slide { 
+            position: absolute; inset: 0; padding: 2rem 4rem;
+            opacity: 0; visibility: hidden; transform: translateX(30px) scale(0.98);
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1); 
+            display: flex; flex-direction: column; overflow-y: auto;
+        }
+        .slide.active { 
+            opacity: 1; visibility: visible; transform: translateX(0) scale(1);
+        }
+
+        /* Kart Tasarımı */
+        .card { 
+            background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; 
+            padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        /* Telefon Mockup */
+        .phone-mockup {
+            border: 6px solid #0f172a; border-radius: 24px; background: #f8fafc;
+            width: 100%; max-width: 220px; aspect-ratio: 9/19; margin: 0 auto;
+            position: relative; overflow: hidden; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+        .phone-notch {
+            position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+            width: 45%; height: 16px; background: #0f172a;
+            border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; z-index: 10;
+        }
+
+        /* Veri Çubuğu (Bar Chart) Animasyonu */
+        @keyframes fillBar { from { height: 0; } to { height: var(--fill); } }
+        .data-bar.active { animation: fillBar 1.5s ease-out forwards; }
+        
+        @keyframes fillWidth { from { width: 0; } to { width: var(--fill); } }
+        .data-width.active { animation: fillWidth 1.5s ease-out forwards; }
+
+        /* Kaydırma Çubuğunu Gizle */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    </style>
+</head>
+<body class="antialiased selection:bg-brand-500 selection:text-white">
+
+    <div id="presentation-container">
+        
+        <header class="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 shrink-0 z-50">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-brand-500 text-white rounded-lg flex items-center justify-center font-black text-lg">L</div>
+                <span class="font-black text-brand-900 text-xl tracking-tight">Lumino AI</span>
+            </div>
+            <div id="chapter-title" class="text-sm font-bold text-gray-400 uppercase tracking-widest">
+                Deckblatt
+            </div>
+        </header>
+
+        <main id="slides-area">
+            
+            <div class="slide active justify-center items-center text-center bg-gradient-to-b from-white to-brand-50/50" data-chapter="Deckblatt">
+                <div class="w-24 h-24 bg-brand-500 text-white rounded-2xl flex items-center justify-center text-5xl font-black mb-8 shadow-xl mx-auto transform -rotate-3 hover:rotate-0 transition">
+                    L
+                </div>
+                <h1 class="text-6xl font-black text-brand-900 tracking-tighter mb-8">
+                    Lumino AI
+                </h1>
+                <div class="w-16 h-1 bg-brand-500 mx-auto mb-8 rounded-full"></div>
+                <div class="space-y-2 text-gray-500">
+                    <p class="text-xl font-medium"><i class="fa-solid fa-building-columns mr-2"></i> Hochschule Bonn-Rhein-Sieg</p>
+                    <p class="text-lg"><i class="fa-solid fa-graduation-cap mr-2"></i> Prof. Christoph Wamser</p>
+                    <p class="text-sm mt-4 text-gray-400 uppercase tracking-widest border border-gray-200 inline-block px-4 py-1 rounded-full bg-white">Digital Start-up Pitch</p>
+                </div>
+            </div>
+
+            <div class="slide" data-chapter="Kapitel 5: Design Thinking">
+                <h2 class="text-4xl font-black text-brand-900 mb-2">1. Empathize <span class="text-xl text-gray-400 font-normal">| Multiperspektivische Problemanalyse</span></h2>
+                <p class="text-gray-500 mb-8">Kognitive und strukturelle Barrieren bei Young Professionals.</p>
+                
+                <div class="grid grid-cols-2 gap-8 h-full">
+                    <!-- User Stories -->
+                    <div class="card bg-gray-50/50 flex flex-col">
+                        <h4 class="font-bold text-gray-700 uppercase tracking-widest mb-4 flex items-center"><i class="fa-solid fa-users text-brand-500 mr-2"></i> User Stories</h4>
+                        <div class="space-y-4">
+                            <div class="bg-white p-4 rounded-xl border-l-4 border-brand-500 shadow-sm flex gap-4 items-start">
+                                <div class="w-10 h-10 rounded-full bg-brand-100 flex items-center justify-center text-brand-500 shrink-0 mt-1"><i class="fa-solid fa-briefcase"></i></div>
+                                <div>
+                                    <span class="text-[10px] font-black text-brand-500 uppercase tracking-wider block mb-1">Karriereaufstieg (B2C)</span>
+                                    <p class="text-gray-700 font-medium text-sm">"Als Junior-PM möchte ich Gehaltsgespräche üben, um den eigenen Marktwert sachlich argumentieren zu können, ohne unprofessionell zu wirken."</p>
+                                </div>
+                            </div>
+                            <div class="bg-white p-4 rounded-xl border-l-4 border-accent-purple shadow-sm flex gap-4 items-start">
+                                <div class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-accent-purple shrink-0 mt-1"><i class="fa-solid fa-user-graduate"></i></div>
+                                <div>
+                                    <span class="text-[10px] font-black text-accent-purple uppercase tracking-wider block mb-1">Berufseinstieg (B2B2C)</span>
+                                    <p class="text-gray-700 font-medium text-sm">"Als Absolventin möchte ich Stressinterviews (HR) proben, da Fachwissen allein emotionale Fangfragen nicht abdeckt."</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Five Whys Deep Dive -->
+                    <div class="card flex flex-col">
+                        <h4 class="font-bold text-gray-700 uppercase tracking-widest mb-4 flex items-center"><i class="fa-solid fa-arrow-down-wide-short text-brand-500 mr-2"></i> Five Whys (Root Cause Analysis)</h4>
+                        <div class="relative mt-2 flex-1">
+                            <div class="absolute left-4 top-4 bottom-8 w-0.5 bg-gray-200"></div>
+                            <div class="space-y-3">
+                                <div class="flex items-start relative"><div class="w-8 h-8 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center text-xs font-bold z-10 shrink-0 text-gray-500 mt-1">1</div><p class="ml-3 text-sm pt-1.5"><span class="font-bold text-gray-800">Warum Panik?</span> Angst, inkompetent zu wirken (Imposter-Syndrom).</p></div>
+                                <div class="flex items-start relative ml-4"><div class="w-8 h-8 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center text-xs font-bold z-10 shrink-0 text-gray-500 mt-1">2</div><p class="ml-3 text-sm pt-1.5"><span class="font-bold text-gray-800">Warum diese Angst?</span> Fehlende Praxis. Soft-Skills werden an Unis nur theoretisch gelehrt.</p></div>
+                                <div class="flex items-start relative ml-8"><div class="w-8 h-8 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center text-xs font-bold z-10 shrink-0 text-gray-500 mt-1">3</div><p class="ml-3 text-sm pt-1.5"><span class="font-bold text-gray-800">Warum keine E-Learning-Kurse?</span> Passives Lesen erzeugt keine emotionale Stressresistenz fürs Sprechen.</p></div>
+                                <div class="flex items-start relative ml-12"><div class="w-8 h-8 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center text-xs font-bold z-10 shrink-0 text-gray-500 mt-1">4</div><p class="ml-3 text-sm pt-1.5"><span class="font-bold text-gray-800">Warum keine echten Coaches?</span> Mit >200€/h wirtschaftlich ineffizient für Junioren.</p></div>
+                                
+                                <div class="flex items-start relative ml-16 mt-4 bg-brand-50 p-3 rounded-lg border border-brand-100 shadow-sm">
+                                    <div class="w-8 h-8 rounded-full bg-brand-500 text-white flex items-center justify-center text-sm font-bold z-10 shrink-0 mt-1"><i class="fa-solid fa-bolt"></i></div>
+                                    <p class="ml-3 text-sm font-bold text-brand-700 pt-1.5">Root Cause: Es fehlt eine erschwingliche, dynamische "Sandbox" für aktives Verhandlungstraining.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="slide" data-chapter="Kapitel 5: Design Thinking">
+                <h2 class="text-4xl font-black text-brand-900 mb-2">2. Define <span class="text-xl text-gray-400 font-normal">| Zielgruppenfokus & Psychologische Hürden</span></h2>
+                <p class="text-gray-500 mb-8">Ableitung von Verhaltensmustern zur Algorithmus-Konzeption.</p>
+                
+                <div class="flex gap-8 h-full">
+                    <!-- Persona Details -->
+                    <div class="w-1/3 card bg-gray-50/50 flex flex-col items-center text-center justify-center">
+                        <img src="https://images.unsplash.com/photo-1560250097-0b93528c311a?ixlib=rb-4.0.3&w=256&q=80" alt="Persona" class="w-28 h-28 rounded-full object-cover border-4 border-white shadow-md mb-4">
+                        <h4 class="font-black text-2xl text-gray-900">Julian (28)</h4>
+                        <div class="w-full bg-white rounded-lg p-3 mt-4 text-left border border-gray-100 shadow-sm">
+                            <ul class="text-xs space-y-2 text-gray-600">
+                                <li><i class="fa-solid fa-graduation-cap w-4 text-brand-500"></i> Masterabsolvent, 2 J. Agentur</li>
+                                <li><i class="fa-solid fa-wallet w-4 text-green-500"></i> Hohes Einkommen (B2C Potenzial)</li>
+                                <li><i class="fa-solid fa-clock w-4 text-orange-500"></i> Wenig Zeit (braucht Micro-Learning)</li>
+                                <li><i class="fa-solid fa-brain w-4 text-purple-500"></i> Leidet unter "Imposter-Syndrom"</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- 2x2 Matrix Empathy Map -->
+                    <div class="w-2/3 card flex flex-col">
+                        <h4 class="font-bold text-gray-700 uppercase tracking-widest mb-4">Empathy Map (Behavioral Analysis)</h4>
+                        <div class="grid grid-cols-2 grid-rows-2 gap-4 h-full">
+                            <div class="border border-gray-100 p-4 rounded-xl bg-white shadow-sm relative">
+                                <h5 class="text-xs font-black text-gray-400 uppercase mb-2"><i class="fa-solid fa-comment-dots text-brand-400 mr-1"></i> Sagt</h5>
+                                <p class="text-sm font-medium text-gray-700">"Klar, ich übernehme das Projekt gerne noch am Wochenende." <br><span class="text-xs text-gray-400 italic mt-1 block">(Vermeidet Konflikte aktiv)</span></p>
+                            </div>
+                            <div class="border border-gray-100 p-4 rounded-xl bg-white shadow-sm relative">
+                                <h5 class="text-xs font-black text-gray-400 uppercase mb-2"><i class="fa-solid fa-brain text-accent-purple mr-1"></i> Denkt / Fühlt</h5>
+                                <p class="text-sm font-medium text-gray-700">"Wenn ich nach Geld frage, wirke ich gierig. Was, wenn er sofort 'Nein' sagt und ich rot anlaufe?"</p>
+                            </div>
+                            <div class="border border-gray-100 p-4 rounded-xl bg-white shadow-sm relative">
+                                <h5 class="text-xs font-black text-gray-400 uppercase mb-2"><i class="fa-solid fa-eye text-accent-teal mr-1"></i> Tut</h5>
+                                <p class="text-sm font-medium text-gray-700">Konsumiert unstrukturierte Verhandlungs-Ratgeber auf LinkedIn (Illusion of Competence).</p>
+                            </div>
+                            <div class="border border-brand-200 p-4 rounded-xl bg-brand-50 shadow-sm relative">
+                                <h5 class="text-xs font-black text-brand-600 uppercase mb-2"><i class="fa-solid fa-ear-listen text-brand-500 mr-1"></i> Hört</h5>
+                                <p class="text-sm font-bold text-brand-900">"Du verkaufst dich unter Wert! Der Arbeitsmarkt sucht händeringend Leute wie dich."</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="slide" data-chapter="Kapitel 5: Design Thinking">
+                <h2 class="text-4xl font-black text-brand-900 mb-2">3. Ideate <span class="text-xl text-gray-400 font-normal">| Synthese von Technologie & Pädagogik</span></h2>
+                <p class="text-gray-500 mb-8">Lösungsraum definieren: "Blue Ocean Strategy".</p>
+                
+                <div class="card bg-brand-900 text-white relative overflow-hidden h-full flex flex-col justify-center items-center">
+                    <div class="absolute top-0 right-0 w-80 h-80 bg-brand-600 rounded-full blur-3xl opacity-30 -z-10"></div>
+                    
+                    <div class="bg-white/10 border-l-4 border-accent-teal p-5 rounded-r-xl backdrop-blur-md mb-10 max-w-3xl">
+                        <span class="text-[10px] font-black text-accent-teal uppercase tracking-widest block mb-2">How Might We (HMW)</span>
+                        <p class="text-lg font-medium leading-relaxed">"Wie schaffen wir eine asynchrone, gefahrlose und hoch-interaktive Übungsumgebung, die emotionale Resilienz für schwierige Büro-Gespräche aufbaut?"</p>
+                    </div>
+                    
+                    <!-- Visual Equation -->
+                    <div class="flex items-center justify-center gap-4 w-full max-w-4xl px-4">
+                        <div class="bg-white/5 p-5 rounded-2xl border border-white/10 flex flex-col items-center flex-1 text-center">
+                            <i class="fa-solid fa-mobile-screen text-accent-orange text-3xl mb-3"></i>
+                            <p class="font-bold text-sm">Gamification</p>
+                            <p class="text-[10px] text-gray-400 mt-1">Niedrige Einstiegshürde (Mobile App, Streaks)</p>
+                        </div>
+                        <div class="text-brand-500 text-3xl font-black">+</div>
+                        <div class="bg-white/5 p-5 rounded-2xl border border-white/10 flex flex-col items-center flex-1 text-center">
+                            <i class="fa-solid fa-microphone-lines text-accent-teal text-3xl mb-3"></i>
+                            <p class="font-bold text-sm">Generative Voice-AI</p>
+                            <p class="text-[10px] text-gray-400 mt-1">Echtzeit Audio-LLM (Unvorhersehbarkeit)</p>
+                        </div>
+                        <div class="text-brand-500 text-3xl font-black">+</div>
+                        <div class="bg-white/5 p-5 rounded-2xl border border-white/10 flex flex-col items-center flex-1 text-center">
+                            <i class="fa-solid fa-scale-balanced text-accent-purple text-3xl mb-3"></i>
+                            <p class="font-bold text-sm">Psychologische Frameworks</p>
+                            <p class="text-[10px] text-gray-400 mt-1">Harvard-Konzept & NLP verankert in System-Prompts</p>
+                        </div>
+                        <div class="text-brand-500 text-3xl font-black">=</div>
+                        <div class="bg-gradient-to-br from-brand-500 to-brand-700 p-6 rounded-2xl shadow-2xl border border-brand-400 flex flex-col items-center flex-1 transform scale-110 ml-2">
+                            <i class="fa-solid fa-rocket text-white text-4xl mb-2"></i>
+                            <p class="font-black text-lg leading-tight text-center">Lumino AI</p>
+                            <p class="text-[10px] text-brand-200 mt-1 text-center uppercase tracking-wider">Voice-Roleplay Sandbox</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="slide" data-chapter="Kapitel 5: Design Thinking">
+                <h2 class="text-4xl font-black text-brand-900 mb-2">4. & 5. Prototype & Test <span class="text-xl text-gray-400 font-normal">| Validierung & Pivot</span></h2>
+                <p class="text-gray-500 mb-8">A/B Testing mit 50 BWL-Studierenden und Ableitung von Produkt-Iterationen.</p>
+                
+                <div class="flex gap-10 h-full items-center">
+                    <!-- Phone Prototype -->
+                    <div class="w-1/3">
+                        <div class="phone-mockup border-gray-800 bg-gray-900 text-white shadow-xl">
+                            <div class="phone-notch bg-gray-800"></div>
+                            <div class="pt-10 px-4 pb-6 h-[400px] flex flex-col relative">
+                                <div class="flex justify-between items-center mb-6">
+                                    <div class="font-black text-xs">Lumino AI</div>
+                                    <div class="flex items-center gap-1 text-[9px] text-red-400 bg-red-400/10 px-2 py-0.5 rounded-full"><div class="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></div> Live</div>
+                                </div>
+                                <div class="flex-1 flex flex-col items-center justify-center text-center">
+                                    <div class="relative w-20 h-20 mb-4">
+                                        <div class="absolute inset-0 border-4 border-brand-500 rounded-full animate-ping opacity-30"></div>
+                                        <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?ixlib=rb-4.0.3&w=256&q=80" class="w-full h-full rounded-full object-cover border-2 border-brand-500 relative z-10">
+                                    </div>
+                                    <h4 class="font-bold text-sm">HR Director Sarah</h4>
+                                    <p class="text-[10px] text-gray-400 mt-2 italic px-2">"Warum sollten wir uns genau für Sie entscheiden?"</p>
+                                </div>
+                                <div class="mt-auto flex justify-center gap-3">
+                                    <div class="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center text-xs"><i class="fa-solid fa-pause"></i></div>
+                                    <div class="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center shadow-lg text-xs"><i class="fa-solid fa-phone-slash"></i></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Feedback Grid & KPIs -->
+                    <div class="w-2/3 flex flex-col gap-4">
+                        <div class="bg-blue-50 border border-blue-100 p-4 rounded-xl flex items-center justify-around mb-2">
+                            <div class="text-center"><span class="text-2xl font-black text-blue-600 block">85%</span><span class="text-[10px] font-bold text-gray-500 uppercase">fühlen sich sicherer</span></div>
+                            <div class="w-px h-8 bg-blue-200"></div>
+                            <div class="text-center"><span class="text-2xl font-black text-blue-600 block">50</span><span class="text-[10px] font-bold text-gray-500 uppercase">Test-Interviews</span></div>
+                            <div class="w-px h-8 bg-blue-200"></div>
+                            <div class="text-center"><span class="text-2xl font-black text-blue-600 block">&lt; 1s</span><span class="text-[10px] font-bold text-gray-500 uppercase">Ziel-Latenz (Kritisch)</span></div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="card border-l-4 border-green-500 p-4">
+                                <h5 class="font-black text-green-600 text-xs uppercase mb-2 flex items-center"><i class="fa-solid fa-check-circle text-lg mr-2"></i> Positiv (Validated)</h5>
+                                <p class="text-sm text-gray-700 leading-tight">Simulation erzeugt echten emotionalen Druck. Nutzer sind gezwungen, aktiv zu artikulieren statt passiv zu konsumieren.</p>
+                            </div>
+                            <div class="card border-l-4 border-red-500 p-4">
+                                <h5 class="font-black text-red-600 text-xs uppercase mb-2 flex items-center"><i class="fa-solid fa-times-circle text-lg mr-2"></i> Negativ (Kritisch)</h5>
+                                <p class="text-sm text-gray-700 leading-tight">Hohe Latenzzeiten der KI-API (>1.5s) zerstören die Gesprächs-Immersion. Das System muss "ins Wort fallen" können.</p>
+                            </div>
+                            <div class="card bg-gradient-to-r from-brand-50 to-purple-50 border-purple-200 col-span-2 p-4">
+                                <h5 class="font-black text-purple-700 text-xs uppercase mb-2 flex items-center"><i class="fa-solid fa-lightbulb text-lg text-purple-500 mr-2"></i> Neue Idee (Pivot / Iteration)</h5>
+                                <p class="text-sm text-gray-800 font-medium"><strong>Lebenslauf-Integration via RAG (Retrieval-Augmented Generation):</strong> Nutzer laden ihr CV-PDF hoch. Die KI durchsucht das Dokument und stellt gezielt Stressfragen zu Lücken im Lebenslauf. Massive Steigerung der Personalisierung.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="slide" data-chapter="Kapitel 3: Business Model">
+                <h2 class="text-4xl font-black text-brand-900 mb-2">Business Model Canvas <span class="text-xl text-gray-400 font-normal">| Front-Stage (Kunde & Markt)</span></h2>
+                <p class="text-gray-500 mb-8">Analyse der Wertschöpfungsarchitektur nach Osterwalder/Pigneur.</p>
+                
+                <div class="grid grid-cols-3 gap-6 h-full">
+                    <!-- Value Prop -->
+                    <div class="card bg-brand-50 border-brand-200 col-span-1 shadow-md flex flex-col relative overflow-hidden">
+                        <i class="fa-solid fa-gem absolute -bottom-6 -right-6 text-8xl text-brand-100 opacity-50"></i>
+                        <h4 class="font-black text-brand-900 uppercase text-sm mb-4 border-b border-brand-200 pb-2 z-10"><i class="fa-solid fa-gift text-brand-500 mr-2"></i> Value Proposition</h4>
+                        <ul class="text-sm text-gray-700 space-y-4 z-10 flex-1">
+                            <li><strong class="text-brand-700 block mb-1">Für B2C (Karriere-Boost):</strong> 24/7 Voice-Coach. Angstabbau vor kritischen Szenarien. Bruchteil der Kosten eines echten Executive Coaches.</li>
+                            <li><strong class="text-brand-700 block mb-1">Für B2B (HR-Tool):</strong> Skalierbares Soft-Skill-Training für Trainee-Programme in Großkonzernen.</li>
+                            <li><strong class="text-brand-700 block mb-1">Data-Driven:</strong> Objektive Soft-Skill-Analyse (Füllwörter, Sprechgeschwindigkeit).</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="col-span-2 grid grid-rows-2 gap-6">
+                        <!-- Customer Segments -->
+                        <div class="card flex flex-col justify-center">
+                            <h4 class="font-black text-gray-800 uppercase text-sm mb-3 border-b border-gray-100 pb-2"><i class="fa-solid fa-users text-accent-teal mr-2"></i> Customer Segments</h4>
+                            <div class="flex gap-4">
+                                <div class="flex-1 bg-gray-50 p-3 rounded-lg border border-gray-200">
+                                    <span class="text-[10px] font-bold text-gray-400 block uppercase mb-1">Primär (B2C)</span>
+                                    <p class="text-sm text-gray-700">Young Professionals (25-35 J.), Uni-Absolventen, Introvertierte, Personen mit Imposter-Syndrom.</p>
+                                </div>
+                                <div class="flex-1 bg-gray-50 p-3 rounded-lg border border-gray-200">
+                                    <span class="text-[10px] font-bold text-gray-400 block uppercase mb-1">Sekundär (B2B)</span>
+                                    <p class="text-sm text-gray-700">HR-Abteilungen (Onboarding), Hochschul-Karrierezentren (Campus-Lizenzen).</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-6">
+                            <!-- Channels -->
+                            <div class="card flex flex-col">
+                                <h4 class="font-black text-gray-800 uppercase text-sm mb-3 border-b border-gray-100 pb-2"><i class="fa-solid fa-bullhorn text-accent-orange mr-2"></i> Channels</h4>
+                                <ul class="text-sm text-gray-600 space-y-2 list-disc pl-4">
+                                    <li>App Stores (iOS/Android - Digitaler Vertrieb).</li>
+                                    <li>LinkedIn "Career Ads" (präzises Targeting).</li>
+                                    <li>TikTok (Virales Organisches Wachstum via "CareerTok").</li>
+                                </ul>
+                            </div>
+                            <!-- Relations -->
+                            <div class="card flex flex-col">
+                                <h4 class="font-black text-gray-800 uppercase text-sm mb-3 border-b border-gray-100 pb-2"><i class="fa-solid fa-heart text-accent-purple mr-2"></i> Customer Relations</h4>
+                                <ul class="text-sm text-gray-600 space-y-2 list-disc pl-4">
+                                    <li>Automated Services (Self-Service).</li>
+                                    <li>Hyper-Personalisierung (durch KI-Sprachanalyse).</li>
+                                    <li>Community-Lock-in (Streaks & Badges teilen).</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="slide" data-chapter="Kapitel 3: Business Model">
+                <h2 class="text-4xl font-black text-brand-900 mb-2">Business Model Canvas <span class="text-xl text-gray-400 font-normal">| Back-Stage & Finanzen</span></h2>
+                <p class="text-gray-500 mb-8">Infrastruktur, Ressourcen und Ertragsmechanik.</p>
+                
+                <div class="flex flex-col h-full gap-6">
+                    <!-- Activities, Resources, Partners -->
+                    <div class="grid grid-cols-3 gap-6">
+                        <div class="card bg-gray-50 border-gray-200">
+                            <h4 class="font-black text-gray-800 uppercase text-xs mb-3 border-b border-gray-200 pb-2"><i class="fa-solid fa-gears text-brand-500 mr-2"></i> Key Activities</h4>
+                            <ul class="text-xs text-gray-600 space-y-2 list-disc pl-4">
+                                <li>Kontinuierliche App-Entwicklung & RAG-Integration.</li>
+                                <li>Prompt-Engineering (Psychologische Frameworks).</li>
+                                <li>Performance Marketing (CAC-Optimierung).</li>
+                            </ul>
+                        </div>
+                        <div class="card bg-gray-50 border-gray-200">
+                            <h4 class="font-black text-gray-800 uppercase text-xs mb-3 border-b border-gray-200 pb-2"><i class="fa-solid fa-database text-brand-500 mr-2"></i> Key Resources</h4>
+                            <ul class="text-xs text-gray-600 space-y-2 list-disc pl-4">
+                                <li>Intellektuell: Proprietäre Coaching-Datensätze.</li>
+                                <li>Human: KI-Entwickler, Verhandlungspsychologen.</li>
+                                <li>Technologisch: Skalierbare Cloud-Infrastruktur.</li>
+                            </ul>
+                        </div>
+                        <div class="card bg-gray-50 border-gray-200">
+                            <h4 class="font-black text-gray-800 uppercase text-xs mb-3 border-b border-gray-200 pb-2"><i class="fa-solid fa-handshake text-brand-500 mr-2"></i> Key Partners</h4>
+                            <ul class="text-xs text-gray-600 space-y-2 list-disc pl-4">
+                                <li>Tech: LLM-Provider (OpenAI / Anthropic API).</li>
+                                <li>Content: Renommierte Executive Coaches (Validierung).</li>
+                                <li>Vertrieb: Hochschul-Netzwerke.</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Finance -->
+                    <div class="grid grid-cols-2 gap-6 flex-1">
+                        <div class="card bg-red-50/50 border-red-200 flex flex-col relative overflow-hidden">
+                            <i class="fa-solid fa-money-bill-trend-up absolute -bottom-4 -right-4 text-6xl text-red-100 opacity-50"></i>
+                            <h4 class="font-black text-red-800 uppercase text-sm mb-4 border-b border-red-200 pb-2 z-10"><i class="fa-solid fa-arrow-trend-down text-red-500 mr-2"></i> Cost Structure</h4>
+                            <div class="flex gap-4 z-10">
+                                <div class="bg-white p-3 rounded-lg border border-red-100 flex-1 shadow-sm">
+                                    <span class="text-[10px] font-bold text-gray-400 block uppercase mb-1">Skalierbar Variabel</span>
+                                    <p class="text-xs font-bold text-gray-800 leading-tight">API-Token-Kosten (Abrechnung pro Voice-Minute durch OpenAI).</p>
+                                </div>
+                                <div class="bg-white p-3 rounded-lg border border-red-100 flex-1 shadow-sm">
+                                    <span class="text-[10px] font-bold text-gray-400 block uppercase mb-1">Fixkosten & CAPEX</span>
+                                    <p class="text-xs font-bold text-gray-800 leading-tight">Customer Acquisition Costs (CAC), Cloud-Hosting, Gehälter (Devs).</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card bg-green-50/50 border-green-200 flex flex-col relative overflow-hidden">
+                            <i class="fa-solid fa-sack-dollar absolute -bottom-4 -right-4 text-6xl text-green-100 opacity-50"></i>
+                            <h4 class="font-black text-green-800 uppercase text-sm mb-4 border-b border-green-200 pb-2 z-10"><i class="fa-solid fa-piggy-bank text-green-600 mr-2"></i> Revenue Streams</h4>
+                            <ul class="text-sm text-gray-700 space-y-3 z-10">
+                                <li class="flex items-start"><i class="fa-solid fa-check text-green-500 mt-1 mr-2"></i> <div><strong>1. Freemium (Penetration):</strong> Basis-Szenarien gratis zur schnellen Marktdurchdringung und Datensammlung.</div></li>
+                                <li class="flex items-start"><i class="fa-solid fa-check text-green-500 mt-1 mr-2"></i> <div><strong>2. B2C SaaS-Abo:</strong> "Lumino Pro" (14,99 €/Monat) für CV-Upload (RAG) und tiefe Analysen.</div></li>
+                                <li class="flex items-start"><i class="fa-solid fa-check text-green-500 mt-1 mr-2"></i> <div><strong>3. B2B Enterprise:</strong> B2B-Lizenzen für Corporate Trainee-Programme (zukünftige Skalierung).</div></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="slide" data-chapter="Kapitel 4: Business Planning">
+                <h2 class="text-4xl font-black text-brand-900 mb-2">Business Plan <span class="text-xl text-gray-400 font-normal">| Exec. Summary & Innovationsart</span></h2>
+                <p class="text-gray-500 mb-8">Klarheit über Vision, Mission und technologische Klassifizierung.</p>
+                
+                <div class="card h-full flex flex-col justify-center border-t-4 border-t-brand-500">
+                    <div class="bg-gray-50 p-6 rounded-2xl border border-gray-100 mb-8 relative">
+                        <i class="fa-solid fa-quote-left absolute -top-4 -left-2 text-4xl text-brand-200"></i>
+                        <h4 class="text-sm font-black text-gray-400 uppercase tracking-widest mb-2 ml-4">Executive Summary</h4>
+                        <p class="text-xl text-gray-800 font-medium leading-relaxed ml-4">
+                            Lumino AI demokratisiert professionelles Karriere-Coaching. Durch den Einsatz moderner Voice-KI lösen wir den realen Kommunikationsstress vor kritischen Gesprächen durch <strong class="text-brand-700">aktive, asynchrone Simulation in Echtzeit</strong>. Wir streben ein hochskalierbares SaaS-Modell an, um der Standard für digitales Soft-Skill-Training im DACH-Raum zu werden.
+                        </p>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-6">
+                        <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex items-start gap-4">
+                            <div class="w-12 h-12 bg-brand-50 text-brand-600 rounded-lg flex items-center justify-center text-xl shrink-0"><i class="fa-solid fa-lightbulb"></i></div>
+                            <div>
+                                <span class="text-[10px] font-black text-brand-500 uppercase tracking-widest block mb-1">Innovationsart (Gerpott)</span>
+                                <p class="text-sm font-bold text-gray-800 mb-1">Disruptive Produktinnovation</p>
+                                <p class="text-xs text-gray-600">Eine starke <strong>Pull-Innovation</strong> (Kundenbedarf nach Stressreduktion) ermöglicht durch einen massiven <strong>Technology-Push</strong> (Verfügbarkeit schneller LLM-Audio-APIs).</p>
+                            </div>
+                        </div>
+                        <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex items-start gap-4">
+                            <div class="w-12 h-12 bg-accent-teal/10 text-accent-teal rounded-lg flex items-center justify-center text-xl shrink-0"><i class="fa-solid fa-star"></i></div>
+                            <div>
+                                <span class="text-[10px] font-black text-accent-teal uppercase tracking-widest block mb-1">Unique Selling Proposition (USP)</span>
+                                <p class="text-sm font-bold text-gray-800 mb-1">Aktives Sprechen vs. Passives Konsumieren</p>
+                                <p class="text-xs text-gray-600">Kein Multiple-Choice. Die unvorhersehbare, emotionale Audio-Simulation trainiert echte kognitive Stressresistenz in einer "Safe Space" Umgebung.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="slide" data-chapter="Kapitel 4: Business Planning">
+                <h2 class="text-4xl font-black text-brand-900 mb-2">Business Plan <span class="text-xl text-gray-400 font-normal">| Markt & Marketing</span></h2>
+                <p class="text-gray-500 mb-8">Marktgrößenbestimmung und strategische Positionierung.</p>
+                
+                <div class="grid grid-cols-2 gap-8 h-full">
+                    <!-- Market Sizing (CSS Chart) -->
+                    <div class="card border-t-4 border-t-accent-teal flex flex-col justify-center items-center relative">
+                        <h4 class="font-bold text-gray-700 uppercase tracking-widest w-full text-center border-b border-gray-100 pb-3 mb-8">Marktgröße (EdTech DACH)</h4>
+                        
+                        <div class="flex items-end justify-center gap-6 h-48 w-full border-b-2 border-gray-200 pb-0 relative">
+                            <!-- Y Axis labels -->
+                            <div class="absolute left-0 bottom-0 top-0 flex flex-col justify-between text-[10px] text-gray-400 font-bold pb-2">
+                                <span>2.5B €</span><span>1.0B €</span><span>0</span>
+                            </div>
+                            
+                            <!-- Bars -->
+                            <div class="w-20 bg-gray-100 rounded-t-md flex flex-col justify-end items-center relative group transition-all duration-300 hover:bg-gray-200">
+                                <div class="data-bar active w-full bg-gray-200 rounded-t-md" style="--fill: 100%;"></div>
+                                <span class="absolute -bottom-8 text-xs font-bold text-gray-500 bg-white px-2 py-1 rounded shadow-sm border border-gray-100">TAM (2.5B)</span>
+                            </div>
+                            <div class="w-20 rounded-t-md flex flex-col justify-end items-center relative group transition-all duration-300 hover:opacity-90">
+                                <div class="data-bar active w-full bg-accent-teal/40 rounded-t-md" style="--fill: 60%;"></div>
+                                <span class="absolute -bottom-8 text-xs font-bold text-accent-teal bg-white px-2 py-1 rounded shadow-sm border border-teal-100">SAM (800M)</span>
+                            </div>
+                            <div class="w-20 rounded-t-md flex flex-col justify-end items-center relative group transition-all duration-300 hover:scale-105 origin-bottom z-10">
+                                <div class="data-bar active w-full bg-accent-teal rounded-t-md shadow-lg" style="--fill: 20%;"></div>
+                                <span class="absolute -bottom-8 text-xs font-black text-teal-900 bg-white px-2 py-1 rounded shadow-md border border-teal-200">SOM (50M)</span>
+                            </div>
+                        </div>
+                        <p class="text-[10px] text-gray-500 mt-12 text-center bg-gray-50 p-2 rounded"><strong>TAM:</strong> EdTech Gesamtmarkt DACH | <strong>SAM:</strong> Soft-Skill & Coaching | <strong>SOM:</strong> Erreichbare B2C App-Nutzer in J1-J3</p>
+                    </div>
+
+                    <!-- Marketing -->
+                    <div class="card border-t-4 border-t-brand-500 flex flex-col">
+                        <h4 class="font-bold text-gray-700 uppercase tracking-widest mb-6 border-b border-gray-100 pb-3 text-center">Wettbewerb & Go-To-Market</h4>
+                        <div class="space-y-6 flex-1 flex flex-col justify-center">
+                            <div class="flex items-start gap-4">
+                                <div class="w-10 h-10 rounded-full bg-brand-50 flex items-center justify-center text-brand-500 shrink-0"><i class="fa-solid fa-chess-knight"></i></div>
+                                <div><span class="font-black text-gray-800 block text-sm mb-1">Strategische Positionierung ("Mitte")</span><span class="text-xs text-gray-600 leading-tight">Wir besetzen die Lücke: Deutlich erschwinglicher als menschliche Executive Coaches, aber didaktisch strukturierter und zielführender als generische KI-Bots (ChatGPT).</span></div>
+                            </div>
+                            <div class="flex items-start gap-4">
+                                <div class="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center text-accent-orange shrink-0"><i class="fa-solid fa-bullseye"></i></div>
+                                <div><span class="font-black text-gray-800 block text-sm mb-1">Promotion (Storytelling-Ads)</span><span class="text-xs text-gray-600 leading-tight">Präzises LinkedIn-Targeting bei Jobwechseln. Slogan: "Dein Performance-Review ist in 3 Tagen? Übe jetzt!". Organisches Wachstum durch TikTok-Fails ("CareerTok").</span></div>
+                            </div>
+                            <div class="flex items-start gap-4">
+                                <div class="w-10 h-10 rounded-full bg-purple-50 flex items-center justify-center text-accent-purple shrink-0"><i class="fa-solid fa-tags"></i></div>
+                                <div><span class="font-black text-gray-800 block text-sm mb-1">Preis- & Vertriebsstrategie</span><span class="text-xs text-gray-600 leading-tight">Penetrationsstrategie via Freemium-Funnel. Upsell zu 14,99€ SaaS-Abo. 100% digitaler Direktvertrieb über App Stores.</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="slide" data-chapter="Kapitel 4: Business Planning">
+                <h2 class="text-4xl font-black text-brand-900 mb-2">Business Plan <span class="text-xl text-gray-400 font-normal">| Organisation & Zeitplan</span></h2>
+                <p class="text-gray-500 mb-8">Lean Start-up Struktur und Meilenstein-Planung (Build-Measure-Learn).</p>
+                
+                <div class="grid grid-cols-2 gap-8 h-full">
+                    <!-- Org Chart Elements -->
+                    <div class="card flex flex-col bg-gray-50/50">
+                        <h4 class="font-bold text-gray-700 uppercase tracking-widest mb-8 text-center border-b border-gray-200 pb-3">Team Struktur (Lean)</h4>
+                        
+                        <div class="flex flex-col items-center flex-1 justify-center relative">
+                            <!-- Background connecting lines -->
+                            <div class="absolute top-[30px] bottom-10 w-px bg-gray-300"></div>
+                            
+                            <div class="bg-white border-2 border-brand-500 px-8 py-3 rounded-full shadow-md font-black text-sm text-brand-900 relative z-10 mb-8">
+                                CEO / Founders
+                            </div>
+                            
+                            <div class="w-full flex justify-between relative px-6 z-10">
+                                <div class="absolute top-0 left-16 right-16 h-0.5 bg-gray-300"></div>
+                                
+                                <div class="flex flex-col items-center relative pt-6 group">
+                                    <div class="absolute top-0 w-0.5 h-6 bg-gray-300"></div>
+                                    <div class="w-14 h-14 rounded-full bg-brand-100 text-brand-600 flex items-center justify-center mb-2 shadow-sm border border-brand-200 group-hover:scale-110 transition"><i class="fa-solid fa-code text-xl"></i></div>
+                                    <span class="text-xs font-black text-gray-800">CTO</span>
+                                    <span class="text-[9px] text-gray-500 uppercase mt-1 text-center">Tech & KI <br>Integration</span>
+                                </div>
+                                <div class="flex flex-col items-center relative pt-6 group">
+                                    <div class="absolute top-0 w-0.5 h-6 bg-gray-300"></div>
+                                    <div class="w-14 h-14 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center mb-2 shadow-sm border border-purple-200 group-hover:scale-110 transition"><i class="fa-solid fa-brain text-xl"></i></div>
+                                    <span class="text-xs font-black text-gray-800">CPO</span>
+                                    <span class="text-[9px] text-gray-500 uppercase mt-1 text-center">Produkt & <br>Psychologie</span>
+                                </div>
+                                <div class="flex flex-col items-center relative pt-6 group">
+                                    <div class="absolute top-0 w-0.5 h-6 bg-gray-300"></div>
+                                    <div class="w-14 h-14 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center mb-2 shadow-sm border border-orange-200 group-hover:scale-110 transition"><i class="fa-solid fa-rocket text-xl"></i></div>
+                                    <span class="text-xs font-black text-gray-800">CMO</span>
+                                    <span class="text-[9px] text-gray-500 uppercase mt-1 text-center">Growth & <br>Marketing</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Roadmap Timeline -->
+                    <div class="card flex flex-col">
+                        <h4 class="font-bold text-gray-700 uppercase tracking-widest mb-6 border-b border-gray-100 pb-3 text-center">Roadmap 2026/27</h4>
+                        <div class="relative border-l-2 border-brand-200 ml-8 space-y-8 py-4 flex-1 flex flex-col justify-center">
+                            <div class="pl-8 relative group">
+                                <div class="absolute w-5 h-5 bg-white border-4 border-brand-500 rounded-full -left-[11px] top-0 shadow group-hover:scale-125 transition"></div>
+                                <span class="text-xs font-black text-brand-500 bg-brand-50 px-2 py-1 rounded shadow-sm border border-brand-100">Q1 2026</span>
+                                <p class="text-sm font-bold mt-2 text-gray-800">MVP Launch (Build)</p>
+                                <p class="text-xs text-gray-500 leading-tight mt-1">Fokus ausschließlich auf das HR-Bewerbungsmodul für Early Adopters.</p>
+                            </div>
+                            <div class="pl-8 relative group">
+                                <div class="absolute w-5 h-5 bg-white border-4 border-brand-500 rounded-full -left-[11px] top-0 shadow group-hover:scale-125 transition"></div>
+                                <span class="text-xs font-black text-brand-500 bg-brand-50 px-2 py-1 rounded shadow-sm border border-brand-100">Q2 2026</span>
+                                <p class="text-sm font-bold mt-2 text-gray-800">Beta-Testing (Measure & Learn)</p>
+                                <p class="text-xs text-gray-500 leading-tight mt-1">Feedback Loop mit 500 Uni-Absolventen. Latenz-Optimierung.</p>
+                            </div>
+                            <div class="pl-8 relative group">
+                                <div class="absolute w-5 h-5 bg-white border-4 border-brand-500 rounded-full -left-[11px] top-0 shadow group-hover:scale-125 transition"></div>
+                                <span class="text-xs font-black text-brand-500 bg-brand-50 px-2 py-1 rounded shadow-sm border border-brand-100">Q3 2026</span>
+                                <p class="text-sm font-bold mt-2 text-gray-800">Launch "Lumino Pro" (SaaS)</p>
+                                <p class="text-xs text-gray-500 leading-tight mt-1">Paywall-Integration. Release CV-Upload (RAG) & Gehalts-Modul.</p>
+                            </div>
+                            <div class="pl-8 relative group">
+                                <div class="absolute w-5 h-5 bg-white border-4 border-accent-teal rounded-full -left-[11px] top-0 shadow group-hover:scale-125 transition"></div>
+                                <span class="text-xs font-black text-accent-teal bg-teal-50 px-2 py-1 rounded shadow-sm border border-teal-100">Q1 2027</span>
+                                <p class="text-sm font-bold mt-2 text-gray-800">B2B Expansion & Break-Even</p>
+                                <p class="text-xs text-gray-500 leading-tight mt-1">Verkauf von Enterprise-Campus-Lizenzen an HR-Abteilungen.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="slide" data-chapter="Kapitel 4: Business Planning">
+                <h2 class="text-4xl font-black text-brand-900 mb-2">Business Plan <span class="text-xl text-gray-400 font-normal">| Risikomanagement & The Ask</span></h2>
+                <p class="text-gray-500 mb-8">Bewertung kritischer Erfolgsfaktoren und konkreter HTGF-Finanzierungsbedarf.</p>
+                
+                <div class="grid grid-cols-2 gap-8 h-full">
+                    <!-- Risks -->
+                    <div class="flex flex-col gap-4">
+                        <div class="bg-white border border-gray-200 p-4 rounded-xl shadow-sm hover:shadow-md transition">
+                            <h4 class="font-black text-gray-800 text-sm mb-2 flex items-center"><div class="w-8 h-8 rounded bg-red-100 text-red-600 flex items-center justify-center mr-3"><i class="fa-solid fa-server"></i></div> Technologisches Risiko</h4>
+                            <p class="text-xs text-gray-600 mb-3">Latenz (Audio-Verzögerung) oder "KI-Halluzinationen" zerstören die psychologische Immersion des Rollenspiels.</p>
+                            <div class="bg-gray-50 p-2 rounded text-[10px] font-bold text-brand-700 border border-gray-200"><i class="fa-solid fa-shield-halved mr-1"></i> Maßnahme: Edge-AI (On-Device Modelle) evaluieren, striktes System-Prompting.</div>
+                        </div>
+                        
+                        <div class="bg-white border border-gray-200 p-4 rounded-xl shadow-sm hover:shadow-md transition">
+                            <h4 class="font-black text-gray-800 text-sm mb-2 flex items-center"><div class="w-8 h-8 rounded bg-orange-100 text-orange-600 flex items-center justify-center mr-3"><i class="fa-solid fa-scale-balanced"></i></div> Rechtliches Risiko (DSGVO)</h4>
+                            <p class="text-xs text-gray-600 mb-3">Verarbeitung hochsensibler Audio- und Lebenslauf-Daten (PDFs) auf Drittservern (OpenAI API).</p>
+                            <div class="bg-gray-50 p-2 rounded text-[10px] font-bold text-brand-700 border border-gray-200"><i class="fa-solid fa-shield-halved mr-1"></i> Maßnahme: Zero-Data-Retention Verträge (Enterprise API), lokales Hosting in der EU.</div>
+                        </div>
+
+                        <div class="bg-white border border-gray-200 p-4 rounded-xl shadow-sm hover:shadow-md transition">
+                            <h4 class="font-black text-gray-800 text-sm mb-2 flex items-center"><div class="w-8 h-8 rounded bg-yellow-100 text-yellow-600 flex items-center justify-center mr-3"><i class="fa-solid fa-chess-pawn"></i></div> Marktrisiko</h4>
+                            <p class="text-xs text-gray-600 mb-3">Direkte Imitation durch Big-Tech (Google/OpenAI fügen nativ Rollenspiel-Features hinzu).</p>
+                            <div class="bg-gray-50 p-2 rounded text-[10px] font-bold text-brand-700 border border-gray-200"><i class="fa-solid fa-shield-halved mr-1"></i> Maßnahme: Moat durch proprietäre B2B-Netzwerke, eigene Coach-Datensätze & Community aufbauen.</div>
+                        </div>
+                    </div>
+
+                    <!-- Finance & Use of funds (CSS Bar charts) -->
+                    <div class="card bg-brand-900 text-white flex flex-col justify-center shadow-2xl relative overflow-hidden">
+                        <div class="absolute top-0 right-0 w-64 h-64 bg-brand-600 rounded-full blur-3xl opacity-30 pointer-events-none"></div>
+                        
+                        <div class="text-center mb-8 relative z-10">
+                            <span class="inline-block bg-brand-800 border border-brand-700 text-brand-200 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full mb-3">Seed Funding Target (HTGF)</span>
+                            <div class="text-5xl font-black mb-2 text-white drop-shadow-md">600.000 €</div>
+                            <div class="text-sm font-medium text-brand-300">Investment Ask für 15% Equity</div>
+                        </div>
+                        
+                        <div class="relative z-10 bg-black/20 p-5 rounded-xl border border-white/10">
+                            <h5 class="text-xs font-black text-white uppercase mb-5 tracking-widest text-center border-b border-white/10 pb-2">Use of Funds (Mittelverwendung)</h5>
+                            <div class="space-y-5">
+                                <div>
+                                    <div class="flex justify-between text-[10px] font-bold mb-1 text-brand-100"><span>Produkt & KI-Technologie (RAG/Voice)</span> <span>50%</span></div>
+                                    <div class="w-full bg-brand-950 h-2.5 rounded-full overflow-hidden shadow-inner">
+                                        <div class="data-width active bg-accent-teal h-full rounded-full" style="--fill: 50%;"></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="flex justify-between text-[10px] font-bold mb-1 text-brand-100"><span>Marketing & Sales (CAC Reduktion)</span> <span>30%</span></div>
+                                    <div class="w-full bg-brand-950 h-2.5 rounded-full overflow-hidden shadow-inner">
+                                        <div class="data-width active bg-brand-400 h-full rounded-full" style="--fill: 30%;"></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="flex justify-between text-[10px] font-bold mb-1 text-brand-100"><span>Operations, Legal (DSGVO) & Reserve</span> <span>20%</span></div>
+                                    <div class="w-full bg-brand-950 h-2.5 rounded-full overflow-hidden shadow-inner">
+                                        <div class="data-width active bg-accent-purple h-full rounded-full" style="--fill: 20%;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="slide justify-center items-center text-center bg-white" data-chapter="Fazit">
+                <div class="relative mb-6">
+                    <div class="absolute inset-0 bg-brand-100 rounded-full blur-xl animate-pulse"></div>
+                    <div class="w-28 h-28 bg-brand-50 text-brand-500 rounded-full flex items-center justify-center text-5xl relative z-10 shadow-inner border-4 border-white">
+                        <i class="fa-solid fa-rocket"></i>
+                    </div>
+                </div>
+                
+                <h2 class="text-5xl font-black text-brand-900 mb-6 tracking-tight">Fazit</h2>
+                
+                <p class="text-xl text-gray-600 mb-10 max-w-3xl leading-relaxed">
+                    Lumino AI steht an der Schnittstelle von Education, generativer KI und psychologischem Coaching. Ein hochskalierbares, validiertes Modell für den Arbeitsmarkt der Zukunft.
+                </p>
+                
+                <div class="bg-gray-50 border border-gray-200 px-10 py-6 rounded-2xl shadow-sm">
+                    <h3 class="text-3xl font-black text-brand-500 mb-3">Vielen Dank für Ihre Aufmerksamkeit!</h3>
+                    <p class="text-gray-500 font-medium text-base">Wir sind bereit für Ihre Fragen (Q&A).</p>
+                </div>
+            </div>
+
+        </main>
+
+        <footer class="h-16 bg-white border-t border-gray-200 flex items-center justify-between px-6 shrink-0 z-50">
+            <button onclick="prevSlide()" id="prevBtn" class="px-5 py-2 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 transition disabled:opacity-30 disabled:cursor-not-allowed font-bold text-sm shadow-sm">
+                <i class="fa-solid fa-arrow-left mr-2"></i> Zurück
+            </button>
+            
+            <div class="flex-1 max-w-lg mx-6">
+                <div class="w-full bg-gray-200 h-1.5 rounded-full overflow-hidden">
+                    <div id="progress-bar" class="h-full bg-brand-500 transition-all duration-300 w-0"></div>
+                </div>
+                <div class="text-center text-[10px] font-bold text-gray-400 mt-2 uppercase tracking-widest flex justify-center gap-2">
+                    <span>Folie <span id="currentSlideNum">1</span> / <span id="totalSlideNum">12</span></span>
+                    <span class="text-gray-300">|</span>
+                    <span class="text-gray-400">Prüfungsvorleistung • Digital Start-ups</span>
+                </div>
+            </div>
+
+            <button onclick="nextSlide()" id="nextBtn" class="px-5 py-2 rounded-lg bg-brand-500 text-white hover:bg-brand-600 transition shadow-sm font-bold text-sm">
+                Weiter <i class="fa-solid fa-arrow-right ml-2"></i>
+            </button>
+        </footer>
+    </div>
+
+    <script>
+        const slides = document.querySelectorAll('.slide');
+        const totalSlides = slides.length;
+        let currentSlide = 0;
+
+        document.getElementById('totalSlideNum').innerText = totalSlides;
+
+        function updateUI() {
+            // Slaytları Güncelle
+            slides.forEach((slide, index) => {
+                if (index === currentSlide) {
+                    slide.classList.add('active');
+                    // CSS Animasyonlarını (Barlar) yeniden tetikle
+                    const animatedElements = slide.querySelectorAll('.data-bar, .data-width');
+                    animatedElements.forEach(el => {
+                        el.classList.remove('active');
+                        void el.offsetWidth; // trigger reflow
+                        el.classList.add('active');
+                    });
+                } else {
+                    slide.classList.remove('active');
+                }
+            });
+
+            // Başlığı Güncelle
+            const activeChapter = slides[currentSlide].getAttribute('data-chapter');
+            document.getElementById('chapter-title').innerText = activeChapter;
+
+            // İlerleme Çubuğunu Güncelle
+            const progress = ((currentSlide + 1) / totalSlides) * 100;
+            document.getElementById('progress-bar').style.width = progress + '%';
+            document.getElementById('currentSlideNum').innerText = currentSlide + 1;
+
+            // Butonları Güncelle
+            document.getElementById('prevBtn').disabled = currentSlide === 0;
+            
+            const nextBtn = document.getElementById('nextBtn');
+            if (currentSlide === totalSlides - 1) {
+                nextBtn.innerHTML = "Pitch beenden <i class='fa-solid fa-flag-checkered ml-2'></i>";
+                nextBtn.classList.replace('bg-brand-500', 'bg-green-600');
+                nextBtn.classList.replace('hover:bg-brand-600', 'hover:bg-green-700');
+            } else {
+                nextBtn.innerHTML = "Weiter <i class='fa-solid fa-arrow-right ml-2'></i>";
+                nextBtn.classList.replace('bg-green-600', 'bg-brand-500');
+                nextBtn.classList.replace('hover:bg-green-700', 'hover:bg-brand-600');
+            }
+        }
+
+        function nextSlide() {
+            if (currentSlide < totalSlides - 1) {
+                currentSlide++;
+                updateUI();
+            }
+        }
+
+        function prevSlide() {
+            if (currentSlide > 0) {
+                currentSlide--;
+                updateUI();
+            }
+        }
+
+        // Klavye Kontrolleri
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === 'Space') nextSlide();
+            if (e.key === 'ArrowLeft') prevSlide();
+        });
+
+        // İlk başlatma
+        updateUI();
+    </script>
+</body>
+</html>

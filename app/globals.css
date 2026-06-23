@@ -1,0 +1,34 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+@layer utilities {
+  .wave-bar-1 { animation-delay: 0s; }
+  .wave-bar-2 { animation-delay: 0.15s; }
+  .wave-bar-3 { animation-delay: 0.3s; }
+  .wave-bar-4 { animation-delay: 0.45s; }
+  .wave-bar-5 { animation-delay: 0.6s; }
+
+  .typing-dot-1 { animation-delay: 0s; }
+  .typing-dot-2 { animation-delay: 0.2s; }
+  .typing-dot-3 { animation-delay: 0.4s; }
+}
+
+/* Custom scrollbar — dark theme */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: #475569; }
