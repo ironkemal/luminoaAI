@@ -97,7 +97,13 @@ export async function POST(request: Request) {
 
     let fullAiResponse = "";
 
-    // Run streaming in background, collect full response for saving
+    // Heartbeat keeps the connection alive while models are loading
+    const heartbeat = setInterval(async () => {
+      try {
+        await writer.write(encoder.encode(": heartbeat\n\n"));
+      } catch { /* writer already closed */ }
+    }, 5000);
+
     chatStream(
       openRouterMessages,
       async (chunk) => {
@@ -106,40 +112,35 @@ export async function POST(request: Request) {
           await writer.write(
             encoder.encode(`data: ${JSON.stringify({ text: chunk })}\n\n`)
           );
-        } catch {
-          // Writer may have been closed
-        }
+        } catch { /* writer closed */ }
       },
       { temperature: 0.85 }
     )
       .then(async () => {
-        // Save AI response to Supabase after streaming completes
-        await supabase.from("messages").insert({
-          session_id: sessionId,
-          role: "assistant",
-          content: fullAiResponse,
-        });
+        clearInterval(heartbeat);
+        if (fullAiResponse) {
+          await supabase.from("messages").insert({
+            session_id: sessionId,
+            role: "assistant",
+            content: fullAiResponse,
+          });
+        }
         try {
           await writer.write(
             encoder.encode(`data: ${JSON.stringify({ done: true })}\n\n`)
           );
           await writer.close();
-        } catch {
-          // Writer may already be closed
-        }
+        } catch { /* already closed */ }
       })
       .catch(async (err) => {
+        clearInterval(heartbeat);
         console.error("Streaming error:", err);
         try {
           await writer.write(
-            encoder.encode(
-              `data: ${JSON.stringify({ error: "Streaming failed" })}\n\n`
-            )
+            encoder.encode(`data: ${JSON.stringify({ error: "Entschuldigung, ich konnte gerade nicht antworten. Bitte versuchen Sie es nochmal." })}\n\n`)
           );
           await writer.close();
-        } catch {
-          // Ignore
-        }
+        } catch { /* ignore */ }
       });
 
     return new Response(stream.readable, {

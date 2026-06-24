@@ -211,6 +211,7 @@ export default function InterviewPage() {
       const reader = res.body!.getReader();
       const decoder = new TextDecoder();
       let fullText = "";
+      let streamError = "";
 
       while (true) {
         const { done, value } = await reader.read();
@@ -220,13 +221,17 @@ export default function InterviewPage() {
           try {
             const d = JSON.parse(line.slice(6));
             if (d.text) { fullText += d.text; setCurrentAiText(fullText); }
+            if (d.error) { streamError = d.error; }
           } catch { /* incomplete chunk */ }
         }
       }
 
-      if (fullText) {
+      setCurrentAiText("");
+      if (streamError) {
+        setMessages(prev => [...prev, { role: "assistant", content: streamError }]);
+        setAvatarStatus("idle");
+      } else if (fullText) {
         setMessages(prev => [...prev, { role: "assistant", content: fullText }]);
-        setCurrentAiText("");
         speakText(fullText);
       } else {
         setAvatarStatus("idle");
