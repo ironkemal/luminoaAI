@@ -20,12 +20,16 @@ export async function POST(request: Request) {
       jobTitle,
       sector,
       difficulty,
+      jobListingUrl,
+      jobListingText,
     }: {
       scenarioType: ScenarioType;
       companyName?: string;
       jobTitle?: string;
       sector?: string;
       difficulty: Difficulty;
+      jobListingUrl?: string;
+      jobListingText?: string;
     } = body;
 
     if (!scenarioType || !difficulty) {
@@ -46,6 +50,8 @@ export async function POST(request: Request) {
         sector: sector ?? null,
         difficulty,
         status: "active",
+        job_listing_url: jobListingUrl ?? null,
+        job_listing_text: jobListingText ?? null,
       })
       .select("id")
       .single();

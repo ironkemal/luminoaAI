@@ -162,8 +162,33 @@ export default function NewInterviewPage() {
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
   const [companyName, setCompanyName] = useState("");
   const [jobTitle, setJobTitle] = useState("");
+  const [jobListingUrl, setJobListingUrl] = useState("");
+  const [jobListingText, setJobListingText] = useState<string | null>(null);
+  const [isFetchingListing, setIsFetchingListing] = useState(false);
+  const [listingFetchError, setListingFetchError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleFetchListing = async () => {
+    if (!jobListingUrl.trim()) return;
+    setIsFetchingListing(true);
+    setListingFetchError(null);
+    setJobListingText(null);
+    try {
+      const res = await fetch("/api/sessions/fetch-job-listing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: jobListingUrl.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Fehler");
+      setJobListingText(data.text);
+    } catch (err: unknown) {
+      setListingFetchError(err instanceof Error ? err.message : "Fehler beim Laden");
+    } finally {
+      setIsFetchingListing(false);
+    }
+  };
 
   const selectedScenarioDef = SCENARIOS.find((s) => s.type === scenario);
 
@@ -182,6 +207,8 @@ export default function NewInterviewPage() {
           jobTitle: scenario === "job_interview" ? jobTitle.trim() || null : null,
           sector: null,
           difficulty,
+          jobListingUrl: jobListingUrl.trim() || null,
+          jobListingText: jobListingText || null,
         }),
       });
 
@@ -425,6 +452,98 @@ export default function NewInterviewPage() {
               </div>
             )}
 
+            {/* Job listing URL — only for job_interview */}
+            {scenario === "job_interview" && (
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-2 uppercase tracking-wide">
+                  Stellenanzeige
+                  <span className="normal-case font-normal text-slate-400 ml-1">(optional)</span>
+                </label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <div className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                      <svg viewBox="0 0 24 24" className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" strokeWidth={1.5}>
+                        <path d="M13.828 10.172a4 4 0 0 0-5.656 0l-4 4a4 4 0 1 0 5.656 5.656l1.102-1.101" strokeLinecap="round" strokeLinejoin="round" />
+                        <path d="M10.172 13.828a4 4 0 0 0 5.656 0l4-4a4 4 0 1 0-5.656-5.656l-1.1 1.1" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </div>
+                    <input
+                      type="url"
+                      value={jobListingUrl}
+                      onChange={(e) => {
+                        setJobListingUrl(e.target.value);
+                        setJobListingText(null);
+                        setListingFetchError(null);
+                      }}
+                      placeholder="z.B. linkedin.com/jobs/…, stepstone.de/…"
+                      className="w-full pl-10 pr-4 py-3 rounded-xl text-sm text-slate-900 placeholder-slate-400 outline-none transition-all duration-200"
+                      style={{ border: "2px solid #e2e8f0", background: "#ffffff" }}
+                      onFocus={(e) => {
+                        e.currentTarget.style.borderColor = "#1a56db";
+                        e.currentTarget.style.boxShadow = "0 0 0 3px rgba(26,86,219,0.1)";
+                      }}
+                      onBlur={(e) => {
+                        e.currentTarget.style.borderColor = jobListingText ? "#16a34a" : "#e2e8f0";
+                        e.currentTarget.style.boxShadow = "none";
+                      }}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleFetchListing}
+                    disabled={!jobListingUrl.trim() || isFetchingListing}
+                    className="flex-shrink-0 px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-200 flex items-center gap-1.5"
+                    style={{
+                      background: isFetchingListing ? "#e2e8f0" : jobListingUrl.trim() ? "#1a56db" : "#e2e8f0",
+                      color: jobListingUrl.trim() && !isFetchingListing ? "#ffffff" : "#94a3b8",
+                      cursor: jobListingUrl.trim() && !isFetchingListing ? "pointer" : "not-allowed",
+                    }}
+                  >
+                    {isFetchingListing ? (
+                      <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth={3} strokeOpacity={0.3} />
+                        <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth={3} strokeLinecap="round" />
+                      </svg>
+                    ) : (
+                      <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="1 4 1 10 7 10" />
+                        <path d="M3.51 15a9 9 0 1 0 .49-3.51" />
+                      </svg>
+                    )}
+                    {isFetchingListing ? "Lädt…" : "Abrufen"}
+                  </button>
+                </div>
+
+                {/* Success state */}
+                {jobListingText && (
+                  <div
+                    className="mt-2 px-3 py-2.5 rounded-xl text-xs flex items-start gap-2"
+                    style={{ background: "#f0fdf4", border: "1.5px solid #bbf7d0", color: "#16a34a" }}
+                  >
+                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 flex-shrink-0 mt-0.5">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16zm3.857-9.809a.75.75 0 0 0-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 1 0-1.06 1.061l2.5 2.5a.75.75 0 0 0 1.137-.089l4-5.5z" clipRule="evenodd" />
+                    </svg>
+                    <span>
+                      <span className="font-semibold">Inserat geladen</span> — der Interviewer wird gezielt auf die Anforderungen eingehen.
+                    </span>
+                  </div>
+                )}
+
+                {/* Error state */}
+                {listingFetchError && (
+                  <div
+                    className="mt-2 px-3 py-2.5 rounded-xl text-xs flex items-start gap-2"
+                    style={{ background: "#fef2f2", border: "1.5px solid #fecaca", color: "#dc2626" }}
+                  >
+                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 flex-shrink-0 mt-0.5">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0zm-8-5a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-1.5 0v-4.5A.75.75 0 0 1 10 5zm0 10a1 1 0 1 0 0-2 1 1 0 0 0 0 2z" clipRule="evenodd" />
+                    </svg>
+                    <span>{listingFetchError}</span>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Difficulty */}
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-2 uppercase tracking-wide">
@@ -516,6 +635,9 @@ export default function NewInterviewPage() {
                   : []),
                 ...(scenario === "job_interview" && jobTitle
                   ? [{ label: "Position", value: jobTitle, icon: "💼" }]
+                  : []),
+                ...(scenario === "job_interview" && jobListingText
+                  ? [{ label: "Stellenanzeige", value: "✓ Inserat geladen", icon: "🔗" }]
                   : []),
                 {
                   label: "Schwierigkeitsgrad",

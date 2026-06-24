@@ -35,6 +35,8 @@ export interface Session {
   difficulty: Difficulty;
   status: SessionStatus;
   company_research: string | null;
+  job_listing_url: string | null;
+  job_listing_text: string | null;
   created_at: string;
   completed_at: string | null;
 }
@@ -79,6 +81,7 @@ export interface InterviewConfig {
   difficulty: Difficulty;
   cvText?: string;
   companyResearch?: string;
+  jobListingText?: string;
 }
 
 export interface AnalysisResult {

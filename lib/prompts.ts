@@ -34,6 +34,10 @@ export function buildInterviewerSystemPrompt(config: InterviewConfig): string {
     ? `\n\nUNTERNEHMENSKONTEXT:\n${config.companyResearch}`
     : "";
 
+  const jobListingContext = config.jobListingText
+    ? `\n\nJOB-INSERAT (der Kandidat hat sich auf diese Stelle beworben):\n${config.jobListingText.slice(0, 2000)}\n\nStelle spezifische Fragen, die direkt auf die Anforderungen und Aufgaben aus dem Inserat eingehen.`
+    : "";
+
   return `${roleDescription}
 
 SZENARIO: ${scenario}
@@ -48,7 +52,7 @@ ALLGEMEINE REGELN:
 - Stelle am Ende jeder Antwort eine konkrete Frage
 - Verwende Harvard-Verhandlungsprinzipien: Trenne Personen von Problemen, fokussiere auf Interessen
 - Bleibe in der Rolle — du bist kein KI-Assistent, sondern ein echter Interviewer
-- Reagiere realistisch auf die Qualität der Antworten${cvContext}${companyContext}`;
+- Reagiere realistisch auf die Qualität der Antworten${cvContext}${companyContext}${jobListingContext}`;
 }
 
 export function buildCompanyResearchPrompt(companyName: string): string {

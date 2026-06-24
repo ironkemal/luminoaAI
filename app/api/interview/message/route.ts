@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     const { data: session, error: sessionError } = await supabase
       .from("sessions")
       .select(
-        "scenario_type, difficulty, company_name, job_title, sector, company_research"
+        "scenario_type, difficulty, company_name, job_title, sector, company_research, job_listing_text"
       )
       .eq("id", sessionId)
       .eq("user_id", user.id)
@@ -60,6 +60,7 @@ export async function POST(request: Request) {
       jobTitle: session.job_title ?? undefined,
       sector: session.sector ?? undefined,
       companyResearch: session.company_research ?? undefined,
+      jobListingText: session.job_listing_text ?? undefined,
       cvText,
     };
 
