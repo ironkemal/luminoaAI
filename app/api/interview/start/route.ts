@@ -19,48 +19,44 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const {
-      scenarioType,
-      companyName,
-      jobTitle,
-      sector,
-      difficulty,
-      sessionId,
-    }: {
-      scenarioType: ScenarioType;
-      companyName?: string;
-      jobTitle?: string;
-      sector?: string;
-      difficulty: Difficulty;
-      sessionId: string;
-    } = body;
+    const { sessionId }: { sessionId: string } = body;
 
-    if (!scenarioType || !difficulty || !sessionId) {
-      return Response.json(
-        { error: "Missing required fields: scenarioType, difficulty, sessionId" },
-        { status: 400 }
-      );
+    if (!sessionId) {
+      return Response.json({ error: "Missing required field: sessionId" }, { status: 400 });
     }
 
-    // Step 1: Company research (if companyName is provided)
-    let companyResearch = "";
-    if (companyName) {
+    // Fetch session data from DB
+    const { data: sessionData, error: sessionError } = await supabase
+      .from("sessions")
+      .select("scenario_type, company_name, job_title, sector, difficulty, company_research")
+      .eq("id", sessionId)
+      .eq("user_id", user.id)
+      .single();
+
+    if (sessionError || !sessionData) {
+      return Response.json({ error: "Session not found" }, { status: 404 });
+    }
+
+    const scenarioType = sessionData.scenario_type as ScenarioType;
+    const companyName = sessionData.company_name as string | undefined;
+    const jobTitle = sessionData.job_title as string | undefined;
+    const sector = sessionData.sector as string | undefined;
+    const difficulty = sessionData.difficulty as Difficulty;
+
+    // Step 1: Company research (only if not already done)
+    let companyResearch = sessionData.company_research ?? "";
+    if (companyName && !companyResearch) {
       const researchPrompt = buildCompanyResearchPrompt(companyName);
       companyResearch = await chat(
         [{ role: "user", content: researchPrompt }],
         { temperature: 0.3, maxTokens: 512 }
       );
 
-      // Save company research to session
-      const { error: updateError } = await supabase
+      await supabase
         .from("sessions")
         .update({ company_research: companyResearch })
         .eq("id", sessionId)
         .eq("user_id", user.id);
-
-      if (updateError) {
-        console.error("Failed to update company research:", updateError);
-      }
     }
 
     // Step 2: Build interviewer system prompt + generate first message
@@ -99,13 +95,14 @@ export async function POST(request: Request) {
     }
 
     return Response.json({
-      firstMessage,
+      message: firstMessage,
       companyResearch,
     });
   } catch (error) {
-    console.error("Error in /api/interview/start:", error);
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("Error in /api/interview/start:", msg);
     return Response.json(
-      { error: "Internal server error" },
+      { error: msg },
       { status: 500 }
     );
   }

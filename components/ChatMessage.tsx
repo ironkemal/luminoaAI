@@ -13,19 +13,19 @@ export default function ChatMessage({ message, onSpeak }: ChatMessageProps) {
   return (
     <div
       className={[
-        "flex w-full gap-2 px-4",
+        "flex w-full gap-2.5 px-4",
         isUser ? "flex-row-reverse" : "flex-row",
       ].join(" ")}
     >
       {/* Avatar dot */}
       <div className="flex-shrink-0 mt-1">
         <div
-          className={[
-            "w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold font-mono",
+          className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold"
+          style={
             isUser
-              ? "bg-brand-700 text-brand-200"
-              : "bg-slate-700 text-slate-300",
-          ].join(" ")}
+              ? { background: "#DBEAFE", color: "#1a56db", border: "1px solid #BFDBFE" }
+              : { background: "#F1F5F9", color: "#64748B", border: "1px solid #E2E8F0" }
+          }
         >
           {isUser ? "DU" : "KI"}
         </div>
@@ -33,12 +33,23 @@ export default function ChatMessage({ message, onSpeak }: ChatMessageProps) {
 
       {/* Bubble */}
       <div
-        className={[
-          "relative max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-relaxed",
+        className="relative max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-relaxed"
+        style={
           isUser
-            ? "bg-brand-800/70 border border-brand-700/60 text-brand-50 rounded-tr-sm"
-            : "bg-slate-800/80 border border-slate-700/60 text-slate-100 rounded-tl-sm",
-        ].join(" ")}
+            ? {
+                background: "#1a56db",
+                color: "#FFFFFF",
+                borderTopRightRadius: "4px",
+                boxShadow: "0 2px 8px rgba(26,86,219,0.2)",
+              }
+            : {
+                background: "#FFFFFF",
+                color: "#1E293B",
+                border: "1px solid #E8EDF5",
+                borderTopLeftRadius: "4px",
+                boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
+              }
+        }
       >
         <p className="whitespace-pre-wrap break-words">{message.content}</p>
 
@@ -47,14 +58,23 @@ export default function ChatMessage({ message, onSpeak }: ChatMessageProps) {
           <button
             onClick={onSpeak}
             title="Vorlesen"
-            className="absolute -bottom-2 -right-2 w-7 h-7 rounded-full bg-slate-700 border border-slate-600 flex items-center justify-center text-slate-400 hover:text-brand-300 hover:bg-slate-600 hover:border-brand-600 transition-all group"
+            className="absolute -bottom-2.5 -right-2.5 w-7 h-7 rounded-full flex items-center justify-center transition-all group"
+            style={{
+              background: "#FFFFFF",
+              border: "1.5px solid #E2E8F0",
+              color: "#94A3B8",
+              boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.borderColor = "#BFDBFE";
+              (e.currentTarget as HTMLButtonElement).style.color = "#1a56db";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.borderColor = "#E2E8F0";
+              (e.currentTarget as HTMLButtonElement).style.color = "#94A3B8";
+            }}
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-              className="w-3.5 h-3.5"
-            >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
               <path d="M10 3.75a.75.75 0 0 0-1.264-.546L4.703 7H3.167a.75.75 0 0 0-.7.48A6.985 6.985 0 0 0 2 10c0 .887.165 1.737.468 2.52.111.29.39.48.7.48h1.535l4.033 3.796A.75.75 0 0 0 10 16.25V3.75ZM15.95 5.05a.75.75 0 0 0-1.06 1.061 5.5 5.5 0 0 1 0 7.778.75.75 0 0 0 1.06 1.06 7 7 0 0 0 0-9.899Z" />
               <path d="M13.829 7.172a.75.75 0 0 0-1.061 1.06 2.5 2.5 0 0 1 0 3.536.75.75 0 0 0 1.06 1.06 4 4 0 0 0 0-5.656Z" />
             </svg>

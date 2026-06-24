@@ -199,8 +199,7 @@ export default function NewInterviewPage() {
     }
   };
 
-  const cardBase =
-    "w-full max-w-xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-400";
+  const cardBase = "w-full max-w-xl mx-auto animate-fade-up";
 
   return (
     <div

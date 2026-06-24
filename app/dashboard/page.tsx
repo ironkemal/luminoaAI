@@ -202,7 +202,7 @@ export default async function DashboardPage() {
   const completedTodosCount = completedTodosCountRes.count ?? 0;
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-3 duration-500">
+    <div className="space-y-8 animate-fade-up">
 
       {/* ── Active session banner ── */}
       {activeSession && (
@@ -294,8 +294,7 @@ export default async function DashboardPage() {
               border: "1.5px solid rgba(255,255,255,0.3)",
               backdropFilter: "blur(4px)",
             }}
-            onMouseEnter={() => {}}
-          >
+            >
             <ZapIcon className="w-4 h-4" />
             Neues Gespräch starten
             <ArrowRightIcon className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5" />
@@ -482,16 +481,6 @@ export default async function DashboardPage() {
                     style={{
                       border: "1px solid #f1f5f9",
                       background: "#fafbfc",
-                    }}
-                    onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLAnchorElement).style.borderColor = "#e0eaff";
-                      (e.currentTarget as HTMLAnchorElement).style.background = "#f8faff";
-                      (e.currentTarget as HTMLAnchorElement).style.boxShadow = "0 2px 8px rgba(26,86,219,0.08)";
-                    }}
-                    onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLAnchorElement).style.borderColor = "#f1f5f9";
-                      (e.currentTarget as HTMLAnchorElement).style.background = "#fafbfc";
-                      (e.currentTarget as HTMLAnchorElement).style.boxShadow = "none";
                     }}
                   >
                     {/* Scenario + details */}

@@ -1,34 +1,107 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  --background: #F6F9FF;
+  --foreground: #0F172A;
+  --brand: #1a56db;
+  --brand-dark: #1648c0;
+  --font-jakarta: "Plus Jakarta Sans", system-ui, sans-serif;
 }
 
+/* ── Base ── */
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: var(--font-jakarta);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-@layer utilities {
-  .wave-bar-1 { animation-delay: 0s; }
-  .wave-bar-2 { animation-delay: 0.15s; }
-  .wave-bar-3 { animation-delay: 0.3s; }
-  .wave-bar-4 { animation-delay: 0.45s; }
-  .wave-bar-5 { animation-delay: 0.6s; }
-
-  .typing-dot-1 { animation-delay: 0s; }
-  .typing-dot-2 { animation-delay: 0.2s; }
-  .typing-dot-3 { animation-delay: 0.4s; }
-}
-
-/* Custom scrollbar — dark theme */
-::-webkit-scrollbar { width: 4px; }
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: #475569; }
+::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+
+/* ── Selection ── */
+::selection { background: rgba(26, 86, 219, 0.15); color: #0F172A; }
+
+/* ── Focus visible ── */
+*:focus-visible {
+  outline: 2px solid rgba(26, 86, 219, 0.5);
+  outline-offset: 2px;
+}
+
+/* ── Page entry animations ── */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.97); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.animate-fade-up   { animation: fadeInUp 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-fade-in   { animation: fadeIn   0.35s ease both; }
+.animate-scale-in  { animation: scaleIn  0.35s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Stagger children */
+.stagger > * { animation: fadeInUp 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.stagger > *:nth-child(1) { animation-delay: 0.04s; }
+.stagger > *:nth-child(2) { animation-delay: 0.08s; }
+.stagger > *:nth-child(3) { animation-delay: 0.12s; }
+.stagger > *:nth-child(4) { animation-delay: 0.16s; }
+.stagger > *:nth-child(5) { animation-delay: 0.20s; }
+
+/* Compatibility shim for tailwindcss-animate-style classes used in code */
+.animate-in { animation: fadeInUp 0.4s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* ── Avatar animations ── */
+@keyframes pulse-ring {
+  0%   { transform: scale(0.9); opacity: 0.7; }
+  100% { transform: scale(1.4); opacity: 0; }
+}
+@keyframes wave-bar {
+  0%, 100% { transform: scaleY(0.4); }
+  50%       { transform: scaleY(1); }
+}
+@keyframes typing-dot {
+  0%, 60%, 100% { transform: translateY(0); }
+  30%            { transform: translateY(-6px); }
+}
+
+.wave-bar-1 { animation-delay: 0s; }
+.wave-bar-2 { animation-delay: 0.15s; }
+.wave-bar-3 { animation-delay: 0.3s; }
+.wave-bar-4 { animation-delay: 0.45s; }
+.wave-bar-5 { animation-delay: 0.6s; }
+
+.typing-dot-1 { animation-delay: 0s; }
+.typing-dot-2 { animation-delay: 0.2s; }
+.typing-dot-3 { animation-delay: 0.4s; }
+
+/* ── Input base polish ── */
+input[type="text"],
+input[type="email"],
+input[type="password"] {
+  font-family: var(--font-jakarta);
+}
+
+/* ── Smooth link transitions ── */
+a { transition: color 0.15s ease, opacity 0.15s ease; }
+
+/* ── Card glass effect helper ── */
+.glass {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}

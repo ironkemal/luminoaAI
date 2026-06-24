@@ -1,11 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  experimental: {
-    serverActions: {
-      allowedOrigins: ["localhost:3000"],
-    },
-  },
+  // No allowedOrigins restriction — Vercel handles CSRF via its own headers
 };
 
 export default nextConfig;

@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import type { ScenarioType } from "@/types";
-import type { SessionWithAnalysis } from "./page";
-import { SessionCard } from "./page";
+import type { SessionWithAnalysis } from "./SessionCard";
+import { SessionCard } from "./SessionCard";
 
 type Filter = "all" | ScenarioType;
 

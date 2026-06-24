@@ -35,9 +35,7 @@ export default function VoiceRecorder({ onTranscript, disabled }: VoiceRecorderP
     };
 
     recognition.onstart = () => setIsRecording(true);
-
     recognition.onend = () => setIsRecording(false);
-
     recognition.onerror = () => setIsRecording(false);
 
     recognitionRef.current = recognition;
@@ -57,25 +55,23 @@ export default function VoiceRecorder({ onTranscript, disabled }: VoiceRecorderP
     }
   }
 
-  // Fallback: text input
+  // Fallback: text input (no Web Speech API)
   if (supported === false) {
     return (
-      <form
-        onSubmit={handleFallbackSubmit}
-        className="w-full flex gap-2 px-4"
-      >
+      <form onSubmit={handleFallbackSubmit} className="w-full flex gap-2 px-4">
         <input
           type="text"
           value={fallbackText}
           onChange={(e) => setFallbackText(e.target.value)}
           disabled={disabled}
           placeholder="Nachricht eingeben..."
-          className="flex-1 bg-slate-800 border border-slate-600 text-slate-100 placeholder-slate-500 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-all"
+          className="flex-1 bg-white border border-slate-200 text-slate-900 placeholder-slate-400 rounded-xl px-4 py-3 text-sm outline-none transition-all focus:border-blue-400 focus:shadow-[0_0_0_3px_rgba(26,86,219,0.1)] disabled:bg-slate-50 disabled:text-slate-400"
         />
         <button
           type="submit"
           disabled={disabled || !fallbackText.trim()}
-          className="bg-brand-500 hover:bg-brand-600 disabled:bg-slate-700 disabled:text-slate-500 text-white font-semibold px-5 py-3 rounded-xl transition-colors text-sm"
+          className="px-5 py-3 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          style={{ background: "#1a56db" }}
         >
           Senden
         </button>
@@ -93,18 +89,26 @@ export default function VoiceRecorder({ onTranscript, disabled }: VoiceRecorderP
         onTouchEnd={stopRecording}
         disabled={disabled}
         aria-label={isRecording ? "Aufnahme läuft" : "Drücken zum Sprechen"}
-        className={[
-          "relative w-16 h-16 rounded-full flex items-center justify-center transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400",
-          disabled
-            ? "bg-slate-700 text-slate-500 cursor-not-allowed"
+        className="relative w-16 h-16 rounded-full flex items-center justify-center transition-all duration-200 focus:outline-none focus-visible:ring-3 focus-visible:ring-blue-300"
+        style={{
+          background: disabled
+            ? "#F1F5F9"
             : isRecording
-            ? "bg-red-600 text-white shadow-[0_0_24px_rgba(220,38,38,0.6)] scale-110"
-            : "bg-brand-500 text-white hover:bg-brand-400 hover:scale-105 shadow-[0_0_20px_rgba(26,86,219,0.4)] active:scale-95",
-        ].join(" ")}
+            ? "#EF4444"
+            : "#1a56db",
+          color: disabled ? "#CBD5E1" : "#FFFFFF",
+          cursor: disabled ? "not-allowed" : "pointer",
+          boxShadow: disabled
+            ? "none"
+            : isRecording
+            ? "0 0 20px rgba(239,68,68,0.4)"
+            : "0 4px 20px rgba(26,86,219,0.35)",
+          transform: isRecording ? "scale(1.1)" : "scale(1)",
+        }}
       >
         {/* Recording pulse ring */}
         {isRecording && (
-          <span className="absolute inset-0 rounded-full bg-red-500 animate-ping opacity-40" />
+          <span className="absolute inset-0 rounded-full bg-red-400 animate-ping opacity-30" />
         )}
 
         {/* Mic icon */}
@@ -123,13 +127,13 @@ export default function VoiceRecorder({ onTranscript, disabled }: VoiceRecorderP
       {/* Status label */}
       <div className="h-5 flex items-center justify-center">
         {isRecording ? (
-          <span className="flex items-center gap-1.5 text-xs font-mono text-red-400 tracking-wide">
-            <span className="block w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+          <span className="flex items-center gap-1.5 text-xs font-semibold text-red-500">
+            <span className="block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
             Aufnahme läuft...
           </span>
         ) : (
           !disabled && (
-            <span className="text-xs font-mono text-slate-500 tracking-wide">
+            <span className="text-xs text-slate-400 font-medium">
               Gedrückt halten zum Sprechen
             </span>
           )

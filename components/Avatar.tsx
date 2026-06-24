@@ -4,6 +4,7 @@ type AvatarStatus = "idle" | "talking" | "listening" | "thinking";
 
 interface AvatarProps {
   status: AvatarStatus;
+  size?: "sm" | "md";
 }
 
 const STATUS_LABEL: Record<AvatarStatus, string> = {
@@ -13,26 +14,29 @@ const STATUS_LABEL: Record<AvatarStatus, string> = {
   thinking: "Denkt...",
 };
 
-export default function Avatar({ status }: AvatarProps) {
+export default function Avatar({ status, size = "md" }: AvatarProps) {
+  const dim = size === "sm" ? "w-9 h-9" : "w-32 h-32";
+  const ringDim = size === "sm" ? "h-9 w-9" : "h-32 w-32";
+  const textSize = size === "sm" ? "text-xs" : "text-2xl";
+
   return (
-    <div className="flex flex-col items-center gap-3 select-none">
-      {/* Outer glow ring container */}
+    <div className={`flex flex-col items-center ${size === "sm" ? "gap-0" : "gap-3"} select-none`}>
       <div className="relative flex items-center justify-center">
 
-        {/* Pulse rings — only visible when talking */}
-        {status === "talking" && (
+        {/* Pulse rings — talking state (only in md) */}
+        {status === "talking" && size === "md" && (
           <>
             <span
-              className="absolute inline-flex h-32 w-32 rounded-full bg-brand-500 opacity-0 animate-pulse-ring"
-              style={{ animationDelay: "0s" }}
+              className={`absolute inline-flex ${ringDim} rounded-full opacity-0 animate-pulse-ring`}
+              style={{ background: "rgba(26,86,219,0.18)", animationDelay: "0s" }}
             />
             <span
-              className="absolute inline-flex h-32 w-32 rounded-full bg-brand-500 opacity-0 animate-pulse-ring"
-              style={{ animationDelay: "0.4s" }}
+              className={`absolute inline-flex ${ringDim} rounded-full opacity-0 animate-pulse-ring`}
+              style={{ background: "rgba(26,86,219,0.12)", animationDelay: "0.4s" }}
             />
             <span
-              className="absolute inline-flex h-32 w-32 rounded-full bg-brand-500 opacity-0 animate-pulse-ring"
-              style={{ animationDelay: "0.8s" }}
+              className={`absolute inline-flex ${ringDim} rounded-full opacity-0 animate-pulse-ring`}
+              style={{ background: "rgba(26,86,219,0.07)", animationDelay: "0.8s" }}
             />
           </>
         )}
@@ -40,32 +44,44 @@ export default function Avatar({ status }: AvatarProps) {
         {/* Main avatar circle */}
         <div
           className={[
-            "relative z-10 w-32 h-32 rounded-full flex items-center justify-center transition-all duration-500",
-            status === "idle"
-              ? "bg-brand-900 border-2 border-brand-700 animate-pulse [animation-duration:3s]"
-              : status === "talking"
-              ? "bg-brand-800 border-2 border-brand-400 shadow-[0_0_32px_rgba(26,86,219,0.5)]"
-              : status === "listening"
-              ? "bg-emerald-900 border-2 border-emerald-400 shadow-[0_0_32px_rgba(16,185,129,0.4)]"
-              : /* thinking */
-                "bg-slate-800 border-2 border-slate-500 shadow-[0_0_20px_rgba(100,116,139,0.3)]",
+            `relative z-10 ${dim} rounded-full flex items-center justify-center transition-all duration-500`,
+            status === "idle" ? "animate-pulse [animation-duration:3s]" : "",
           ].join(" ")}
+          style={{
+            background:
+              status === "idle" ? "#EEF3FF"
+              : status === "talking" ? "#DBEAFE"
+              : status === "listening" ? "#ECFDF5"
+              : "#F1F5F9",
+            border:
+              status === "idle" ? "2.5px solid #BFDBFE"
+              : status === "talking" ? "2.5px solid #1a56db"
+              : status === "listening" ? "2.5px solid #34D399"
+              : "2.5px solid #CBD5E1",
+            boxShadow:
+              status === "talking" ? "0 0 32px rgba(26,86,219,0.18)"
+              : status === "listening" ? "0 0 28px rgba(52,211,153,0.18)"
+              : "0 2px 12px rgba(0,0,0,0.05)",
+          }}
         >
           {/* Idle / Talking: HR monogram */}
           {(status === "idle" || status === "talking") && (
-            <span className="font-mono text-2xl font-bold tracking-widest text-brand-200 drop-shadow">
+            <span
+              className={`font-bold ${textSize} tracking-widest`}
+              style={{ color: status === "talking" ? "#1a56db" : "#93C5FD" }}
+            >
               HR
             </span>
           )}
 
           {/* Listening: 5-bar waveform */}
           {status === "listening" && (
-            <div className="flex items-center gap-1 h-10">
+            <div className={`flex items-center gap-1 ${size === "sm" ? "h-4" : "h-10"}`}>
               {[1, 2, 3, 4, 5].map((i) => (
                 <span
                   key={i}
-                  className={`block w-1.5 rounded-full bg-emerald-400 animate-wave-bar wave-bar-${i}`}
-                  style={{ height: "100%", transformOrigin: "bottom" }}
+                  className={`block w-1.5 rounded-full animate-wave-bar wave-bar-${i}`}
+                  style={{ height: "100%", transformOrigin: "bottom", background: "#10B981" }}
                 />
               ))}
             </div>
@@ -77,7 +93,8 @@ export default function Avatar({ status }: AvatarProps) {
               {[1, 2, 3].map((i) => (
                 <span
                   key={i}
-                  className={`block w-2 h-2 rounded-full bg-slate-300 animate-typing-dot typing-dot-${i}`}
+                  className={`block w-2.5 h-2.5 rounded-full animate-typing-dot typing-dot-${i}`}
+                  style={{ background: "#94A3B8" }}
                 />
               ))}
             </div>
@@ -85,18 +102,18 @@ export default function Avatar({ status }: AvatarProps) {
         </div>
       </div>
 
-      {/* Status label */}
-      <div className="h-5 flex items-center justify-center">
+      {/* Status label — hide in sm */}
+      <div className={`h-5 flex items-center justify-center ${size === "sm" ? "hidden" : ""}`}>
         {STATUS_LABEL[status] && (
           <span
-            className={[
-              "text-xs font-mono tracking-widest uppercase px-2 py-0.5 rounded",
+            className="text-[11px] font-semibold tracking-wider uppercase px-2.5 py-0.5 rounded-full"
+            style={
               status === "talking"
-                ? "text-brand-300 bg-brand-900/60"
+                ? { color: "#1a56db", background: "#EEF3FF", border: "1px solid #BFDBFE" }
                 : status === "listening"
-                ? "text-emerald-300 bg-emerald-900/40"
-                : "text-slate-400 bg-slate-800/60",
-            ].join(" ")}
+                ? { color: "#059669", background: "#ECFDF5", border: "1px solid #A7F3D0" }
+                : { color: "#64748B", background: "#F1F5F9", border: "1px solid #E2E8F0" }
+            }
           >
             {STATUS_LABEL[status]}
           </span>

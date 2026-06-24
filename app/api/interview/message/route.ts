@@ -16,22 +16,16 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const {
-      sessionId,
-      userMessage,
-      messages,
-    }: {
-      sessionId: string;
-      userMessage: string;
-      messages: ChatMessage[];
-    } = body;
+    const { sessionId, message }: { sessionId: string; message: string } = body;
 
-    if (!sessionId || !userMessage) {
+    if (!sessionId || !message) {
       return Response.json(
-        { error: "Missing required fields: sessionId, userMessage" },
+        { error: "Missing required fields: sessionId, message" },
         { status: 400 }
       );
     }
+
+    const userMessage = message;
 
     // Step 1: Fetch session info from Supabase
     const { data: session, error: sessionError } = await supabase
@@ -71,24 +65,31 @@ export async function POST(request: Request) {
 
     const systemPrompt = buildInterviewerSystemPrompt(config);
 
-    // Step 4: Build OpenRouter messages array
+    // Step 4: Fetch conversation history from DB
+    const { data: history } = await supabase
+      .from("messages")
+      .select("role, content")
+      .eq("session_id", sessionId)
+      .order("created_at", { ascending: true });
+
+    // Step 5: Build OpenRouter messages array
     const openRouterMessages = [
       { role: "system" as const, content: systemPrompt },
-      ...messages.map((m) => ({
+      ...(history ?? []).map((m) => ({
         role: m.role as "user" | "assistant",
         content: m.content,
       })),
       { role: "user" as const, content: userMessage },
     ];
 
-    // Step 5: Save user message to Supabase
+    // Step 6: Save user message to Supabase
     await supabase.from("messages").insert({
       session_id: sessionId,
       role: "user",
       content: userMessage,
     });
 
-    // Step 6: Stream AI response
+    // Step 7: Stream AI response
     const stream = new TransformStream();
     const writer = stream.writable.getWriter();
     const encoder = new TextEncoder();
