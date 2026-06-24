@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     // Fetch session data from DB
     const { data: sessionData, error: sessionError } = await supabase
       .from("sessions")
-      .select("scenario_type, company_name, job_title, sector, difficulty, company_research")
+      .select("scenario_type, company_name, job_title, sector, difficulty, company_research, job_listing_text")
       .eq("id", sessionId)
       .eq("user_id", user.id)
       .single();
@@ -42,6 +42,7 @@ export async function POST(request: Request) {
     const jobTitle = sessionData.job_title as string | undefined;
     const sector = sessionData.sector as string | undefined;
     const difficulty = sessionData.difficulty as Difficulty;
+    const jobListingText = sessionData.job_listing_text as string | undefined;
 
     // Step 1: Company research (only if not already done)
     let companyResearch = sessionData.company_research ?? "";
@@ -59,6 +60,15 @@ export async function POST(request: Request) {
         .eq("user_id", user.id);
     }
 
+    // Fetch CV data
+    const { data: cvData } = await supabase
+      .from("cv_data")
+      .select("extracted_text")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single();
+
     // Step 2: Build interviewer system prompt + generate first message
     const config: InterviewConfig = {
       scenarioType,
@@ -67,6 +77,8 @@ export async function POST(request: Request) {
       sector,
       difficulty,
       companyResearch: companyResearch || undefined,
+      jobListingText: jobListingText || undefined,
+      cvText: cvData?.extracted_text ?? undefined,
     };
 
     const systemPrompt = buildInterviewerSystemPrompt(config);
@@ -77,10 +89,10 @@ export async function POST(request: Request) {
         {
           role: "user",
           content:
-            "Bitte beginne das Gespräch mit einer kurzen Vorstellung und der ersten Frage.",
+            "Starte das Gespräch jetzt. Begrüße den Bewerber herzlich, stelle dich vor und beginne mit natürlichem Small Talk bevor du zur ersten Frage übergehst.",
         },
       ],
-      { temperature: 0.85, maxTokens: 256 }
+      { temperature: 0.88, maxTokens: 200 }
     );
 
     // Step 3: Save the first AI message to messages table
