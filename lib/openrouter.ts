@@ -1,5 +1,5 @@
 const OPENROUTER_BASE = "https://openrouter.ai/api/v1";
-const MODEL_TIMEOUT_MS = 20_000;
+const MODEL_TIMEOUT_MS = 12_000;
 
 // Non-reasoning instruct models only — reasoning models return empty streaming content
 const FREE_MODELS = [

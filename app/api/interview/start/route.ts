@@ -44,41 +44,50 @@ export async function POST(request: Request) {
     const difficulty = sessionData.difficulty as Difficulty;
     const jobListingText = sessionData.job_listing_text as string | undefined;
 
-    // Step 1: Company research (only if not already done)
-    let companyResearch = sessionData.company_research ?? "";
-    if (companyName && !companyResearch) {
-      const researchPrompt = buildCompanyResearchPrompt(companyName);
-      companyResearch = await chat(
-        [{ role: "user", content: researchPrompt }],
-        { temperature: 0.3, maxTokens: 512 }
-      );
+    // Fetch CV data and run company research in parallel — don't block the first message on research
+    const [cvResult] = await Promise.all([
+      supabase
+        .from("cv_data")
+        .select("extracted_text")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single(),
+    ]);
 
-      await supabase
-        .from("sessions")
-        .update({ company_research: companyResearch })
-        .eq("id", sessionId)
-        .eq("user_id", user.id);
+    const cvText = cvResult.data?.extracted_text ?? undefined;
+    const existingResearch = sessionData.company_research ?? "";
+
+    // Fire company research in background if not cached — first message doesn't need it
+    if (companyName && !existingResearch) {
+      (async () => {
+        try {
+          const researchPrompt = buildCompanyResearchPrompt(companyName);
+          const research = await chat(
+            [{ role: "user", content: researchPrompt }],
+            { temperature: 0.3, maxTokens: 400 }
+          );
+          await supabase
+            .from("sessions")
+            .update({ company_research: research })
+            .eq("id", sessionId)
+            .eq("user_id", user.id);
+        } catch (e) {
+          console.warn("Background company research failed:", e);
+        }
+      })();
     }
 
-    // Fetch CV data
-    const { data: cvData } = await supabase
-      .from("cv_data")
-      .select("extracted_text")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .single();
-
-    // Step 2: Build interviewer system prompt + generate first message
+    // Build config — opening small talk doesn't need company research, start immediately
     const config: InterviewConfig = {
       scenarioType,
       companyName,
       jobTitle,
       sector,
       difficulty,
-      companyResearch: companyResearch || undefined,
+      companyResearch: existingResearch || undefined,
       jobListingText: jobListingText || undefined,
-      cvText: cvData?.extracted_text ?? undefined,
+      cvText,
     };
 
     const systemPrompt = buildInterviewerSystemPrompt(config);
@@ -92,7 +101,7 @@ export async function POST(request: Request) {
             "Starte das Gespräch jetzt. Begrüße den Bewerber herzlich, stelle dich vor und beginne mit natürlichem Small Talk bevor du zur ersten Frage übergehst.",
         },
       ],
-      { temperature: 0.88, maxTokens: 200 }
+      { temperature: 0.88, maxTokens: 150 }
     );
 
     // Step 3: Save the first AI message to messages table
