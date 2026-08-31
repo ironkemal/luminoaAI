@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { QueueStatus, WorkoutRoutine } from "@/types";
-import { Play, Sparkles, Clock, CheckCircle2, RotateCw, Dumbbell, ArrowRight } from "lucide-react";
-import { useLanguage } from "@/lib/i18n";
+import { Play, Sparkles, Clock, CheckCircle2, AlertCircle, ArrowRight, RotateCw } from "lucide-react";
 
 interface WorkoutQueueCardProps {
   queueStatus: QueueStatus;
@@ -16,77 +15,99 @@ export default function WorkoutQueueCard({
   allRoutines,
   onSelectRoutine,
 }: WorkoutQueueCardProps) {
-  const { t } = useLanguage();
-  const { nextRoutine, recoveryStatus, recoveryMessage } = queueStatus;
+  const { nextRoutine, lastSession, hoursSinceLastWorkout, recoveryStatus, recoveryMessage } =
+    queueStatus;
+
+  const getRecoveryBadge = () => {
+    switch (recoveryStatus) {
+      case "fresh":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+            Toparlanma Tamamlandı
+          </span>
+        );
+      case "recovering":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200/60">
+            <Clock className="w-3.5 h-3.5 text-amber-500" />
+            Kas Dinlenmesi Sürüyor
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+            <Sparkles className="w-3.5 h-3.5 text-emerald-500" />
+            Antrenman Zamanı
+          </span>
+        );
+    }
+  };
 
   return (
-    <div className="hevy-card p-5 sm:p-6 space-y-4">
-      {/* Top Tag & Selector */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#1E2638]">
-        <div className="flex items-center gap-2">
-          <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-wider">
-            Sıradaki Antrenman • #{nextRoutine.sequence_order}
-          </span>
-          <span className="text-[10px] text-slate-400 font-medium">
-            (Döngüsel Sıralama)
-          </span>
+    <div className="surface-card p-6 md:p-8 relative overflow-hidden">
+      {/* Subtle background glow */}
+      <div className="absolute -right-16 -top-16 w-48 h-48 bg-emerald-100/50 rounded-full blur-3xl pointer-events-none" />
+
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5">
+        <div>
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="text-xs font-bold uppercase tracking-wider text-emerald-600">
+              Dinamik Sarkma Kuyruğu (Rotating Queue)
+            </span>
+          </div>
+          <h2 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
+            {nextRoutine.name}
+          </h2>
+          {nextRoutine.description && (
+            <p className="text-sm text-slate-600 mt-1 max-w-xl">
+              {nextRoutine.description}
+            </p>
+          )}
         </div>
 
+        <div>{getRecoveryBadge()}</div>
+      </div>
+
+      {/* Recovery notification message */}
+      <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/60 text-xs text-slate-600 flex items-start gap-2.5 mb-6">
+        <RotateCw className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+        <div>
+          <span className="font-semibold text-slate-700">Döngü Durumu: </span>
+          {recoveryMessage}
+        </div>
+      </div>
+
+      {/* Action CTA */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+        <Link
+          href={`/workout/player?routineId=${nextRoutine.id}`}
+          className="flex-1 py-4 px-6 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-base shadow-sm hover:shadow-md tap-effect flex items-center justify-center gap-3 transition-all"
+        >
+          <Play className="w-5 h-5 fill-current" />
+          Bu Antrenmanı Başlat (Odak Modu)
+        </Link>
+
+        {/* Change Routine Selector */}
         {allRoutines.length > 1 && (
-          <div className="relative self-start sm:self-auto">
+          <div className="relative">
             <select
               value={nextRoutine.id}
               onChange={(e) => onSelectRoutine(e.target.value)}
-              className="py-1 px-2.5 bg-[#181F2E] border border-[#1E2638] text-slate-300 font-semibold text-xs rounded-lg appearance-none pr-6 cursor-pointer focus:outline-none focus:border-emerald-400"
+              className="w-full sm:w-auto h-full py-3.5 px-4 bg-white border border-slate-200 hover:border-slate-300 text-slate-700 font-medium text-xs rounded-2xl appearance-none pr-8 cursor-pointer focus:outline-none focus:border-emerald-500 shadow-sm"
             >
               {allRoutines.map((routine) => (
-                <option key={routine.id} value={routine.id} className="bg-[#121722] text-white">
+                <option key={routine.id} value={routine.id}>
                   Seçimi Değiştir: {routine.name}
                 </option>
               ))}
             </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-400 text-[10px]">
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
               ▼
             </div>
           </div>
         )}
       </div>
-
-      {/* Routine Main Info */}
-      <div>
-        <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-          {nextRoutine.name}
-        </h2>
-        {nextRoutine.description && (
-          <p className="text-xs text-slate-400 mt-1 font-normal leading-relaxed">
-            {nextRoutine.description}
-          </p>
-        )}
-      </div>
-
-      {/* Recovery Status Alert */}
-      <div className="p-3 rounded-xl bg-[#0B0E14] border border-[#1E2638] flex items-center justify-between gap-2 text-xs">
-        <div className="flex items-center gap-2">
-          <RotateCw className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-          <span className="text-slate-300 font-medium text-[11px]">
-            {recoveryMessage}
-          </span>
-        </div>
-        {recoveryStatus === "fresh" && (
-          <span className="text-[10px] font-bold text-emerald-400 uppercase bg-emerald-500/10 px-2 py-0.5 rounded-md flex-shrink-0">
-            Hazır
-          </span>
-        )}
-      </div>
-
-      {/* CTA Button */}
-      <Link
-        href={`/workout/player?routineId=${nextRoutine.id}`}
-        className="w-full py-3.5 px-6 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-black text-sm tap-effect flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all"
-      >
-        <Play className="w-4 h-4 fill-current" />
-        Antrenmana Başla (Set Tablosu)
-      </Link>
     </div>
   );
 }

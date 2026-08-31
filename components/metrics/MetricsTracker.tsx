@@ -5,7 +5,6 @@ import { BodyMetric } from "@/types";
 import { analyzeBodyMetrics } from "@/lib/metrics-calculator";
 import { createClient } from "@/lib/supabase/client";
 import { getCurrentUser } from "@/lib/auth-pin";
-import { useLanguage } from "@/lib/i18n";
 import ProgressPhotosGallery from "@/components/metrics/ProgressPhotosGallery";
 import {
   Scale,
@@ -17,8 +16,7 @@ import {
   CheckCircle2,
   Calendar,
   Flame,
-  Activity,
-  Camera
+  Activity
 } from "lucide-react";
 
 interface MetricsTrackerProps {
@@ -26,7 +24,6 @@ interface MetricsTrackerProps {
 }
 
 export default function MetricsTracker({ initialMetrics }: MetricsTrackerProps) {
-  const { t } = useLanguage();
   const [metrics, setMetrics] = useState<BodyMetric[]>(initialMetrics);
   const [showAddForm, setShowAddForm] = useState(false);
 
@@ -92,40 +89,40 @@ export default function MetricsTracker({ initialMetrics }: MetricsTrackerProps) 
   };
 
   return (
-    <div className="space-y-5 max-w-4xl mx-auto px-4 py-4 animate-fade-in">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <div className="space-y-6 max-w-4xl mx-auto">
+      {/* Header & Add Button */}
+      <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-            {t("metricsTitle")}
+          <h2 className="text-xl md:text-2xl font-extrabold text-slate-900 tracking-tight">
+            Vücut Kompozisyonu ve Tartım
           </h2>
-          <p className="text-xs text-slate-400 mt-0.5">
-            {t("metricsSubtitle")}
+          <p className="text-xs text-slate-500 mt-0.5">
+            Su dalgalanmalarını filtreleyen 7 günlük hareketli ortalama & gelişim takibi
           </p>
         </div>
 
         <button
           type="button"
           onClick={() => setShowAddForm(!showAddForm)}
-          className="px-4 py-2 rounded-xl btn-primary text-xs font-black tap-effect flex items-center gap-1.5 self-start sm:self-auto"
+          className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm tap-effect flex items-center gap-1.5"
         >
-          <Plus className="w-4 h-4 stroke-[2.5]" /> {t("newMetricBtn")}
+          <Plus className="w-4 h-4" /> Yeni Ölçüm / Tartım
         </button>
       </div>
 
-      {/* Add Metric Form Drawer */}
+      {/* Add Metric Form Drawer / Modal */}
       {showAddForm && (
         <form
           onSubmit={handleAddMetric}
-          className="surface-card p-5 animate-slide-up space-y-4"
+          className="surface-card p-5 md:p-6 animate-slide-up border-emerald-100 bg-white"
         >
-          <h3 className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-2">
-            <Scale className="w-4 h-4 text-[#E2F952]" /> Yeni Tartım ve Mezura Girişi
+          <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+            <Scale className="w-4 h-4 text-emerald-600" /> Yeni Tartım ve Mezura Girişi
           </h3>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
             <div>
-              <label className="block text-[11px] font-bold text-slate-400 mb-1">
+              <label className="block text-[11px] font-bold text-slate-600 mb-1">
                 Kilo (kg) *
               </label>
               <input
@@ -135,13 +132,13 @@ export default function MetricsTracker({ initialMetrics }: MetricsTrackerProps) 
                 value={weightKg}
                 onChange={(e) => setWeightKg(e.target.value)}
                 placeholder="99.5"
-                className="w-full px-3 py-2 text-xs bg-[#090B0E] border border-white/[0.08] rounded-xl focus:border-[#E2F952] focus:outline-none text-white font-mono font-bold"
+                className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:border-emerald-500 focus:outline-none text-slate-800 font-bold"
               />
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold text-slate-400 mb-1">
-                Bel (cm)
+              <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                Bel (cm - Göbek deliği)
               </label>
               <input
                 type="number"
@@ -149,13 +146,13 @@ export default function MetricsTracker({ initialMetrics }: MetricsTrackerProps) 
                 value={waistCm}
                 onChange={(e) => setWaistCm(e.target.value)}
                 placeholder="100.0"
-                className="w-full px-3 py-2 text-xs bg-[#090B0E] border border-white/[0.08] rounded-xl focus:border-[#E2F952] focus:outline-none text-white"
+                className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:border-emerald-500 focus:outline-none text-slate-800"
               />
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold text-slate-400 mb-1">
-                Kol (cm)
+              <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                Kol (cm - Sıkılı)
               </label>
               <input
                 type="number"
@@ -163,12 +160,12 @@ export default function MetricsTracker({ initialMetrics }: MetricsTrackerProps) 
                 value={armCm}
                 onChange={(e) => setArmCm(e.target.value)}
                 placeholder="40.0"
-                className="w-full px-3 py-2 text-xs bg-[#090B0E] border border-white/[0.08] rounded-xl focus:border-[#E2F952] focus:outline-none text-white"
+                className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:border-emerald-500 focus:outline-none text-slate-800"
               />
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold text-slate-400 mb-1">
+              <label className="block text-[11px] font-bold text-slate-600 mb-1">
                 Göğüs (cm)
               </label>
               <input
@@ -177,13 +174,13 @@ export default function MetricsTracker({ initialMetrics }: MetricsTrackerProps) 
                 value={chestCm}
                 onChange={(e) => setChestCm(e.target.value)}
                 placeholder="113.0"
-                className="w-full px-3 py-2 text-xs bg-[#090B0E] border border-white/[0.08] rounded-xl focus:border-[#E2F952] focus:outline-none text-white"
+                className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:border-emerald-500 focus:outline-none text-slate-800"
               />
             </div>
           </div>
 
-          <div>
-            <label className="block text-[11px] font-bold text-slate-400 mb-1">
+          <div className="mb-4">
+            <label className="block text-[11px] font-bold text-slate-600 mb-1">
               Not (İsteğe Bağlı)
             </label>
             <input
@@ -191,91 +188,91 @@ export default function MetricsTracker({ initialMetrics }: MetricsTrackerProps) 
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Sabah aç karnına tartım yapıldı..."
-              className="w-full px-3 py-2 text-xs bg-[#090B0E] border border-white/[0.08] rounded-xl focus:border-[#E2F952] focus:outline-none text-white placeholder-slate-600"
+              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:border-emerald-500 focus:outline-none text-slate-800"
             />
           </div>
 
-          <div className="flex items-center justify-end gap-2 pt-1">
+          <div className="flex items-center justify-end gap-2">
             <button
               type="button"
               onClick={() => setShowAddForm(false)}
-              className="px-3.5 py-2 text-xs font-bold text-slate-400 hover:text-white rounded-xl tap-effect"
+              className="px-3.5 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl tap-effect"
             >
-              {t("cancel")}
+              İptal
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-5 py-2 btn-primary text-xs tap-effect"
+              className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl tap-effect shadow-sm"
             >
-              {isSubmitting ? t("saving") : t("save")}
+              {isSubmitting ? "Kaydediliyor..." : "Kaydet"}
             </button>
           </div>
         </form>
       )}
 
-      {/* Recomposition Analysis Cards */}
+      {/* Recomposition Analysis Highlights */}
       {analysis && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
           {/* Moving Avg Card */}
-          <div className="surface-card p-4">
-            <div className="flex items-center justify-between text-slate-400 mb-1">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t("movingAvg7d")}</span>
-              <Activity className="w-4 h-4 text-[#E2F952]" />
+          <div className="surface-card p-5">
+            <div className="flex items-center justify-between text-slate-400 mb-1.5">
+              <span className="text-xs font-bold uppercase tracking-wider">7G Hareketli Ort.</span>
+              <Activity className="w-4 h-4 text-emerald-500" />
             </div>
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl sm:text-3xl font-black text-white font-mono">
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-black text-slate-900">
                 {analysis.movingAverage7d}
               </span>
-              <span className="text-xs font-bold text-slate-400">kg</span>
+              <span className="text-xs font-bold text-slate-500">kg</span>
             </div>
-            <p className="text-[10px] text-slate-400 mt-1">
-              Son tartım: <span className="font-bold text-white">{analysis.currentWeight} kg</span>
+            <p className="text-[11px] text-slate-500 mt-1">
+              Son tartım: <span className="font-bold text-slate-700">{analysis.currentWeight} kg</span>
             </p>
           </div>
 
           {/* Waist Trend Card */}
-          <div className="surface-card p-4">
-            <div className="flex items-center justify-between text-slate-400 mb-1">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t("waist")}</span>
-              <Flame className="w-4 h-4 text-[#FF6B4A]" />
+          <div className="surface-card p-5">
+            <div className="flex items-center justify-between text-slate-400 mb-1.5">
+              <span className="text-xs font-bold uppercase tracking-wider">Bel Çevresi</span>
+              <Flame className="w-4 h-4 text-amber-500" />
             </div>
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl sm:text-3xl font-black text-white font-mono">
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-black text-slate-900">
                 {analysis.currentWaist ? `${analysis.currentWaist}` : "-"}
               </span>
-              {analysis.currentWaist && <span className="text-xs font-bold text-slate-400">cm</span>}
+              {analysis.currentWaist && <span className="text-xs font-bold text-slate-500">cm</span>}
             </div>
-            <p className="text-[10px] text-slate-400 mt-1">
+            <p className="text-[11px] text-slate-500 mt-1">
               {analysis.waistDelta !== null ? (
-                <span className={`font-bold ${analysis.waistDelta <= 0 ? "text-[#E2F952]" : "text-amber-400"}`}>
-                  Değişim: {analysis.waistDelta > 0 ? `+${analysis.waistDelta}` : analysis.waistDelta} cm
+                <span className={`font-bold ${analysis.waistDelta <= 0 ? "text-emerald-600" : "text-amber-600"}`}>
+                  Başlangıca göre: {analysis.waistDelta > 0 ? `+${analysis.waistDelta}` : analysis.waistDelta} cm
                 </span>
               ) : (
-                "Mezura takibi"
+                "Mezura takibi için düzenli kaydedin"
               )}
             </p>
           </div>
 
-          {/* Arm Muscle Card */}
-          <div className="surface-card p-4">
-            <div className="flex items-center justify-between text-slate-400 mb-1">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t("arm")}</span>
-              <Sparkles className="w-4 h-4 text-cyan-400" />
+          {/* Arm / Muscle Card */}
+          <div className="surface-card p-5">
+            <div className="flex items-center justify-between text-slate-400 mb-1.5">
+              <span className="text-xs font-bold uppercase tracking-wider">Kol (Biceps/Triceps)</span>
+              <Sparkles className="w-4 h-4 text-emerald-500" />
             </div>
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl sm:text-3xl font-black text-white font-mono">
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-black text-slate-900">
                 {analysis.currentArm ? `${analysis.currentArm}` : "-"}
               </span>
-              {analysis.currentArm && <span className="text-xs font-bold text-slate-400">cm</span>}
+              {analysis.currentArm && <span className="text-xs font-bold text-slate-500">cm</span>}
             </div>
-            <p className="text-[10px] text-slate-400 mt-1">
+            <p className="text-[11px] text-slate-500 mt-1">
               {analysis.armDelta !== null ? (
-                <span className={`font-bold ${analysis.armDelta >= 0 ? "text-[#E2F952]" : "text-slate-400"}`}>
+                <span className={`font-bold ${analysis.armDelta >= 0 ? "text-emerald-600" : "text-slate-600"}`}>
                   Değişim: {analysis.armDelta > 0 ? `+${analysis.armDelta}` : analysis.armDelta} cm
                 </span>
               ) : (
-                "Kol hipertrofisi"
+                "Kol kas kütlesi takibi"
               )}
             </p>
           </div>
@@ -284,16 +281,16 @@ export default function MetricsTracker({ initialMetrics }: MetricsTrackerProps) 
 
       {/* Recomposition Banner */}
       {analysis && (
-        <div className="surface-card p-4 bg-[#141822] border border-white/[0.08]">
+        <div className="surface-card p-5 bg-gradient-to-r from-emerald-50/70 via-white to-amber-50/50 border-emerald-200/60">
           <div className="flex items-start gap-3">
-            <div className="p-2 bg-white/[0.06] text-[#E2F952] rounded-lg mt-0.5">
-              <Sparkles className="w-4 h-4" />
+            <div className="p-2 bg-emerald-500 text-white rounded-xl shadow-sm mt-0.5">
+              <Sparkles className="w-5 h-5" />
             </div>
             <div>
-              <h4 className="text-xs font-bold text-white">
-                Vücut Kompozisyonu Durumu
+              <h4 className="text-sm font-bold text-slate-900">
+                Vücut Kompozisyonu & Lean Cut Durumu
               </h4>
-              <p className="text-xs text-slate-300 mt-0.5 leading-relaxed font-normal">
+              <p className="text-xs text-slate-600 mt-1 leading-relaxed">
                 {analysis.recompositionMessage}
               </p>
             </div>
@@ -304,59 +301,60 @@ export default function MetricsTracker({ initialMetrics }: MetricsTrackerProps) 
       {/* ── PROGRESS PHOTOS GALLERY (PRE VS POST PUMP) ── */}
       <ProgressPhotosGallery currentWeight={analysis?.currentWeight} />
 
-      {/* History Table */}
-      <div className="surface-card p-5">
-        <h3 className="text-xs font-black text-white uppercase tracking-wider mb-3 pb-2 border-b border-white/[0.06] flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-slate-400" /> {t("history")}
+      {/* Visual Data Points / Trend Log Table */}
+      <div className="surface-card p-6">
+        <h3 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
+          <Calendar className="w-4 h-4 text-emerald-600" /> Ölçüm Geçmişi
         </h3>
 
         {metrics.length === 0 ? (
-          <div className="text-center py-6 text-slate-500 text-xs">
-            {t("noMetrics")}
+          <div className="text-center py-8 text-slate-400 text-xs">
+            Henüz kayıtlı ölçüm bulunmuyor.
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
-                <tr className="border-b border-white/[0.06] text-slate-400 uppercase tracking-wider font-bold text-[10px]">
-                  <th className="py-2 px-3">{t("date")}</th>
-                  <th className="py-2 px-3">{t("weight")}</th>
-                  <th className="py-2 px-3">{t("waist")}</th>
-                  <th className="py-2 px-3">{t("arm")}</th>
-                  <th className="py-2 px-3">{t("chest")}</th>
-                  <th className="py-2 px-3">{t("notes")}</th>
-                  <th className="py-2 px-3 text-right">{t("action")}</th>
+                <tr className="border-b border-slate-100 text-slate-400 uppercase tracking-wider font-semibold">
+                  <th className="py-2.5 px-3">Tarih</th>
+                  <th className="py-2.5 px-3">Kilo</th>
+                  <th className="py-2.5 px-3">Bel</th>
+                  <th className="py-2.5 px-3">Kol</th>
+                  <th className="py-2.5 px-3">Göğüs</th>
+                  <th className="py-2.5 px-3">Not</th>
+                  <th className="py-2.5 px-3 text-right">İşlem</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/[0.04] text-slate-300">
+              <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
                 {metrics.map((item) => (
-                  <tr key={item.id} className="hover:bg-white/[0.02] transition-colors">
-                    <td className="py-2.5 px-3 font-semibold text-white">
+                  <tr key={item.id} className="hover:bg-slate-50/60 transition-colors">
+                    <td className="py-3 px-3 font-semibold text-slate-900">
                       {new Date(item.recorded_at).toLocaleDateString("tr-TR", {
                         day: "numeric",
                         month: "short",
+                        year: "numeric",
                       })}
                     </td>
-                    <td className="py-2.5 px-3 font-bold text-[#E2F952] font-mono">
+                    <td className="py-3 px-3 font-bold text-slate-900">
                       {item.weight_kg} kg
                     </td>
-                    <td className="py-2.5 px-3">
+                    <td className="py-3 px-3">
                       {item.waist_cm ? `${item.waist_cm} cm` : "-"}
                     </td>
-                    <td className="py-2.5 px-3">
+                    <td className="py-3 px-3">
                       {item.arm_cm ? `${item.arm_cm} cm` : "-"}
                     </td>
-                    <td className="py-2.5 px-3">
+                    <td className="py-3 px-3">
                       {item.chest_cm ? `${item.chest_cm} cm` : "-"}
                     </td>
-                    <td className="py-2.5 px-3 text-slate-400 max-w-xs truncate">
+                    <td className="py-3 px-3 text-slate-500 max-w-xs truncate">
                       {item.notes || "-"}
                     </td>
-                    <td className="py-2.5 px-3 text-right">
+                    <td className="py-3 px-3 text-right">
                       <button
                         type="button"
                         onClick={() => handleDeleteMetric(item.id)}
-                        className="p-1.5 text-slate-500 hover:text-red-400 rounded-lg tap-effect"
+                        className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg hover:bg-slate-100 tap-effect"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>

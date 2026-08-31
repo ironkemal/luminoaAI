@@ -41,7 +41,7 @@ export default function BottomNav() {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#0C0F15]/95 backdrop-blur-lg border-t border-white/[0.08] px-3 py-1.5 md:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/90 backdrop-blur-md border-t border-slate-200/80 px-2 py-1.5 md:hidden">
       <div className="max-w-md mx-auto flex items-center justify-around">
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -51,12 +51,18 @@ export default function BottomNav() {
               href={item.href}
               className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all tap-effect ${
                 item.active
-                  ? "text-[#E2F952] font-bold"
-                  : "text-slate-500 hover:text-slate-300"
+                  ? "text-emerald-600 font-semibold"
+                  : "text-slate-500 hover:text-slate-700"
               }`}
             >
-              <Icon className={`w-5 h-5 stroke-[2] ${item.active ? "text-[#E2F952]" : "text-slate-500"}`} />
-              <span className="text-[10px] mt-0.5 tracking-tight font-semibold">{item.label}</span>
+              <div
+                className={`p-1 rounded-lg ${
+                  item.active ? "bg-emerald-50 text-emerald-600" : ""
+                }`}
+              >
+                <Icon className="w-5 h-5" />
+              </div>
+              <span className="text-[11px] mt-0.5 tracking-tight">{item.label}</span>
             </Link>
           );
         })}
