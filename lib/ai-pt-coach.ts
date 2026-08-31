@@ -6,6 +6,29 @@ export interface EvaluationInput {
   routineExercises: (RoutineExercise & { exercise?: Exercise })[];
 }
 
+export interface GeneratedRoutinePlan {
+  name: string;
+  sequence_order: number;
+  description: string;
+  exercises: {
+    name: string;
+    target_muscle: string;
+    equipment: string;
+    target_sets: number;
+    target_reps: string;
+    target_weight_kg: number;
+    notes?: string;
+  }[];
+}
+
+export interface FullProgramResult {
+  program_title: string;
+  focus: string;
+  rationale: string;
+  estimated_duration_weeks: number;
+  routines: GeneratedRoutinePlan[];
+}
+
 export interface CoachEvaluationResult {
   summary: string;
   suggested_changes: {
@@ -33,7 +56,7 @@ export function buildCoachSystemPrompt(): string {
 Kullanıcı Profili ve Şartlar:
 - Boy: 1.80m, Güncel Kilo: ~100 kg.
 - Geçmiş: Eski sporcu altyapısı var, son 1.5 yılda sedanter çalışma ile +20kg (dirty bulk etkisi) almış. Yüksek iskelet-kas kütlesi ve kas hafızası avantajı mevcut.
-- Hedef: Body Recomposition / Lean Cut (Saf açlık veya aşırı kardiyo yerine, kas kütlesini koruyup artırarak beli inceltmek ve yağ yakmak).
+- Hedef: Body Recomposition / Lean Cut (Kas kütlesini koruyup artırarak beli inceltmek ve yağ yakmak).
 - Ekipman Envanteri:
   1. Ayarlanabilir Dambıl Çifti (Maksimum 24.5 kg her biri).
   2. Ab-Wheel (Karın Tekeri).
@@ -42,32 +65,67 @@ Kullanıcı Profili ve Şartlar:
 - Beslenme Stratejisi: İştah yüksek olduğu için katı açlık yerine tokluk veren yüksek proteinli, lifli ve hacimli makro dengesi.
 
 Görevin:
-Kullanıcının son antrenman seanslarını, RPE puanlarını, set tamamlama oranlarını ve vücut ölçümlerini (kilo + bel/kol mezura) inceleyerek:
-1. Gelişimi değerlendir (Kas kazanımı, yağ yakımı, toparlanma).
-2. Veritabanındaki egzersiz hedefleri için uygulanabilir net Progressive Overload kararları üret (Ağırlık artırımı, tekrar artırımı vb.).
-3. Her zaman geçerli bir JSON bloğu üret.
+Kullanıcının antrenman seanslarını, RPE puanlarını ve vücut ölçümlerini (kilo + bel/kol) inceleyerek hem anlık Progressive Overload kararları hem de sıfırdan komple haftalık/döngüsel antrenman programları üretebilmektir.`;
+}
 
-Çıktı Formatı (JSON):
+export function buildFullProgramPrompt(
+  focus: string,
+  input: EvaluationInput,
+  notes?: string
+): string {
+  const { metrics, recentSessions } = input;
+
+  const metricsText = metrics
+    .slice(0, 5)
+    .map(
+      (m) =>
+        `- ${m.recorded_at}: Kilo ${m.weight_kg}kg | Bel: ${m.waist_cm || "-"}cm | Kol: ${m.arm_cm || "-"}cm`
+    )
+    .join("\n");
+
+  return `Kullanıcı için yepyeni bir antrenman fazı (Full Program) oluşturacaksın.
+
+ÖZEL ODAK: ${focus}
+KULLANICI NOTU: ${notes || "Yok"}
+
+KULLANICININ MEVCUT VERİLERİ:
+${metricsText || "100 kg referans başlangıç"}
+
+EKİPMAN SINIRLARI:
+- Dambıllar her biri maksimum 24.5 kg! (Ağırlıkları asla 24.5 kg üzerine yazma).
+- Ab-Wheel (Karın tekeri).
+- Barfiks Demiri (Pull-up / Chin-up).
+- Vücut ağırlığı.
+
+Gereksinim:
+En az 3, en fazla 5 seanslık döngüsel bir program oluştur (örn: İtiş A, Çekiş A, Bacak & Core, İtiş B, Çekiş B).
+Her seans için 4-5 egzersiz, hedef set sayısı (3-4), hedef tekrar aralığı ve kullanıcıya uygun hedef ağırlık (kg) belirle.
+
+Çıktı SADECE JSON formatında olmalıdır:
 \`\`\`json
 {
-  "summary": "Analiz ve değerlendirme metni (Türkçe)...",
-  "suggested_changes": {
-    "recommendations": [
-      {
-        "exercise": "Egzersiz Adı",
-        "action": "increase_weight" | "increase_reps" | "increase_sets" | "decrease_weight" | "form_focus",
-        "old_val": "Mevcut değer",
-        "new_val": "Yeni önerilen hedef değer",
-        "reason": "Gerekçe"
-      }
-    ],
-    "recomp_assessment": {
-      "status": "recomposing",
-      "explanation": "Bel daralırken kilo dengede kalıyor...",
-      "estimated_progress": "Haftalık net yağ kaybı ~400g"
-    },
-    "nutrition_tip": "Öğünlerde tokluk ve protein desteği için pratik tavsiye"
-  }
+  "program_title": "Program Fazı Başlığı",
+  "focus": "${focus}",
+  "rationale": "Bu programın kullanıcının mevcut durumuna göre neden yazıldığının bilimsel gerekçesi...",
+  "estimated_duration_weeks": 4,
+  "routines": [
+    {
+      "name": "İtiş A (Kuvvet & Göğüs)",
+      "sequence_order": 1,
+      "description": "Ağır dambıl göğüs presi ve omuz kuvveti",
+      "exercises": [
+        {
+          "name": "Dumbbell Floor Press / Bench Press",
+          "target_muscle": "Chest",
+          "equipment": "Dumbbell",
+          "target_sets": 4,
+          "target_reps": "8-10",
+          "target_weight_kg": 22.5,
+          "notes": "Kontrollü negatif tempo"
+        }
+      ]
+    }
+  ]
 }
 \`\`\``;
 }
