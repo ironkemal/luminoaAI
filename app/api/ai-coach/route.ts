@@ -22,6 +22,7 @@ export async function POST(request: NextRequest) {
       programNotes,
       generatedProgram,
       userId,
+      mode = "fast",
     } = body;
 
     const supabase = await createClient();
@@ -170,7 +171,7 @@ export async function POST(request: NextRequest) {
         const rawAiResponse = await generateGeminiContent(
           [{ role: "user", content: prompt }],
           systemPrompt,
-          { temperature: 0.4, maxTokens: 2048 }
+          { temperature: 0.4, maxTokens: 2048, mode: "deep" }
         );
 
         const jsonMatch = rawAiResponse.match(/```(?:json)?\s*([\s\S]*?)\s*```/) || [
@@ -370,6 +371,7 @@ SADECE JSON FORMATINDA DÖNÜŞ YAP.
         const rawAiResponse = await generateGeminiContent(chatList, chatSystemPrompt, {
           temperature: 0.5,
           maxTokens: 2048,
+          mode: mode as "fast" | "deep",
         });
 
         const jsonMatch = rawAiResponse.match(/```(?:json)?\s*([\s\S]*?)\s*```/) || [
@@ -383,6 +385,7 @@ SADECE JSON FORMATINDA DÖNÜŞ YAP.
           const rawText = await generateGeminiContent(chatList, buildCoachSystemPrompt(), {
             temperature: 0.6,
             maxTokens: 1000,
+            mode: mode as "fast" | "deep",
           });
           parsedChatResponse = { reply: rawText, action_proposal: null };
         } catch {

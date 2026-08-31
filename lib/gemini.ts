@@ -1,13 +1,19 @@
 /**
- * Google Gemini Flash API Integration Client - Ultra Fast Real-Time Edition
+ * Google Gemini Flash API Integration Client - Fast & Deep Thinking Modes
  */
 
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
+
 const FAST_MODELS = [
   "gemini-3.5-flash-lite",
   "gemini-2.5-flash-lite",
   "gemini-3.1-flash-lite",
+];
+
+const DEEP_MODELS = [
   "gemini-3.6-flash",
+  "gemini-2.5-pro",
+  "gemini-3.5-flash",
 ];
 
 export interface GeminiMessage {
@@ -18,7 +24,11 @@ export interface GeminiMessage {
 export async function generateGeminiContent(
   messages: GeminiMessage[],
   systemInstruction?: string,
-  options: { temperature?: number; maxTokens?: number } = {}
+  options: {
+    temperature?: number;
+    maxTokens?: number;
+    mode?: "fast" | "deep";
+  } = {}
 ): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
 
@@ -26,11 +36,9 @@ export async function generateGeminiContent(
     throw new Error("GEMINI_API_KEY is not configured in environment variables.");
   }
 
-  const preferredModel = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
-  const modelsToTry = [
-    preferredModel,
-    ...FAST_MODELS.filter((m) => m !== preferredModel),
-  ];
+  const isDeep = options.mode === "deep";
+  const modelsToTry = isDeep ? DEEP_MODELS : FAST_MODELS;
+  const timeoutMs = isDeep ? 45000 : 8000;
 
   // Format contents for Gemini API (user / model)
   const contents = messages
@@ -43,8 +51,8 @@ export async function generateGeminiContent(
   const payload: Record<string, unknown> = {
     contents,
     generationConfig: {
-      temperature: options.temperature ?? 0.6,
-      maxOutputTokens: options.maxTokens ?? 1024,
+      temperature: options.temperature ?? (isDeep ? 0.4 : 0.6),
+      maxOutputTokens: options.maxTokens ?? (isDeep ? 4096 : 1024),
     },
   };
 
@@ -60,7 +68,7 @@ export async function generateGeminiContent(
     try {
       const url = `${GEMINI_BASE}/${model}:generateContent?key=${apiKey}`;
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8-second timeout per model
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
       const response = await fetch(url, {
         method: "POST",
@@ -87,10 +95,10 @@ export async function generateGeminiContent(
         lastError = new Error(`Gemini ${model} returned ${response.status}`);
       }
     } catch (err: any) {
-      console.warn(`Gemini [${model}] failed (${err.message}), trying next fast model...`);
+      console.warn(`Gemini [${model}] failed (${err.message}), trying next fallback...`);
       lastError = err;
     }
   }
 
-  throw lastError || new Error("All fast Gemini models failed.");
+  throw lastError || new Error("All Gemini models failed to generate content.");
 }
