@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
+import { LanguageProvider } from "@/lib/i18n";
 import PinLockScreen from "@/components/PinLockScreen";
 import Navbar from "@/components/Navbar";
 import BottomNav from "@/components/BottomNav";
@@ -24,11 +25,13 @@ export default function RootLayout({
   return (
     <html lang="tr" className={jakarta.variable}>
       <body className="antialiased bg-slate-50 text-slate-900 min-h-screen">
-        <PinLockScreen>
-          <Navbar />
-          <main className="w-full">{children}</main>
-          <BottomNav />
-        </PinLockScreen>
+        <LanguageProvider>
+          <PinLockScreen>
+            <Navbar />
+            <main className="w-full">{children}</main>
+            <BottomNav />
+          </PinLockScreen>
+        </LanguageProvider>
       </body>
     </html>
   );

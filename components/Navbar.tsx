@@ -3,13 +3,15 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { Dumbbell, Activity, CalendarDays, Bot, LogOut, User } from "lucide-react";
+import { Dumbbell, Activity, CalendarDays, Bot, LogOut, Globe } from "lucide-react";
 import { getCurrentUser, logout } from "@/lib/auth-pin";
+import { useLanguage, Language } from "@/lib/i18n";
 import { AppUser } from "@/types";
 
 export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
+  const { language, setLanguage, t } = useLanguage();
   const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
 
   useEffect(() => {
@@ -25,10 +27,16 @@ export default function Navbar() {
   };
 
   const navLinks = [
-    { href: "/workout", label: "Antrenman", icon: Dumbbell },
-    { href: "/metrics", label: "Ölçüm & Kilo", icon: Activity },
-    { href: "/routines", label: "Programlar", icon: CalendarDays },
-    { href: "/coach", label: "AI Antrenör", icon: Bot },
+    { href: "/workout", label: t("navWorkout"), icon: Dumbbell },
+    { href: "/metrics", label: t("navMetrics"), icon: Activity },
+    { href: "/routines", label: t("navRoutines"), icon: CalendarDays },
+    { href: "/coach", label: t("navCoach"), icon: Bot },
+  ];
+
+  const languages: { code: Language; label: string; flag: string }[] = [
+    { code: "tr", label: "TR", flag: "🇹🇷" },
+    { code: "en", label: "EN", flag: "🇬🇧" },
+    { code: "de", label: "DE", flag: "🇩🇪" },
   ];
 
   return (
@@ -47,7 +55,7 @@ export default function Navbar() {
               Lumino<span className="text-emerald-600">PT</span>
             </span>
             <span className="hidden sm:block text-[10px] font-medium text-slate-400 -mt-1 tracking-wider uppercase">
-              Smart Fitness Platform
+              {t("brandSubtitle")}
             </span>
           </div>
         </Link>
@@ -78,10 +86,30 @@ export default function Navbar() {
           })}
         </nav>
 
-        {/* User Account / Profile Info */}
+        {/* User Account / Profile Info & Language Picker */}
         <div className="flex items-center gap-2">
+          {/* Language Switcher */}
+          <div className="flex items-center gap-0.5 bg-slate-100 p-0.5 rounded-xl text-[11px] font-bold">
+            {languages.map((l) => (
+              <button
+                key={l.code}
+                type="button"
+                onClick={() => setLanguage(l.code)}
+                title={l.label}
+                className={`px-2 py-1 rounded-lg transition-all tap-effect flex items-center gap-0.5 ${
+                  language === l.code
+                    ? "bg-white text-slate-900 shadow-sm"
+                    : "text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <span>{l.flag}</span>
+                <span className="hidden sm:inline">{l.label}</span>
+              </button>
+            ))}
+          </div>
+
           {currentUser && (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200/70 text-xs">
+            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-slate-50 border border-slate-200/70 text-xs">
               <div className="w-5 h-5 rounded-lg bg-emerald-600 text-white font-bold text-[10px] flex items-center justify-center">
                 {currentUser.display_name?.[0]?.toUpperCase() || currentUser.username[0]?.toUpperCase()}
               </div>
@@ -94,7 +122,7 @@ export default function Navbar() {
           <button
             type="button"
             onClick={handleLogout}
-            title="Çıkış Yap / Hesap Değiştir"
+            title={t("logout")}
             className="p-2 rounded-xl text-slate-400 hover:text-red-600 hover:bg-slate-100 tap-effect"
           >
             <LogOut className="w-4 h-4" />

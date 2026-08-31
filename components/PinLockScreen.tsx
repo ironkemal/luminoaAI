@@ -1,14 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getCurrentUser, loginUser, registerWithInvitationPin, isAppUnlocked, INVITATION_PIN } from "@/lib/auth-pin";
-import { Dumbbell, KeyRound, Lock, User, UserPlus, LogIn, CheckCircle2, ShieldCheck, Sparkles } from "lucide-react";
+import { getCurrentUser, loginUser, registerWithInvitationPin, isAppUnlocked } from "@/lib/auth-pin";
+import { useLanguage, Language } from "@/lib/i18n";
+import { Dumbbell, UserPlus, LogIn, CheckCircle2, KeyRound, Globe } from "lucide-react";
 
 interface PinLockScreenProps {
   children: React.ReactNode;
 }
 
 export default function PinLockScreen({ children }: PinLockScreenProps) {
+  const { language, setLanguage, t } = useLanguage();
   const [unlocked, setUnlocked] = useState(false);
   const [isMounting, setIsMounting] = useState(true);
   const [mode, setMode] = useState<"login" | "register">("login");
@@ -43,10 +45,10 @@ export default function PinLockScreen({ children }: PinLockScreenProps) {
       if (res.success) {
         setUnlocked(true);
       } else {
-        setLoginError(res.error || "Giriş başarısız.");
+        setLoginError(res.error || t("userNotFound"));
       }
     } catch (err: any) {
-      setLoginError(err.message || "Giriş yapılamadı.");
+      setLoginError(err.message || "Login failed");
     } finally {
       setIsLoggingIn(false);
     }
@@ -66,10 +68,10 @@ export default function PinLockScreen({ children }: PinLockScreenProps) {
       if (res.success) {
         setUnlocked(true);
       } else {
-        setRegError(res.error || "Kayıt başarısız.");
+        setRegError(res.error || t("invalidPinError"));
       }
     } catch (err: any) {
-      setRegError(err.message || "Kayıt yapılamadı.");
+      setRegError(err.message || "Registration failed");
     } finally {
       setIsRegistering(false);
     }
@@ -87,17 +89,42 @@ export default function PinLockScreen({ children }: PinLockScreenProps) {
     return <>{children}</>;
   }
 
+  const languages: { code: Language; label: string; flag: string }[] = [
+    { code: "tr", label: "TR", flag: "🇹🇷" },
+    { code: "en", label: "EN", flag: "🇬🇧" },
+    { code: "de", label: "DE", flag: "🇩🇪" },
+  ];
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-slate-100/60 to-slate-50 flex flex-col items-center justify-center p-4 select-none">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-slate-100/60 to-slate-50 flex flex-col items-center justify-center p-4 select-none relative">
+      {/* Language Switcher Top Right */}
+      <div className="absolute top-4 right-4 flex items-center gap-1 bg-white/90 backdrop-blur-md p-1 rounded-2xl border border-slate-200 shadow-sm text-xs font-bold">
+        {languages.map((l) => (
+          <button
+            key={l.code}
+            type="button"
+            onClick={() => setLanguage(l.code)}
+            className={`px-2.5 py-1 rounded-xl transition-all tap-effect flex items-center gap-1 ${
+              language === l.code
+                ? "bg-slate-900 text-white shadow-sm"
+                : "text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            <span>{l.flag}</span>
+            <span>{l.label}</span>
+          </button>
+        ))}
+      </div>
+
       <div className="w-full max-w-sm bg-white rounded-3xl p-6 md:p-8 shadow-card border border-slate-100 flex flex-col items-center animate-slide-up">
         {/* Logo */}
         <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 text-white flex items-center justify-center shadow-sm shadow-emerald-500/20 mb-3">
           <Dumbbell className="w-7 h-7" />
         </div>
 
-        <h1 className="text-xl font-black text-slate-900 tracking-tight">Lumino Smart PT</h1>
+        <h1 className="text-xl font-black text-slate-900 tracking-tight">{t("loginTitle")}</h1>
         <p className="text-xs text-slate-500 mt-0.5 mb-5 text-center">
-          Kişisel ve Çok Kullanıcılı Fitness Platformu
+          {t("loginSubtitle")}
         </p>
 
         {/* Tab Switcher */}
@@ -114,7 +141,7 @@ export default function PinLockScreen({ children }: PinLockScreenProps) {
                 : "text-slate-500 hover:text-slate-700"
             }`}
           >
-            <LogIn className="w-3.5 h-3.5" /> Giriş Yap
+            <LogIn className="w-3.5 h-3.5" /> {t("loginTab")}
           </button>
           <button
             type="button"
@@ -128,7 +155,7 @@ export default function PinLockScreen({ children }: PinLockScreenProps) {
                 : "text-slate-500 hover:text-slate-700"
             }`}
           >
-            <UserPlus className="w-3.5 h-3.5 text-emerald-600" /> Hesap Aç (4004)
+            <UserPlus className="w-3.5 h-3.5 text-emerald-600" /> {t("registerTab")}
           </button>
         </div>
 
@@ -143,28 +170,28 @@ export default function PinLockScreen({ children }: PinLockScreenProps) {
 
             <div>
               <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                Kullanıcı Adı (ID)
+                {t("usernameLabel")}
               </label>
               <input
                 type="text"
                 required
                 value={loginUsername}
                 onChange={(e) => setLoginUsername(e.target.value)}
-                placeholder="kemal"
+                placeholder={t("usernamePlaceholder")}
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-500"
               />
             </div>
 
             <div>
               <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                Şifre
+                {t("passwordLabel")}
               </label>
               <input
                 type="password"
                 required
                 value={loginPassword}
                 onChange={(e) => setLoginPassword(e.target.value)}
-                placeholder="••••"
+                placeholder={t("passwordPlaceholder")}
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-500"
               />
             </div>
@@ -175,18 +202,18 @@ export default function PinLockScreen({ children }: PinLockScreenProps) {
               className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm tap-effect flex items-center justify-center gap-2 transition-all mt-2"
             >
               <LogIn className="w-4 h-4" />
-              {isLoggingIn ? "Giriş Yapılıyor..." : "Giriş Yap"}
+              {isLoggingIn ? t("loggingIn") : t("loginButton")}
             </button>
 
             <div className="pt-2 text-center">
               <span className="text-[11px] text-slate-400">
-                Hesabınız yoksa üstteki <b>&ldquo;Hesap Aç (4004)&rdquo;</b> sekmesine tıklayın.
+                {t("noAccountHint")}
               </span>
             </div>
           </form>
         )}
 
-        {/* ── REGISTER FORM (INVITATION PIN: 4004) ── */}
+        {/* ── REGISTER FORM (PIN IS HIDDEN) ── */}
         {mode === "register" && (
           <form onSubmit={handleRegister} className="w-full space-y-3 animate-fade-in">
             {regError && (
@@ -196,64 +223,62 @@ export default function PinLockScreen({ children }: PinLockScreenProps) {
             )}
 
             <div className="p-2.5 rounded-xl bg-emerald-50/80 border border-emerald-200 text-[11px] text-emerald-800 flex items-start gap-2">
-              <Sparkles className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-              <span>
-                Yeni hesap açmak için davetiye PIN kodunu (<b>4004</b>) girin.
-              </span>
+              <KeyRound className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+              <span>{t("registerBadge")}</span>
             </div>
 
             <div>
               <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                Davetiye PIN Kodu *
+                {t("invitationPinLabel")}
               </label>
               <input
                 type="password"
-                maxLength={4}
+                maxLength={6}
                 required
                 value={regPin}
                 onChange={(e) => setRegPin(e.target.value)}
-                placeholder="4004"
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-500"
+                placeholder={t("invitationPinPlaceholder")}
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-500 tracking-widest"
               />
             </div>
 
             <div>
               <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                İsim / Görünen Ad
+                {t("displayNameLabel")}
               </label>
               <input
                 type="text"
                 value={regDisplayName}
                 onChange={(e) => setRegDisplayName(e.target.value)}
-                placeholder="Örn: Ahmet"
+                placeholder={t("displayNamePlaceholder")}
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-500"
               />
             </div>
 
             <div>
               <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                Kullanıcı Adı (ID) *
+                {t("usernameLabel")} *
               </label>
               <input
                 type="text"
                 required
                 value={regUsername}
                 onChange={(e) => setRegUsername(e.target.value)}
-                placeholder="ahmet123"
+                placeholder={t("usernamePlaceholder")}
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-500"
               />
             </div>
 
             <div>
               <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                Şifre *
+                {t("passwordLabel")} *
               </label>
               <input
                 type="password"
                 required
                 value={regPassword}
                 onChange={(e) => setRegPassword(e.target.value)}
-                placeholder="En az 4 karakter"
+                placeholder={t("passwordPlaceholder")}
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-500"
               />
             </div>
@@ -264,7 +289,7 @@ export default function PinLockScreen({ children }: PinLockScreenProps) {
               className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm tap-effect flex items-center justify-center gap-2 transition-all mt-2"
             >
               <CheckCircle2 className="w-4 h-4" />
-              {isRegistering ? "Hesap Oluşturuluyor..." : "Hesap Oluştur ve Başla"}
+              {isRegistering ? t("registering") : t("registerButton")}
             </button>
           </form>
         )}

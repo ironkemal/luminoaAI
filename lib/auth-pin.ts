@@ -49,7 +49,7 @@ export async function registerWithInvitationPin(
   displayName?: string
 ): Promise<{ success: boolean; error?: string; user?: AppUser }> {
   if (pin !== INVITATION_PIN) {
-    return { success: false, error: "Geçersiz Davetiye PIN Kodu! (Doğru PIN: 4004)" };
+    return { success: false, error: "Geçersiz Davetiye Kodu! Lütfen size verilen PIN kodunu girin." };
   }
 
   if (!username || username.trim().length < 3) {

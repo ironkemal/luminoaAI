@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Dumbbell, Activity, CalendarDays, Bot, Lock } from "lucide-react";
-import { lockApp } from "@/lib/auth-pin";
+import { Dumbbell, Activity, CalendarDays, Bot } from "lucide-react";
+import { useLanguage } from "@/lib/i18n";
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const { t } = useLanguage();
 
-  // Hide bottom nav in active workout player mode to preserve focus
   if (pathname.includes("/workout/player")) {
     return null;
   }
@@ -16,25 +16,25 @@ export default function BottomNav() {
   const navItems = [
     {
       href: "/workout",
-      label: "Antrenman",
+      label: t("navWorkout"),
       icon: Dumbbell,
       active: pathname === "/" || pathname.startsWith("/workout"),
     },
     {
       href: "/metrics",
-      label: "Ölçüm & Kilo",
+      label: t("navMetrics"),
       icon: Activity,
       active: pathname.startsWith("/metrics"),
     },
     {
       href: "/routines",
-      label: "Programlar",
+      label: t("navRoutines"),
       icon: CalendarDays,
       active: pathname.startsWith("/routines"),
     },
     {
       href: "/coach",
-      label: "AI PT",
+      label: t("navCoach"),
       icon: Bot,
       active: pathname.startsWith("/coach"),
     },
