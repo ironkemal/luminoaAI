@@ -7,7 +7,7 @@ import { calculateNextRoutine } from "@/lib/workout-queue";
 import { getCurrentUser } from "@/lib/auth-pin";
 import WorkoutQueueCard from "@/components/workout/WorkoutQueueCard";
 import Link from "next/link";
-import { Dumbbell, Trophy, Flame, ChevronRight, Scale, Sparkles, History, Calendar, UserCheck } from "lucide-react";
+import { Dumbbell, Trophy, Flame, ChevronRight, Scale, Sparkles, History, Calendar, UserCheck, Camera } from "lucide-react";
 
 export default function WorkoutDashboardView() {
   const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
@@ -95,13 +95,20 @@ export default function WorkoutDashboardView() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/metrics#progress-photos"
+            className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-xs font-bold text-white shadow-sm shadow-emerald-500/20 flex items-center gap-1.5 tap-effect"
+          >
+            <Camera className="w-3.5 h-3.5" />
+            Fotoğraf Çek / Ekle
+          </Link>
           <Link
             href="/metrics"
             className="px-3.5 py-2 rounded-xl bg-white border border-slate-200 hover:border-slate-300 text-xs font-semibold text-slate-700 shadow-sm flex items-center gap-1.5 tap-effect"
           >
             <Scale className="w-3.5 h-3.5 text-emerald-600" />
-            Tartım / Ölçüm Ekle
+            Tartım / Ölçüm
           </Link>
           <Link
             href="/coach"

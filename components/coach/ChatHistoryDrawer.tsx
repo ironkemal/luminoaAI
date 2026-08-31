@@ -11,7 +11,8 @@ import {
   Clock,
   X,
   ChevronRight,
-  Sparkles
+  Sparkles,
+  RefreshCw
 } from "lucide-react";
 
 interface ChatHistoryDrawerProps {
@@ -22,6 +23,7 @@ interface ChatHistoryDrawerProps {
   onSelectSession: (session: ChatSession) => void;
   onNewSession: () => void;
   onDeleteSession: (sessionId: string) => void;
+  onRefresh?: () => void;
 }
 
 export default function ChatHistoryDrawer({
@@ -32,10 +34,20 @@ export default function ChatHistoryDrawer({
   onSelectSession,
   onNewSession,
   onDeleteSession,
+  onRefresh,
 }: ChatHistoryDrawerProps) {
   const { t, language } = useLanguage();
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   if (!isOpen) return null;
+
+  const handleRefreshClick = async () => {
+    if (onRefresh) {
+      setIsRefreshing(true);
+      await onRefresh();
+      setTimeout(() => setIsRefreshing(false), 500);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end animate-fade-in">
@@ -64,12 +76,24 @@ export default function ChatHistoryDrawer({
               </div>
             </div>
 
-            <button
-              onClick={onClose}
-              className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl tap-effect"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-1">
+              {onRefresh && (
+                <button
+                  type="button"
+                  onClick={handleRefreshClick}
+                  title="Senkronize Et / Yenile"
+                  className="p-1.5 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl tap-effect"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin text-emerald-600" : ""}`} />
+                </button>
+              )}
+              <button
+                onClick={onClose}
+                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl tap-effect"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
           {/* New Chat Button */}

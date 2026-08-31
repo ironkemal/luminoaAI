@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { AiCoachLog, ChatSession } from "@/types";
+import { AiCoachLog, ChatSession, AppUser } from "@/types";
 import { createClient } from "@/lib/supabase/client";
 import { getCurrentUser } from "@/lib/auth-pin";
 import { useLanguage } from "@/lib/i18n";
@@ -49,6 +49,7 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
   const { t, language } = useLanguage();
   const [logs, setLogs] = useState<AiCoachLog[]>(initialLogs);
   const [activeTab, setActiveTab] = useState<"analysis" | "memory" | "chat">("chat");
+  const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
 
   // AI Thinking Mode (Fast 1-2s vs Deep Reasoning)
   const [aiMode, setAiMode] = useState<"fast" | "deep">("fast");
@@ -84,9 +85,47 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
 
   const latestLog = logs[0];
 
-  // ── Load Sessions on Mount ──
+  const isValidUUID = (str?: string | null): boolean => {
+    if (!str) return false;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(str);
+  };
+
+  const generateUUID = (): string => {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+      return crypto.randomUUID();
+    }
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
+      const r = (Math.random() * 16) | 0;
+      const v = c === "x" ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
+  };
+
+  // ── Load Sessions on Mount, Window Focus & User Updates ──
   useEffect(() => {
+    setCurrentUser(getCurrentUser());
     fetchSessions();
+
+    const handleFocus = () => {
+      fetchSessions();
+      setCurrentUser(getCurrentUser());
+    };
+
+    const handleUserUpdate = (e: any) => {
+      if (e.detail) {
+        setCurrentUser(e.detail);
+      } else {
+        setCurrentUser(getCurrentUser());
+      }
+    };
+
+    window.addEventListener("focus", handleFocus);
+    window.addEventListener("lumino_user_updated", handleUserUpdate);
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("lumino_user_updated", handleUserUpdate);
+    };
   }, []);
 
   const fetchSessions = async () => {
@@ -100,7 +139,7 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
         .order("updated_at", { ascending: false });
 
       if (currentUser?.id) {
-        query = query.eq("user_id", currentUser.id);
+        query = query.or(`user_id.eq.${currentUser.id},user_id.is.null`);
       }
 
       const { data, error } = await query;
@@ -111,6 +150,9 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
         if (latest.messages && latest.messages.length > 0) {
           setMessages(latest.messages);
         }
+        try {
+          localStorage.setItem("lumino_chat_sessions", JSON.stringify(data));
+        } catch (e) {}
       } else {
         const localSaved = localStorage.getItem("lumino_chat_sessions");
         if (localSaved) {
@@ -119,10 +161,32 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
             if (Array.isArray(parsed) && parsed.length > 0) {
               setSessions(parsed);
               setCurrentSessionId(parsed[0].id);
-              setMessages(parsed[0].messages);
+              if (parsed[0].messages) {
+                setMessages(parsed[0].messages);
+              }
+
+              // Auto-sync existing local sessions to Supabase
+              for (const s of parsed) {
+                if (s.messages && s.messages.length > 0) {
+                  const validId = isValidUUID(s.id) ? s.id : generateUUID();
+                  supabase
+                    .from("chat_sessions")
+                    .upsert(
+                      {
+                        id: validId,
+                        user_id: currentUser?.id || s.user_id || null,
+                        title: s.title || "Sohbet",
+                        messages: s.messages,
+                        updated_at: s.updated_at || new Date().toISOString(),
+                      },
+                      { onConflict: "id" }
+                    )
+                    .then(() => {});
+                }
+              }
             }
           } catch (e) {
-            console.warn(e);
+            console.warn("Parse local sessions warning:", e);
           }
         }
       }
@@ -141,20 +205,20 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
     let activeId = currentSessionId;
     const now = new Date().toISOString();
 
-    if (!activeId) {
-      activeId = "sess_" + Date.now();
+    if (!activeId || !isValidUUID(activeId)) {
+      activeId = generateUUID();
       setCurrentSessionId(activeId);
     }
 
-    try {
-      const payload = {
-        id: activeId.startsWith("sess_") ? undefined : activeId,
-        user_id: currentUser?.id || null,
-        title: sessionTitle,
-        messages: newMessages,
-        updated_at: now,
-      };
+    const payload = {
+      id: activeId,
+      user_id: currentUser?.id || null,
+      title: sessionTitle,
+      messages: newMessages,
+      updated_at: now,
+    };
 
+    try {
       const { data, error } = await supabase
         .from("chat_sessions")
         .upsert(payload, { onConflict: "id" })
@@ -164,6 +228,9 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
       if (!error && data) {
         activeId = data.id;
         setCurrentSessionId(data.id);
+      } else if (error) {
+        console.warn("Supabase upsert note, trying fallback insert:", error);
+        await supabase.from("chat_sessions").insert(payload);
       }
     } catch (err) {
       console.warn("Save session to Supabase failed, saving local:", err);
@@ -230,12 +297,17 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
   const handleRunEvaluation = async () => {
     setIsEvaluating(true);
     setAppliedSuccessMessage(null);
-    const currentUser = getCurrentUser();
+    const u = currentUser || getCurrentUser();
     try {
       const res = await fetch("/api/ai-coach", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "evaluate", userId: currentUser?.id, mode: aiMode }),
+        body: JSON.stringify({
+          action: "evaluate",
+          userId: u?.id,
+          userProfile: u,
+          mode: aiMode,
+        }),
       });
 
       const data = await res.json();
@@ -254,7 +326,7 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
     if (!latestLog?.suggested_changes) return;
 
     setIsApplying(true);
-    const currentUser = getCurrentUser();
+    const u = currentUser || getCurrentUser();
     try {
       const res = await fetch("/api/ai-coach", {
         method: "POST",
@@ -262,7 +334,8 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
         body: JSON.stringify({
           action: "apply_changes",
           suggestedChanges: latestLog.suggested_changes,
-          userId: currentUser?.id,
+          userId: u?.id,
+          userProfile: u,
         }),
       });
 
@@ -294,7 +367,7 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
     setMessages(updatedWithUser);
     setIsChatSending(true);
 
-    const currentUser = getCurrentUser();
+    const u = currentUser || getCurrentUser();
 
     try {
       const res = await fetch("/api/ai-coach", {
@@ -304,7 +377,8 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
           action: "chat",
           question: userText,
           messages: messages.map((m) => ({ role: m.role, content: m.content })),
-          userId: currentUser?.id,
+          userId: u?.id,
+          userProfile: u,
           mode: activeMode,
         }),
       });
@@ -339,7 +413,7 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
 
   const handleApplyChatProposal = async (msgIndex: number, proposal: any) => {
     setApplyingProposalIndex(msgIndex);
-    const currentUser = getCurrentUser();
+    const u = currentUser || getCurrentUser();
 
     try {
       if (proposal.type === "create_program" && proposal.program_data) {
@@ -349,7 +423,8 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
           body: JSON.stringify({
             action: "apply_full_program",
             generatedProgram: proposal.program_data,
-            userId: currentUser?.id,
+            userId: u?.id,
+            userProfile: u,
           }),
         });
 
@@ -877,6 +952,7 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
         onSelectSession={handleSelectSession}
         onNewSession={handleStartNewSession}
         onDeleteSession={handleDeleteSession}
+        onRefresh={fetchSessions}
       />
 
       {/* Voice Coach Modal */}

@@ -141,6 +141,9 @@ export default function UserSettingsModal({
 
       setCurrentUser(updatedUser);
       setLocalUser(updatedUser);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("lumino_user_updated", { detail: updatedUser }));
+      }
       if (onUserUpdated) {
         onUserUpdated(updatedUser);
       }

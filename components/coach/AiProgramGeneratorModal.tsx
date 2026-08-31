@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { FullProgramResult } from "@/lib/ai-pt-coach";
+import { getCurrentUser } from "@/lib/auth-pin";
 import {
   Sparkles,
   Calendar,
@@ -35,18 +36,18 @@ export default function AiProgramGeneratorModal({
   const focusOptions = [
     {
       id: "Body Recomposition & Lean Cut",
-      title: "🔥 Body Recomposition (Lean Cut)",
-      desc: "Kas kütlesini koruyup artırarak bel inceltme ve yağ yakımı",
+      title: "🔥 Recomposition & Yağ Yakımı",
+      desc: "Kas kütlesini koruyarak/arttırarak yağ oranını düşürme",
     },
     {
-      id: "Maksimum Hipertrofi (24.5kg Dambıl)",
-      title: "💪 Maksimum Kas Hipertrofisi",
-      desc: "Evdeki 24.5 kg dambıllarla kas büyümesini maksimize eden yüksek hacimli split",
+      id: "Omuz & Üst Göğüs Hipertrofisi (V-Taper)",
+      title: "⚡ Omuz & Üst Göğüs (V-Taper)",
+      desc: "Geniş omuz ve estetik üst vücut odaklı hacim spliti",
     },
     {
-      id: "Kuvvet & Dikey Çekiş (Barfiks & Ağır Row)",
-      title: "⚡ Kuvvet & Yoğunluk Odaklı",
-      desc: "Barfiks ve ağır dambıl preslerinde güç artışı",
+      id: "Maksimum Güç & Progressive Overload",
+      title: "💥 Güç & Direnç Maksimizasyonu",
+      desc: "24.5 kg dambıl sınırlarında güç ve sinir sistemi adaptasyonu",
     },
     {
       id: "Deload & Aktif Toparlanma",
@@ -57,6 +58,7 @@ export default function AiProgramGeneratorModal({
 
   const handleGenerate = async () => {
     setIsGenerating(true);
+    const u = getCurrentUser();
     try {
       const res = await fetch("/api/ai-coach", {
         method: "POST",
@@ -65,6 +67,8 @@ export default function AiProgramGeneratorModal({
           action: "generate_full_program",
           programFocus: focus,
           programNotes: notes,
+          userId: u?.id,
+          userProfile: u,
         }),
       });
 
@@ -84,6 +88,7 @@ export default function AiProgramGeneratorModal({
     if (!generatedProgram) return;
 
     setIsApplying(true);
+    const u = getCurrentUser();
     try {
       const res = await fetch("/api/ai-coach", {
         method: "POST",
@@ -91,6 +96,8 @@ export default function AiProgramGeneratorModal({
         body: JSON.stringify({
           action: "apply_full_program",
           generatedProgram: generatedProgram,
+          userId: u?.id,
+          userProfile: u,
         }),
       });
 

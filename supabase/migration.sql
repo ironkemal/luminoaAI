@@ -363,7 +363,7 @@ ON CONFLICT (id) DO NOTHING;
 -- 8. AI Chat Sessions (Kalıcı Sohbet Geçmişi & Oturumlar)
 CREATE TABLE IF NOT EXISTS public.chat_sessions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES public.app_users(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
   messages JSONB NOT NULL DEFAULT '[]'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

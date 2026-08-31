@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { ProgressPhoto, PhotoTiming, PhotoPose } from "@/types";
 import { createClient } from "@/lib/supabase/client";
 import { getCurrentUser } from "@/lib/auth-pin";
@@ -14,7 +14,15 @@ import {
   Maximize2,
   X,
   Plus,
-  Check
+  Check,
+  RefreshCw,
+  SwitchCamera,
+  Timer,
+  Grid3X3,
+  Image as ImageIcon,
+  AlertCircle,
+  Sparkles,
+  CheckCircle2
 } from "lucide-react";
 
 interface ProgressPhotosGalleryProps {
@@ -32,6 +40,9 @@ export default function ProgressPhotosGallery({ currentWeight }: ProgressPhotosG
   // Filter State
   const [filterTiming, setFilterTiming] = useState<"all" | PhotoTiming>("all");
 
+  // Upload/Capture Mode: "camera" | "gallery"
+  const [captureMode, setCaptureMode] = useState<"camera" | "gallery">("camera");
+
   // Form State
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -41,11 +52,31 @@ export default function ProgressPhotosGallery({ currentWeight }: ProgressPhotosG
   const [recordedDate, setRecordedDate] = useState<string>(new Date().toISOString().split("T")[0]);
   const [notes, setNotes] = useState<string>("");
 
+  // Live Camera State
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const [cameraFacing, setCameraFacing] = useState<"user" | "environment">("user");
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [cameraLoading, setCameraLoading] = useState(false);
+  const [showGrid, setShowGrid] = useState(true);
+  const [countdownDuration, setCountdownDuration] = useState<0 | 3 | 5>(0);
+  const [activeCountdown, setActiveCountdown] = useState<number | null>(null);
+  const [shutterFlash, setShutterFlash] = useState(false);
+
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const nativeCameraInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     fetchPhotos();
   }, []);
+
+  // Update default weight if prop changes
+  useEffect(() => {
+    if (currentWeight) {
+      setWeightKg(String(currentWeight));
+    }
+  }, [currentWeight]);
 
   const fetchPhotos = async () => {
     setLoading(true);
@@ -73,12 +104,224 @@ export default function ProgressPhotosGallery({ currentWeight }: ProgressPhotosG
     }
   };
 
+  // Stop camera tracks cleanly
+  const stopCameraStream = useCallback(() => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach((track) => track.stop());
+      setCameraStream(null);
+    }
+  }, [cameraStream]);
+
+  // Start live camera stream (WebRTC)
+  const startCamera = useCallback(async (facing: "user" | "environment" = cameraFacing) => {
+    setCameraLoading(true);
+    setCameraError(null);
+
+    // Stop existing stream if any
+    if (cameraStream) {
+      cameraStream.getTracks().forEach((track) => track.stop());
+      setCameraStream(null);
+    }
+
+    if (typeof window === "undefined" || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setCameraError("Tarayıcınız bu bağlantıda (HTTP) canlı vizör akışını desteklemiyor. '📱 Telefon Kamerasını Aç' butonuna basarak cihaz kamerasını doğrudan başlatabilirsiniz.");
+      setCameraLoading(false);
+      return;
+    }
+
+    try {
+      let stream: MediaStream | null = null;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: facing },
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          },
+          audio: false
+        });
+      } catch (e1) {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: facing },
+            audio: false
+          });
+        } catch (e2) {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: false
+          });
+        }
+      }
+
+      if (stream) {
+        setCameraStream(stream);
+        setCameraFacing(facing);
+      }
+    } catch (err: any) {
+      console.error("Camera access error:", err);
+      let message = "Kamera başlatılamadı.";
+      if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+        message = "Kamera izni reddedildi. Lütfen tarayıcı ayarlarından kamera erişimine izin verin.";
+      } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+        message = "Cihazınızda kamera bulunamadı.";
+      } else if (err.name === "NotReadableError" || err.name === "TrackStartError") {
+        message = "Kamera başka bir uygulama tarafından kullanılıyor olabilir.";
+      } else if (err.message) {
+        message = err.message;
+      }
+      setCameraError(message);
+    } finally {
+      setCameraLoading(false);
+    }
+  }, [cameraFacing, cameraStream]);
+
+  // Bind camera stream to video element whenever stream changes
+  useEffect(() => {
+    if (videoRef.current && cameraStream && showUploadModal && captureMode === "camera") {
+      videoRef.current.srcObject = cameraStream;
+      videoRef.current.play().catch((e) => console.warn("Video play error:", e));
+    }
+  }, [cameraStream, showUploadModal, captureMode]);
+
+  // Attach stream when video element is ready
+  useEffect(() => {
+    if (showUploadModal && captureMode === "camera" && !previewUrl && !cameraStream && !cameraError) {
+      startCamera(cameraFacing);
+    }
+  }, [showUploadModal, captureMode, previewUrl, cameraStream, cameraError, cameraFacing, startCamera]);
+
+  // Cleanup camera stream when modal closes or unmounts
+  useEffect(() => {
+    if (!showUploadModal || previewUrl || captureMode !== "camera") {
+      stopCameraStream();
+    }
+  }, [showUploadModal, previewUrl, captureMode, stopCameraStream]);
+
+  // Toggle Front / Back Camera
+  const toggleCameraFacing = () => {
+    const nextFacing = cameraFacing === "user" ? "environment" : "user";
+    startCamera(nextFacing);
+  };
+
+  // Trigger Native Phone Camera immediately using dynamically created input
+  // This bypasses React's attribute handling issues with `capture`
+  const handleTriggerNativeCamera = () => {
+    // Create a fresh input element every time to ensure capture works
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.setAttribute("capture", "environment"); // Critical: setAttribute ensures the attribute is properly set
+    input.style.display = "none";
+    document.body.appendChild(input);
+
+    input.addEventListener("change", (e: Event) => {
+      const target = e.target as HTMLInputElement;
+      const file = target.files?.[0];
+      if (file) {
+        setSelectedFile(file);
+        const url = URL.createObjectURL(file);
+        setPreviewUrl(url);
+        stopCameraStream();
+        setShowUploadModal(true);
+      }
+      // Cleanup: remove the temporary input from DOM
+      document.body.removeChild(input);
+    });
+
+    // Also clean up if user cancels
+    input.addEventListener("cancel", () => {
+      document.body.removeChild(input);
+    });
+
+    // Trigger the click
+    input.click();
+  };
+
+  // Trigger Gallery Picker immediately
+  const handleTriggerGalleryPicker = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+      fileInputRef.current.click();
+    }
+  };
+
+  // Capture current frame from live video stream
+  const triggerCaptureSnapshot = () => {
+    if (!videoRef.current) return;
+
+    const video = videoRef.current;
+    const canvas = canvasRef.current || document.createElement("canvas");
+    canvas.width = video.videoWidth || 1280;
+    canvas.height = video.videoHeight || 720;
+    const ctx = canvas.getContext("2d");
+
+    if (ctx) {
+      // If user camera (selfie mode), mirror horizontally for natural preview
+      if (cameraFacing === "user") {
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+      }
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      // Shutter flash effect
+      setShutterFlash(true);
+      setTimeout(() => setShutterFlash(false), 250);
+
+      canvas.toBlob(
+        (blob) => {
+          if (blob) {
+            const fileName = `progress_snap_${Date.now()}.jpg`;
+            const file = new File([blob], fileName, { type: "image/jpeg" });
+            setSelectedFile(file);
+            const url = URL.createObjectURL(blob);
+            setPreviewUrl(url);
+            stopCameraStream();
+          }
+        },
+        "image/jpeg",
+        0.9
+      );
+    }
+  };
+
+  // Handle Shutter click with optional countdown
+  const handleSnapPhoto = () => {
+    if (countdownDuration > 0) {
+      setActiveCountdown(countdownDuration);
+      let current = countdownDuration;
+      const interval = setInterval(() => {
+        current -= 1;
+        if (current <= 0) {
+          clearInterval(interval);
+          setActiveCountdown(null);
+          triggerCaptureSnapshot();
+        } else {
+          setActiveCountdown(current);
+        }
+      }, 1000);
+    } else {
+      triggerCaptureSnapshot();
+    }
+  };
+
+  // Reset captured image to take another photo
+  const handleRetakePhoto = () => {
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    if (captureMode === "camera") {
+      startCamera(cameraFacing);
+    }
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedFile(file);
       const url = URL.createObjectURL(file);
       setPreviewUrl(url);
+      stopCameraStream();
+      setShowUploadModal(true); // Open modal with preview ready
     }
   };
 
@@ -109,7 +352,7 @@ export default function ProgressPhotosGallery({ currentWeight }: ProgressPhotosG
           canvas.height = height;
           const ctx = canvas.getContext("2d");
           ctx?.drawImage(img, 0, 0, width, height);
-          const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
           resolve(dataUrl);
         };
         img.onerror = () => reject(new Error("Görsel işlenemedi"));
@@ -123,7 +366,7 @@ export default function ProgressPhotosGallery({ currentWeight }: ProgressPhotosG
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedFile && !previewUrl) {
-      alert("Lütfen bir fotoğraf seçin.");
+      alert("Lütfen bir fotoğraf çekin veya seçin.");
       return;
     }
 
@@ -135,7 +378,7 @@ export default function ProgressPhotosGallery({ currentWeight }: ProgressPhotosG
       let finalPhotoUrl = "";
 
       try {
-        const fileExt = selectedFile?.name.split(".").pop() || "jpg";
+        const fileExt = selectedFile?.name?.split(".").pop() || "jpg";
         const fileName = `${currentUser?.id || "anon"}_${Date.now()}.${fileExt}`;
         const filePath = `progress/${fileName}`;
 
@@ -157,10 +400,12 @@ export default function ProgressPhotosGallery({ currentWeight }: ProgressPhotosG
 
       if (!finalPhotoUrl && selectedFile) {
         finalPhotoUrl = await fileToBase64(selectedFile);
+      } else if (!finalPhotoUrl && previewUrl?.startsWith("data:")) {
+        finalPhotoUrl = previewUrl;
       }
 
       if (!finalPhotoUrl) {
-        throw new Error("Fotoğraf yüklenemedi.");
+        throw new Error("Fotoğraf işlenemedi.");
       }
 
       const { data, error } = await supabase
@@ -180,16 +425,23 @@ export default function ProgressPhotosGallery({ currentWeight }: ProgressPhotosG
       if (error) throw error;
 
       setPhotos((prev) => [data as ProgressPhoto, ...prev]);
-      setShowUploadModal(false);
-      setSelectedFile(null);
-      setPreviewUrl(null);
-      setNotes("");
+      closeModal();
     } catch (err: any) {
       console.error("Save progress photo error:", err);
       alert("Fotoğraf kaydedilirken hata oluştu: " + (err.message || ""));
     } finally {
       setIsUploading(false);
     }
+  };
+
+  const closeModal = () => {
+    stopCameraStream();
+    setShowUploadModal(false);
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    setCameraError(null);
+    setActiveCountdown(null);
+    setNotes("");
   };
 
   const handleDeletePhoto = async (id: string) => {
@@ -213,7 +465,28 @@ export default function ProgressPhotosGallery({ currentWeight }: ProgressPhotosG
       : photos.filter((p) => p.timing === filterTiming);
 
   return (
-    <div className="surface-card p-5 md:p-6 space-y-4 animate-fade-in">
+    <div id="progress-photos" className="surface-card p-5 md:p-6 space-y-4 animate-fade-in scroll-mt-20">
+      {/* Hidden Canvas for Frame Capture */}
+      <canvas ref={canvasRef} className="hidden" />
+
+      {/* Hidden File Inputs */}
+      <input
+        type="file"
+        accept="image/*"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        className="hidden"
+      />
+      {/* Native Camera Direct Trigger (Mobile Fallback) */}
+      <input
+        type="file"
+        accept="image/*"
+        capture="environment"
+        ref={nativeCameraInputRef}
+        onChange={handleFileChange}
+        className="hidden"
+      />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
         <div>
@@ -228,13 +501,25 @@ export default function ProgressPhotosGallery({ currentWeight }: ProgressPhotosG
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setShowUploadModal(true)}
-          className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm tap-effect flex items-center gap-1.5 self-start sm:self-auto"
-        >
-          <Plus className="w-4 h-4" /> {t("addPhotoBtn")}
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          {/* 📸 Kamera */}
+          <button
+            type="button"
+            onClick={handleTriggerNativeCamera}
+            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs shadow-md shadow-emerald-500/20 tap-effect flex items-center gap-2"
+          >
+            <Camera className="w-4 h-4" /> Kamera
+          </button>
+
+          {/* 🖼️ Galeri */}
+          <button
+            type="button"
+            onClick={handleTriggerGalleryPicker}
+            className="px-4 py-2.5 rounded-xl bg-white border border-slate-200 hover:border-slate-300 text-slate-700 font-bold text-xs tap-effect flex items-center gap-2 shadow-sm"
+          >
+            <ImageIcon className="w-4 h-4 text-slate-500" /> Galeri
+          </button>
+        </div>
       </div>
 
       {/* Filter Tabs */}
@@ -283,15 +568,31 @@ export default function ProgressPhotosGallery({ currentWeight }: ProgressPhotosG
         </div>
       ) : filteredPhotos.length === 0 ? (
         <div className="p-8 rounded-2xl bg-slate-50 border border-dashed border-slate-200 text-center">
-          <Camera className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-          <p className="text-xs font-semibold text-slate-600">
+          <Camera className="w-10 h-10 text-emerald-600/60 mx-auto mb-3" />
+          <p className="text-xs font-bold text-slate-700">
             {filterTiming === "all"
               ? "Henüz gelişim fotoğrafı yüklenmedi."
               : "Bu filtreye ait fotoğraf bulunamadı."}
           </p>
-          <p className="text-[11px] text-slate-400 mt-0.5">
-            Yukarıdaki &quot;Fotoğraf Ekle&quot; butonuna basarak ilk karenizi yükleyin.
+          <p className="text-[11px] text-slate-500 mt-1 max-w-sm mx-auto">
+            Gelişiminizi takip etmek için kameranızla fotoğraf çekin veya galeriden seçin.
           </p>
+          <div className="mt-4 flex items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={handleTriggerNativeCamera}
+              className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm tap-effect flex items-center gap-2"
+            >
+              <Camera className="w-4 h-4" /> Kamera
+            </button>
+            <button
+              type="button"
+              onClick={handleTriggerGalleryPicker}
+              className="px-5 py-2.5 rounded-xl bg-white border border-slate-200 hover:border-slate-300 text-slate-700 font-bold text-xs tap-effect flex items-center gap-2 shadow-sm"
+            >
+              <ImageIcon className="w-4 h-4 text-slate-500" /> Galeri
+            </button>
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3.5">
@@ -358,71 +659,279 @@ export default function ProgressPhotosGallery({ currentWeight }: ProgressPhotosG
         </div>
       )}
 
-      {/* Upload Modal */}
+      {/* Main Upload / Live Camera Modal */}
       {showUploadModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-slate-100 animate-slide-up relative max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="w-full max-w-lg bg-white rounded-3xl p-5 sm:p-6 shadow-2xl border border-slate-100 animate-slide-up relative my-auto max-h-[92vh] overflow-y-auto">
+            {/* Close Button */}
             <button
-              onClick={() => {
-                setShowUploadModal(false);
-                setSelectedFile(null);
-                setPreviewUrl(null);
-              }}
-              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 tap-effect"
+              onClick={closeModal}
+              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 tap-effect z-30"
             >
               <X className="w-5 h-5" />
             </button>
 
-            <h3 className="text-base font-bold text-slate-900 mb-0.5 flex items-center gap-2">
-              <Camera className="w-5 h-5 text-emerald-600" /> Gelişim Fotoğrafı Yükle
-            </h3>
-            <p className="text-xs text-slate-500 mb-4">
-              Kas durumunu doğru karşılaştırmak için çekim anını belirtin.
-            </p>
+            {/* Modal Title */}
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                <Camera className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">
+                  Gelişim & Pump Fotoğrafı
+                </h3>
+                <p className="text-[11px] text-slate-500">
+                  Kameranızı açarak canlı çekim yapın veya galeriden görsel yükleyin.
+                </p>
+              </div>
+            </div>
+
+            {/* Mode Switcher Tabs */}
+            {!previewUrl && (
+              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-2xl my-3 text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleTriggerNativeCamera();
+                  }}
+                  className="flex-1 py-2.5 rounded-xl transition-all tap-effect flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold shadow-sm"
+                >
+                  <Camera className="w-4 h-4" />
+                  Kamera
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCaptureMode("gallery");
+                    stopCameraStream();
+                    handleTriggerGalleryPicker();
+                  }}
+                  className="flex-1 py-2.5 rounded-xl transition-all tap-effect flex items-center justify-center gap-2 bg-white text-slate-700 hover:text-slate-900 font-extrabold shadow-sm"
+                >
+                  <ImageIcon className="w-4 h-4 text-slate-500" />
+                  Galeri
+                </button>
+              </div>
+            )}
 
             <form onSubmit={handleUpload} className="space-y-4">
-              <div>
-                <input
-                  type="file"
-                  accept="image/*"
-                  ref={fileInputRef}
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
-
+              {/* Media Viewport */}
+              <div className="relative">
+                {/* 1. Captured Preview State */}
                 {previewUrl ? (
-                  <div className="relative w-full h-48 bg-slate-950 rounded-2xl overflow-hidden flex items-center justify-center">
+                  <div className="relative w-full h-64 sm:h-72 bg-slate-950 rounded-2xl overflow-hidden flex items-center justify-center border border-slate-800 shadow-inner">
                     <img
                       src={previewUrl}
                       alt="Önizleme"
                       className="w-full h-full object-contain"
                     />
+
+                    {/* Badge */}
+                    <div className="absolute top-3 left-3 bg-emerald-600 text-white px-2.5 py-1 rounded-xl text-[10px] font-bold flex items-center gap-1 shadow-md">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Fotoğraf Hazır
+                    </div>
+
+                    {/* Retake / Change Button */}
                     <button
                       type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="absolute bottom-2 right-2 px-3 py-1 bg-black/70 hover:bg-black/90 text-white rounded-xl text-xs font-bold backdrop-blur-sm tap-effect"
+                      onClick={handleRetakePhoto}
+                      className="absolute bottom-3 right-3 px-3.5 py-1.5 bg-black/75 hover:bg-black/90 text-white rounded-xl text-xs font-bold backdrop-blur-md shadow-lg tap-effect flex items-center gap-1.5 border border-white/10"
                     >
-                      Değiştir
+                      <RefreshCw className="w-3.5 h-3.5" /> Tekrar Çek / Değiştir
                     </button>
                   </div>
+                ) : captureMode === "camera" ? (
+                  /* 2. Live Camera Stream Viewport */
+                  <div className="relative w-full h-64 sm:h-80 bg-slate-950 rounded-2xl overflow-hidden flex items-center justify-center border border-slate-800 shadow-inner">
+                    {/* Shutter White Flash Effect */}
+                    {shutterFlash && (
+                      <div className="absolute inset-0 bg-white z-40 pointer-events-none opacity-90 animate-fade-out" />
+                    )}
+
+                    {/* Live Video Feed */}
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      className={`w-full h-full object-cover transition-transform ${
+                        cameraFacing === "user" ? "scale-x-[-1]" : ""
+                      }`}
+                    />
+
+                    {/* Loading Spinner */}
+                    {cameraLoading && (
+                      <div className="absolute inset-0 bg-slate-950/80 flex flex-col items-center justify-center z-20">
+                        <div className="w-8 h-8 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin mb-2" />
+                        <p className="text-xs text-slate-300 font-medium">Kamera başlatılıyor...</p>
+                      </div>
+                    )}
+
+                    {/* Posture Alignment Grid (3x3 Rule of Thirds) */}
+                    {showGrid && !cameraError && !cameraLoading && (
+                      <div className="absolute inset-0 pointer-events-none grid grid-cols-3 grid-rows-3 z-10">
+                        <div className="border-r border-b border-white/20" />
+                        <div className="border-r border-b border-white/20" />
+                        <div className="border-b border-white/20" />
+                        <div className="border-r border-b border-white/20" />
+                        <div className="border-r border-b border-white/20" />
+                        <div className="border-b border-white/20" />
+                        <div className="border-r border-white/20" />
+                        <div className="border-r border-white/20" />
+                        <div className="" />
+                      </div>
+                    )}
+
+                    {/* Active Countdown Overlay */}
+                    {activeCountdown !== null && (
+                      <div className="absolute inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-30 pointer-events-none">
+                        <div className="text-7xl font-black text-white drop-shadow-2xl animate-ping scale-150">
+                          {activeCountdown}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Camera Control Overlays (Top Bar) */}
+                    {!cameraError && !cameraLoading && (
+                      <div className="absolute top-3 left-3 right-3 flex items-center justify-between z-20">
+                        {/* Countdown Timer Selector */}
+                        <div className="flex items-center gap-1 bg-black/50 backdrop-blur-md p-1 rounded-xl border border-white/10 text-[10px] font-bold text-white">
+                          <button
+                            type="button"
+                            onClick={() => setCountdownDuration(0)}
+                            className={`px-2 py-0.5 rounded-lg transition-colors ${
+                              countdownDuration === 0 ? "bg-emerald-600" : "hover:bg-white/20"
+                            }`}
+                          >
+                            Anlık
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setCountdownDuration(3)}
+                            className={`px-2 py-0.5 rounded-lg transition-colors ${
+                              countdownDuration === 3 ? "bg-emerald-600" : "hover:bg-white/20"
+                            }`}
+                          >
+                            3s
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setCountdownDuration(5)}
+                            className={`px-2 py-0.5 rounded-lg transition-colors ${
+                              countdownDuration === 5 ? "bg-emerald-600" : "hover:bg-white/20"
+                            }`}
+                          >
+                            5s
+                          </button>
+                        </div>
+
+                        {/* Grid & Flip Camera Buttons */}
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setShowGrid(!showGrid)}
+                            title="Hizalama Kılavuzu"
+                            className={`p-2 rounded-xl backdrop-blur-md border border-white/10 text-white transition-colors tap-effect ${
+                              showGrid ? "bg-emerald-600" : "bg-black/50 hover:bg-black/70"
+                            }`}
+                          >
+                            <Grid3X3 className="w-4 h-4" />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={toggleCameraFacing}
+                            title="Ön / Arka Kamera Değiştir"
+                            className="p-2 rounded-xl bg-black/50 hover:bg-black/70 backdrop-blur-md border border-white/10 text-white transition-colors tap-effect"
+                          >
+                            <SwitchCamera className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Camera Control Overlays (Bottom Shutter Bar) */}
+                    {!cameraError && !cameraLoading && (
+                      <div className="absolute bottom-3 left-0 right-0 flex items-center justify-center z-20">
+                        <button
+                          type="button"
+                          onClick={handleSnapPhoto}
+                          disabled={activeCountdown !== null}
+                          className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-md p-1 border-2 border-white flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-xl"
+                        >
+                          <div className="w-12 h-12 rounded-full bg-emerald-500 hover:bg-emerald-400 flex items-center justify-center text-white shadow-inner">
+                            <Camera className="w-6 h-6" />
+                          </div>
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Camera Error / Permission Fallback View */}
+                    {cameraError && (
+                      <div className="absolute inset-0 bg-slate-900 p-5 flex flex-col items-center justify-center text-center z-20">
+                        <AlertCircle className="w-10 h-10 text-amber-400 mb-2" />
+                        <h4 className="text-sm font-bold text-white mb-1">
+                          Kameraya Bağlanılamadı
+                        </h4>
+                        <p className="text-xs text-slate-300 max-w-xs mb-4">
+                          {cameraError}
+                        </p>
+                        <div className="flex flex-col sm:flex-row items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => nativeCameraInputRef.current?.click()}
+                            className="w-full sm:w-auto px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm tap-effect flex items-center justify-center gap-1.5"
+                          >
+                            <Camera className="w-4 h-4" /> Cihaz Kamerasını Aç (Sistem)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="w-full sm:w-auto px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs tap-effect flex items-center justify-center gap-1.5"
+                          >
+                            <ImageIcon className="w-4 h-4" /> Galeriden Seç
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 ) : (
+                  /* 3. Gallery / File Upload View */
                   <div
                     onClick={() => fileInputRef.current?.click()}
-                    className="w-full h-36 rounded-2xl bg-slate-50 border-2 border-dashed border-slate-200 hover:border-emerald-400 flex flex-col items-center justify-center p-3 cursor-pointer tap-effect transition-colors"
+                    className="w-full h-44 sm:h-52 rounded-2xl bg-slate-50 border-2 border-dashed border-slate-200 hover:border-emerald-500 flex flex-col items-center justify-center p-4 cursor-pointer tap-effect transition-all group"
                   >
-                    <UploadCloud className="w-8 h-8 text-slate-400 mb-1" />
-                    <p className="text-xs font-bold text-slate-700">
-                      Fotoğraf Seç veya Kamerayla Çek
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-50 group-hover:bg-emerald-100 text-emerald-600 flex items-center justify-center mb-2 transition-colors">
+                      <UploadCloud className="w-6 h-6" />
+                    </div>
+                    <p className="text-xs font-bold text-slate-800">
+                      Galeriden Fotoğraf Seç veya Sürükle
                     </p>
-                    <p className="text-[10px] text-slate-400">
-                      JPG, PNG veya WEBP
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      JPG, PNG, WEBP veya HEIC formatları
                     </p>
+                    <div className="mt-3 flex items-center gap-2">
+                      <span className="px-3 py-1 bg-white rounded-lg border border-slate-200 text-slate-700 font-semibold text-[11px] shadow-2xs">
+                        Dosya Araştır
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          nativeCameraInputRef.current?.click();
+                        }}
+                        className="px-3 py-1 bg-emerald-50 hover:bg-emerald-100 rounded-lg border border-emerald-200 text-emerald-800 font-bold text-[11px] flex items-center gap-1"
+                      >
+                        <Camera className="w-3 h-3 text-emerald-600" /> Kamerayı Aç
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
 
               {/* Timing Selection (Pre vs Post Workout) */}
-              <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-1.5">
+              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-1.5">
                 <label className="block text-xs font-bold text-slate-800">
                   Çekim Durumu *
                 </label>
@@ -432,7 +941,7 @@ export default function ProgressPhotosGallery({ currentWeight }: ProgressPhotosG
                     onClick={() => setTiming("pre_workout")}
                     className={`p-2.5 rounded-xl border text-xs font-bold transition-all tap-effect flex flex-col items-start ${
                       timing === "pre_workout"
-                        ? "bg-cyan-50 border-cyan-500 text-cyan-900 shadow-sm"
+                        ? "bg-cyan-50 border-cyan-500 text-cyan-900 shadow-xs"
                         : "bg-white border-slate-200 text-slate-600 hover:bg-slate-100"
                     }`}
                   >
@@ -450,7 +959,7 @@ export default function ProgressPhotosGallery({ currentWeight }: ProgressPhotosG
                     onClick={() => setTiming("post_workout")}
                     className={`p-2.5 rounded-xl border text-xs font-bold transition-all tap-effect flex flex-col items-start ${
                       timing === "post_workout"
-                        ? "bg-amber-50 border-amber-500 text-amber-900 shadow-sm"
+                        ? "bg-amber-50 border-amber-500 text-amber-900 shadow-xs"
                         : "bg-white border-slate-200 text-slate-600 hover:bg-slate-100"
                     }`}
                   >
@@ -494,7 +1003,8 @@ export default function ProgressPhotosGallery({ currentWeight }: ProgressPhotosG
                     onChange={(e) => setWeightKg(e.target.value)}
                     placeholder="99.5"
                     className="w-full px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-500"
-                  />
+                  >
+                  </input>
                 </div>
 
                 <div>
@@ -518,26 +1028,27 @@ export default function ProgressPhotosGallery({ currentWeight }: ProgressPhotosG
                   type="text"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Antrenman sonrası pump..."
+                  placeholder="Göğüs & kol pump, iyi aydınlatma..."
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-500"
                 />
               </div>
 
+              {/* Action Buttons */}
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => setShowUploadModal(false)}
-                  className="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 tap-effect"
+                  onClick={closeModal}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 tap-effect"
                 >
                   {t("cancel")}
                 </button>
                 <button
                   type="submit"
                   disabled={isUploading || (!selectedFile && !previewUrl)}
-                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm tap-effect flex items-center gap-1.5"
+                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs shadow-sm tap-effect flex items-center gap-1.5"
                 >
                   <Check className="w-4 h-4" />
-                  {isUploading ? "Kaydediliyor..." : "Kaydet"}
+                  {isUploading ? "Kaydediliyor..." : "Fotoğrafı Kaydet"}
                 </button>
               </div>
             </form>
@@ -599,3 +1110,4 @@ export default function ProgressPhotosGallery({ currentWeight }: ProgressPhotosG
     </div>
   );
 }
+
