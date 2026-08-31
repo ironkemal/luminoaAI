@@ -2,13 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { WorkoutRoutine, WorkoutSession, QueueStatus } from "@/types";
+import { WorkoutRoutine, WorkoutSession, QueueStatus, AppUser } from "@/types";
 import { calculateNextRoutine } from "@/lib/workout-queue";
+import { getCurrentUser } from "@/lib/auth-pin";
 import WorkoutQueueCard from "@/components/workout/WorkoutQueueCard";
 import Link from "next/link";
-import { Dumbbell, Trophy, Flame, ChevronRight, Scale, Sparkles, History, Calendar } from "lucide-react";
+import { Dumbbell, Trophy, Flame, ChevronRight, Scale, Sparkles, History, Calendar, UserCheck } from "lucide-react";
 
 export default function WorkoutDashboardView() {
+  const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
   const [routines, setRoutines] = useState<WorkoutRoutine[]>([]);
   const [lastSession, setLastSession] = useState<WorkoutSession | null>(null);
   const [recentSessions, setRecentSessions] = useState<WorkoutSession[]>([]);
@@ -16,6 +18,7 @@ export default function WorkoutDashboardView() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setCurrentUser(getCurrentUser());
     fetchDashboardData();
   }, []);
 
@@ -86,7 +89,9 @@ export default function WorkoutDashboardView() {
             Antrenman Paneli
           </h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            100 kg Body Recomposition & Lean Cut Takibi
+            {currentUser
+              ? `${currentUser.display_name || currentUser.username} • ${currentUser.current_weight_kg || 100} kg • ${currentUser.fitness_goal || "Recomp"}`
+              : "Döngüsel Antrenman ve Gelişim Takibi"}
           </p>
         </div>
 
@@ -102,8 +107,8 @@ export default function WorkoutDashboardView() {
             href="/coach"
             className="px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-xs font-semibold text-emerald-700 border border-emerald-200/60 shadow-sm flex items-center gap-1.5 tap-effect"
           >
-            <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-            AI PT Tavsiyesi
+            <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
+            Harun Hoca&apos;ya Danış
           </Link>
         </div>
       </div>

@@ -148,7 +148,7 @@ export const translations = {
     quickPrompt1: "💡 Bana 4 günlük yeni bir program yaz",
     quickPrompt2: "📊 Son ağırlıklarımı analiz et",
     quickPrompt3: "⚡ Omuzlara odaklanan bir split hazırla",
-    quickPrompt4: "🥗 100 kg Lean Cut beslenme stratejisi",
+    quickPrompt4: "🥗 Hedefime uygun beslenme stratejisi",
 
     // Progress Photos
     photosTitle: "Gelişim Fotoğrafları & Form Karşılaştırma",

@@ -121,10 +121,10 @@ export default function AiProgramGeneratorModal({
             </div>
             <div>
               <h3 className="text-lg font-extrabold text-slate-900 tracking-tight">
-                Yapay Zekaya Özel Program Yazdır
+                Harun Hoca&apos;ya Özel Program Yazdır
               </h3>
               <p className="text-xs text-slate-500">
-                100 kg recomposition verilerinize göre sıfırdan komple antrenman döngüsü tasarlar
+                Ölçüm, sakatlık ve ekipman verilerinize göre sıfırdan komple döngüsel split tasarlar
               </p>
             </div>
           </div>
@@ -170,7 +170,7 @@ export default function AiProgramGeneratorModal({
               {/* Personal Notes / Constraints */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Yapay Zekaya Ek Not veya İstekleriniz:
+                  Harun Hoca&apos;ya Ek Not veya İstekleriniz:
                 </label>
                 <textarea
                   value={notes}
@@ -189,7 +189,7 @@ export default function AiProgramGeneratorModal({
                 className="w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-extrabold text-sm shadow-sm tap-effect flex items-center justify-center gap-2 transition-all"
               >
                 <Sparkles className={`w-4 h-4 ${isGenerating ? "animate-spin" : ""}`} />
-                {isGenerating ? "Yapay Zeka Programı Tasarlıyor..." : "Programı Oluştur (AI Design)"}
+                {isGenerating ? "Harun Hoca Programı Tasarlıyor..." : "Programı Oluştur (Harun Hoca)"}
               </button>
             </>
           ) : (

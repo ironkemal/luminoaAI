@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Mic, MicOff, Volume2, VolumeX, X, Bot, Sparkles, Send } from "lucide-react";
+import { Mic, MicOff, Volume2, VolumeX, X, UserCheck, Sparkles, Send } from "lucide-react";
 
 interface VoiceCoachModalProps {
   isOpen: boolean;
@@ -144,9 +144,9 @@ export default function VoiceCoachModal({
         {/* AI Voice Avatar Circle */}
         <div className="relative my-4">
           <div
-            className={`w-28 h-28 rounded-full flex items-center justify-center transition-all duration-300 ${
+            className={`w-24 h-24 rounded-3xl flex items-center justify-center transition-all duration-300 shadow-xl ${
               isListening
-                ? "bg-red-50 text-red-500 scale-110 shadow-glow border-4 border-red-400 animate-pulse"
+                ? "bg-red-500 text-white scale-110 animate-pulse ring-4 ring-red-400/40"
                 : isSpeaking
                 ? "bg-emerald-50 text-emerald-600 scale-105 border-4 border-emerald-400 shadow-glow"
                 : isThinking
@@ -154,7 +154,7 @@ export default function VoiceCoachModal({
                 : "bg-slate-50 text-slate-700 border-2 border-slate-200"
             }`}
           >
-            <Bot className="w-12 h-12" />
+            <UserCheck className="w-12 h-12" />
           </div>
 
           {/* Sound waves indicator */}
@@ -168,10 +168,10 @@ export default function VoiceCoachModal({
         </div>
 
         <h3 className="text-xl font-extrabold text-slate-900 tracking-tight text-center">
-          Sesli AI Antrenör (Canlı PT)
+          Harun Hoca ile Canlı Sesli Görüşme
         </h3>
         <p className="text-xs text-slate-500 mt-0.5 text-center">
-          100 kg Recomp, 24.5 kg dambıl ve beslenme durumunuzu bilerek konuşur
+          Profilinizi, ekipmanlarınızı ve hedefinizi bilerek konuşur
         </p>
 
         {/* Status Indicator */}
@@ -183,12 +183,12 @@ export default function VoiceCoachModal({
           )}
           {isThinking && (
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
-              <Sparkles className="w-3.5 h-3.5 animate-spin" /> Verilerinizle Düşünüyor...
+              <Sparkles className="w-3.5 h-3.5 animate-spin" /> Harun Hoca Düşünüyor...
             </span>
           )}
           {isSpeaking && (
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-              <Volume2 className="w-3.5 h-3.5 animate-bounce" /> AI Koç Konuşuyor...
+              <Volume2 className="w-3.5 h-3.5 animate-bounce" /> Harun Hoca Konuşuyor...
             </span>
           )}
           {!isListening && !isThinking && !isSpeaking && (
@@ -208,12 +208,12 @@ export default function VoiceCoachModal({
           )}
           {coachResponse ? (
             <div>
-              <span className="text-[10px] uppercase font-bold text-emerald-600 block mb-0.5">AI PT Yanıtı:</span>
+              <span className="text-[10px] uppercase font-bold text-emerald-600 block mb-0.5">Harun Hoca:</span>
               {coachResponse}
             </div>
           ) : !transcript ? (
             <div className="text-slate-400 text-center py-4 italic">
-              Örnek: &ldquo;Koç, dambıl bench presste 24.5 kg ile 8 tekrar yaptım, ne yapmalıyım?&rdquo; veya &ldquo;Bugün ne yemeliyim?&rdquo;
+              Örnek: &ldquo;Hocam, bench presste zorlandım ne yapalım?&rdquo; veya &ldquo;Bugün antrenman sonrası ne yemeliyim?&rdquo;
             </div>
           ) : null}
         </div>

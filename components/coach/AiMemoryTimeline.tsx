@@ -12,7 +12,7 @@ export default function AiMemoryTimeline({ logs }: AiMemoryTimelineProps) {
     return (
       <div className="surface-card p-8 text-center text-xs text-slate-400">
         <Brain className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-        Henüz kayıtlı bir yapay zeka karar geçmişi bulunmuyor.
+        Henüz kayıtlı bir Harun Hoca karar geçmişi bulunmuyor.
       </div>
     );
   }
@@ -26,10 +26,10 @@ export default function AiMemoryTimeline({ logs }: AiMemoryTimelineProps) {
           </div>
           <div>
             <h3 className="text-base font-extrabold text-slate-900">
-              Yapay Zeka Hafıza Dosyası & Karar Matrisi
+              Harun Hoca Hafıza Dosyası & Karar Matrisi
             </h3>
             <p className="text-xs text-slate-500">
-              AI PT&apos;nin geçmiş verilerinize dayanarak aldığı tüm program ve progressive overload kararları
+              Harun Hoca&apos;nın geçmiş verilerinize ve sakatlık durumunuza dayanarak aldığı tüm program ve progressive overload kararları
             </p>
           </div>
         </div>
