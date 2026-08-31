@@ -3,19 +3,21 @@
 @tailwind utilities;
 
 :root {
-  --background: #090B0E;
-  --foreground: #F8FAFC;
-  --surface: #11151D;
-  --surface-elevated: #171C26;
-  --surface-border: rgba(255, 255, 255, 0.08);
-  --accent: #E2F952; /* WHOOP / Apple Ultra kinetic volt */
-  --accent-secondary: #FF6B4A; /* Kinetic Coral */
+  --background: #0B0E14;
+  --foreground: #FFFFFF;
+  --surface: #121722;
+  --surface-elevated: #181F2E;
+  --surface-border: #1E2638;
+  --primary: #10B981;
+  --primary-hover: #059669;
+  --accent-blue: #3B82F6;
+  --accent-coral: #F97316;
   --font-jakarta: "Plus Jakarta Sans", system-ui, sans-serif;
 }
 
 body {
-  background-color: #090B0E;
-  color: #F8FAFC;
+  background-color: #0B0E14;
+  color: #FFFFFF;
   font-family: var(--font-jakarta);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -25,83 +27,58 @@ body {
 
 @media (min-width: 768px) {
   body {
-    padding-bottom: 2.5rem;
+    padding-bottom: 2rem;
   }
 }
 
-/* Crisp Clean Scrollbar */
+/* Crisp Clean Scrollbars */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 99px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.25); }
+::-webkit-scrollbar-thumb { background: #1E2638; border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: #334155; }
 
 ::selection {
-  background: #E2F952;
+  background: #10B981;
   color: #000000;
 }
 
-/* Professional Studio / Pro-Athlete Cards */
-.surface-card {
-  background: #11151D;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.35);
-  border-radius: 1.25rem;
+/* Hevy / Strong Pro Card Containers */
+.hevy-card {
+  background: #121722;
+  border: 1px solid #1E2638;
+  border-radius: 1rem;
 }
 
-.surface-card-elevated {
-  background: #171C26;
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 1.25rem;
+.hevy-card-elevated {
+  background: #181F2E;
+  border: 1px solid #28334A;
+  border-radius: 1rem;
 }
 
-.surface-card-hover {
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+/* Set Table Specific Styling */
+.set-row {
+  transition: background-color 0.15s ease;
 }
-.surface-card-hover:hover {
-  border-color: rgba(255, 255, 255, 0.18);
-  background: #141822;
+.set-row:hover {
+  background-color: rgba(255, 255, 255, 0.02);
 }
-
-/* Solid Kinetic Tactile Buttons */
-.btn-primary {
-  background: #E2F952;
-  color: #090B0E;
-  font-weight: 800;
-  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.btn-primary:hover {
-  background: #EEFF70;
-  transform: translateY(-1px);
-}
-.btn-primary:active {
-  transform: scale(0.98);
-}
-
-.btn-secondary {
-  background: #171C26;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #F1F5F9;
-  transition: all 0.15s ease;
-}
-.btn-secondary:hover {
-  background: #202634;
-  border-color: rgba(255, 255, 255, 0.2);
-  color: #FFFFFF;
+.set-row-completed {
+  background-color: rgba(16, 185, 129, 0.08);
 }
 
 .tap-effect {
-  transition: transform 0.12s ease, opacity 0.12s ease;
+  transition: transform 0.1s ease, opacity 0.1s ease;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
 .tap-effect:active {
   transform: scale(0.97);
-  opacity: 0.92;
+  opacity: 0.9;
 }
 
 /* Animations */
 @keyframes slideUp {
-  from { opacity: 0; transform: translateY(12px); }
+  from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
@@ -111,9 +88,9 @@ body {
 }
 
 .animate-slide-up {
-  animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: slideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .animate-slide-right {
-  animation: slideRight 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: slideRight 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
 }

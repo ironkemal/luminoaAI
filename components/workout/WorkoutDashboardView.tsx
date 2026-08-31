@@ -7,7 +7,20 @@ import { WorkoutRoutine, WorkoutSession, QueueStatus } from "@/types";
 import { calculateNextRoutine } from "@/lib/workout-queue";
 import WorkoutQueueCard from "@/components/workout/WorkoutQueueCard";
 import Link from "next/link";
-import { Dumbbell, Trophy, Flame, ChevronRight, Scale, Sparkles, History, Calendar, Zap } from "lucide-react";
+import {
+  Dumbbell,
+  Trophy,
+  Flame,
+  ChevronRight,
+  Scale,
+  Sparkles,
+  History,
+  Calendar,
+  Layers,
+  Activity,
+  Clock,
+  CheckCircle2
+} from "lucide-react";
 import { useLanguage } from "@/lib/i18n";
 
 export default function WorkoutDashboardView() {
@@ -47,7 +60,7 @@ export default function WorkoutDashboardView() {
         `)
         .not("completed_at", "is", null)
         .order("completed_at", { ascending: false })
-        .limit(5);
+        .limit(6);
 
       if (currentUser?.id) {
         rQuery = rQuery.eq("user_id", currentUser.id);
@@ -88,41 +101,56 @@ export default function WorkoutDashboardView() {
     nextRoutine: effectiveRoutine,
   };
 
+  const daysOfWeek = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
+  const currentDayIndex = (new Date().getDay() + 6) % 7; // Monday = 0
+
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6 space-y-5 animate-fade-in">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <div className="max-w-4xl mx-auto px-4 py-5 space-y-4 animate-fade-in">
+      {/* ── TOP HEVY-STYLE HEADER & WEEKLY ACTIVITY BAR ── */}
+      <div className="hevy-card p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-            Antrenman Paneli
-          </h1>
-          <p className="text-xs text-slate-400 mt-0.5 font-normal">
-            100 kg Body Recomposition & 24.5 kg Dambıl Takibi
+          <div className="flex items-center gap-2">
+            <h1 className="text-lg sm:text-xl font-black text-white tracking-tight">
+              Lumino Antrenman Takibi
+            </h1>
+            <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 text-[10px] font-bold">
+              100 kg Recomp
+            </span>
+          </div>
+          <p className="text-xs text-slate-400 mt-0.5">
+            Dambıl & vücut ağırlığı odaklı döngüsel kuvvet programı
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Link
-            href="/metrics"
-            className="px-3.5 py-2 rounded-xl btn-secondary text-xs font-bold flex items-center gap-1.5 tap-effect"
-          >
-            <Scale className="w-3.5 h-3.5 text-[#E2F952]" />
-            {t("newMetricBtn")}
-          </Link>
-          <Link
-            href="/coach"
-            className="px-3.5 py-2 rounded-xl bg-white/[0.08] hover:bg-white/[0.12] text-xs font-bold text-white border border-white/[0.08] flex items-center gap-1.5 tap-effect"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-[#E2F952]" />
-            {t("tabChat")}
-          </Link>
+        {/* Weekly Day Circles */}
+        <div className="flex items-center gap-1.5 self-start sm:self-auto bg-[#0B0E14] p-1.5 rounded-xl border border-[#1E2638]">
+          {daysOfWeek.map((day, idx) => {
+            const isToday = idx === currentDayIndex;
+            const isCompleted = idx < recentSessions.length;
+
+            return (
+              <div
+                key={day}
+                className={`w-7 h-8 rounded-lg flex flex-col items-center justify-center text-[9px] font-bold ${
+                  isToday
+                    ? "bg-emerald-500 text-black font-black"
+                    : isCompleted
+                    ? "bg-[#181F2E] text-emerald-400 border border-emerald-500/30"
+                    : "text-slate-500"
+                }`}
+              >
+                <span>{day}</span>
+                {isCompleted && !isToday && <span className="w-1 h-1 rounded-full bg-emerald-400 mt-0.5" />}
+              </div>
+            );
+          })}
         </div>
       </div>
 
-      {/* Main Rotating Queue Card */}
+      {/* ── MAIN HERO QUEUE CARD ── */}
       {loading ? (
-        <div className="surface-card p-12 flex items-center justify-center">
-          <div className="w-8 h-8 border-2 border-white/20 border-t-[#E2F952] rounded-full animate-spin"></div>
+        <div className="hevy-card p-12 flex items-center justify-center">
+          <div className="w-7 h-7 border-2 border-slate-700 border-t-emerald-500 rounded-full animate-spin"></div>
         </div>
       ) : (
         <WorkoutQueueCard
@@ -132,73 +160,67 @@ export default function WorkoutDashboardView() {
         />
       )}
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="surface-card p-4">
-          <div className="flex items-center justify-between text-slate-400 mb-1.5">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Hedef</span>
-            <Flame className="w-4 h-4 text-[#FF6B4A]" />
+      {/* ── QUICK ATHLETE STATS ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="hevy-card p-3.5">
+          <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Maksimum Yük</span>
+          <div className="flex items-baseline gap-1">
+            <span className="text-lg font-black text-white font-mono">24.5</span>
+            <span className="text-xs font-bold text-emerald-400">kg × 2</span>
           </div>
-          <p className="text-lg font-black text-white">Recomp</p>
-          <p className="text-[10px] text-slate-400 mt-0.5">Yağ Yakımı & Güç</p>
+          <span className="text-[10px] text-slate-500 block mt-0.5">Ayarlanabilir Dambıl</span>
         </div>
 
-        <div className="surface-card p-4">
-          <div className="flex items-center justify-between text-slate-400 mb-1.5">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Ekipman</span>
-            <Dumbbell className="w-4 h-4 text-[#E2F952]" />
+        <div className="hevy-card p-3.5">
+          <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Tamamlanan</span>
+          <div className="flex items-baseline gap-1">
+            <span className="text-lg font-black text-white font-mono">{recentSessions.length}</span>
+            <span className="text-xs font-bold text-slate-400">Seans</span>
           </div>
-          <p className="text-lg font-black text-white">2x 24.5 kg</p>
-          <p className="text-[10px] text-slate-400 mt-0.5">Ayarlanabilir Dambıl</p>
+          <span className="text-[10px] text-slate-500 block mt-0.5">Kayıtlı Antrenman</span>
         </div>
 
-        <div className="surface-card p-4">
-          <div className="flex items-center justify-between text-slate-400 mb-1.5">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Yardımcı</span>
-            <Trophy className="w-4 h-4 text-cyan-400" />
+        <div className="hevy-card p-3.5">
+          <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Rutin Sayısı</span>
+          <div className="flex items-baseline gap-1">
+            <span className="text-lg font-black text-white font-mono">{routines.length}</span>
+            <span className="text-xs font-bold text-slate-400">Rutin</span>
           </div>
-          <p className="text-lg font-black text-white">Ab-Wheel</p>
-          <p className="text-[10px] text-slate-400 mt-0.5">+ Barfiks Barı</p>
+          <span className="text-[10px] text-slate-500 block mt-0.5">İtiş / Çekiş / Bacak</span>
         </div>
 
-        <div className="surface-card p-4">
-          <div className="flex items-center justify-between text-slate-400 mb-1.5">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Tamamlanan</span>
-            <History className="w-4 h-4 text-slate-400" />
+        <div className="hevy-card p-3.5">
+          <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Faz Durumu</span>
+          <div className="flex items-baseline gap-1">
+            <span className="text-lg font-black text-white">Recomp</span>
           </div>
-          <p className="text-lg font-black text-white">
-            {recentSessions.length} Seans
-          </p>
-          <p className="text-[10px] text-slate-400 mt-0.5">Son döngü kayıtları</p>
+          <span className="text-[10px] text-emerald-400 font-bold block mt-0.5">Kas Koruma & Yağ Yakımı</span>
         </div>
       </div>
 
-      {/* Recent Workout History */}
-      <div className="surface-card p-5 md:p-6">
-        <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/[0.06]">
+      {/* ── RECENT COMPLETED WORKOUT SESSIONS (HEVY FEED STYLE) ── */}
+      <div className="hevy-card p-4 sm:p-5">
+        <div className="flex items-center justify-between pb-3 mb-3 border-b border-[#1E2638]">
           <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-slate-400" />
-            <h3 className="text-xs font-black text-white uppercase tracking-wider">Son Antrenman Geçmişi</h3>
+            <History className="w-4 h-4 text-emerald-400" />
+            <h3 className="text-xs sm:text-sm font-bold text-white uppercase tracking-wider">
+              Son Antrenman Seansları
+            </h3>
           </div>
           <Link
             href="/routines"
-            className="text-xs font-bold text-[#E2F952] hover:underline flex items-center gap-1 tap-effect"
+            className="text-xs font-bold text-emerald-400 hover:underline flex items-center gap-1 tap-effect"
           >
-            {t("navRoutines")} <ChevronRight className="w-3.5 h-3.5" />
+            Tüm Programlar <ChevronRight className="w-3.5 h-3.5" />
           </Link>
         </div>
 
         {recentSessions.length === 0 ? (
-          <div className="text-center py-6 bg-[#090B0E] rounded-xl border border-dashed border-white/[0.06]">
-            <p className="text-xs text-slate-400 font-medium">
-              Henüz tamamlanmış bir antrenman kaydı yok.
-            </p>
-            <p className="text-[11px] text-slate-500 mt-1">
-              Yukarıdaki butona tıklayarak ilk seansınızı başlatın!
-            </p>
+          <div className="text-center py-6 text-slate-500 text-xs">
+            Henüz tamamlanmış bir antrenman kaydı yok.
           </div>
         ) : (
-          <div className="divide-y divide-white/[0.04]">
+          <div className="divide-y divide-[#1E2638]/60">
             {recentSessions.map((session) => (
               <div
                 key={session.id}
@@ -208,25 +230,33 @@ export default function WorkoutDashboardView() {
                   <h4 className="text-xs sm:text-sm font-bold text-white">
                     {session.routine?.name || "Özel Seans"}
                   </h4>
-                  <p className="text-[10px] text-slate-400 mt-0.5">
-                    {session.completed_at
-                      ? new Date(session.completed_at).toLocaleDateString("tr-TR", {
-                          day: "numeric",
-                          month: "short",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
-                      : "-"}
-                  </p>
+                  <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-0.5">
+                    <span>
+                      {session.completed_at
+                        ? new Date(session.completed_at).toLocaleDateString("tr-TR", {
+                            day: "numeric",
+                            month: "short",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
+                        : "-"}
+                    </span>
+                    {session.notes && (
+                      <>
+                        <span>•</span>
+                        <span className="italic text-slate-500 truncate max-w-xs">&ldquo;{session.notes}&rdquo;</span>
+                      </>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-2">
                   {session.rpe_score && (
-                    <span className="px-2 py-0.5 rounded-md bg-[#171C26] border border-white/[0.06] text-slate-300 font-bold text-[11px]">
+                    <span className="px-2 py-0.5 rounded-md bg-[#181F2E] border border-[#1E2638] text-slate-300 font-mono font-bold text-[10px]">
                       RPE {session.rpe_score}/10
                     </span>
                   )}
-                  <span className="text-[11px] font-bold text-[#E2F952] bg-[#E2F952]/10 px-2 py-0.5 rounded-md">
+                  <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md">
                     Tamamlandı
                   </span>
                 </div>

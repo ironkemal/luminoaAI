@@ -10,8 +10,6 @@ import { getExerciseVisual } from "@/lib/exercise-visuals";
 import { useLanguage } from "@/lib/i18n";
 import ExerciseGuideModal from "@/components/workout/ExerciseGuideModal";
 import {
-  ChevronLeft,
-  ChevronRight,
   Check,
   Plus,
   Minus,
@@ -20,8 +18,10 @@ import {
   Trophy,
   Dumbbell,
   BookOpen,
-  Eye,
-  EyeOff,
+  Trash2,
+  Clock,
+  Flame,
+  Activity,
   Maximize2
 } from "lucide-react";
 
@@ -30,53 +30,80 @@ interface WorkoutPlayerProps {
   routineExercises: (RoutineExercise & { exercise: Exercise })[];
 }
 
+interface LocalExerciseSet {
+  id: string;
+  setNumber: number;
+  weight: number;
+  reps: number;
+  previous: string;
+  completed: boolean;
+}
+
+interface LocalExerciseBlock {
+  routineExerciseId: string;
+  exercise: Exercise;
+  sets: LocalExerciseSet[];
+}
+
 export default function WorkoutPlayer({
   routine,
   routineExercises,
 }: WorkoutPlayerProps) {
   const router = useRouter();
   const { t } = useLanguage();
-  const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
-  const [currentSetNumber, setCurrentSetNumber] = useState(1);
 
-  const [activeWeight, setActiveWeight] = useState<number>(0);
-  const [activeReps, setActiveReps] = useState<number>(10);
-  const [completedSets, setCompletedSets] = useState<Record<string, SetLog[]>>({});
-  const [showAnimation, setShowAnimation] = useState(true);
-  const [showGuideModal, setShowGuideModal] = useState(false);
+  // Stopwatch / Elapsed Time
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
-  // Rest Timer State
+  // Exercise Blocks state (Hevy/Strong Table Structure)
+  const [exerciseBlocks, setExerciseBlocks] = useState<LocalExerciseBlock[]>(() => {
+    return routineExercises.map((re) => {
+      const parsedRepsMatch = re.target_reps.match(/(\d+)/g);
+      const defaultReps = parsedRepsMatch ? parseInt(parsedRepsMatch[0], 10) : 10;
+      const defaultWeight = Number(re.target_weight_kg) || 0;
+
+      const initialSets: LocalExerciseSet[] = Array.from({ length: re.target_sets || 3 }).map((_, i) => ({
+        id: `${re.id}_set_${i + 1}`,
+        setNumber: i + 1,
+        weight: defaultWeight,
+        reps: defaultReps,
+        previous: `${defaultWeight} kg × ${re.target_reps}`,
+        completed: false,
+      }));
+
+      return {
+        routineExerciseId: re.id,
+        exercise: re.exercise,
+        sets: initialSets,
+      };
+    });
+  });
+
+  // Visual Guide Modal
+  const [selectedGuideExercise, setSelectedGuideExercise] = useState<Exercise | null>(null);
+
+  // Floating Rest Timer
   const [isResting, setIsResting] = useState(false);
   const [restSecondsRemaining, setRestSecondsRemaining] = useState(90);
   const [restTotalSeconds, setRestTotalSeconds] = useState(90);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Session Finish Modal
+  // Finish Workout Modal
   const [showFinishModal, setShowFinishModal] = useState(false);
   const [rpeScore, setRpeScore] = useState<number>(8);
   const [sessionNotes, setSessionNotes] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [sessionStartedAt] = useState<string>(new Date().toISOString());
 
-  const currentRoutineExercise = routineExercises[currentExerciseIndex];
-  const currentExercise = currentRoutineExercise?.exercise;
-  const currentVisual = currentExercise ? getExerciseVisual(currentExercise.name) : null;
-
+  // Stopwatch ticker
   useEffect(() => {
-    if (currentRoutineExercise) {
-      const targetWeight = Number(currentRoutineExercise.target_weight_kg) || 0;
-      setActiveWeight(targetWeight);
+    const interval = setInterval(() => {
+      setElapsedSeconds((prev) => prev + 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
-      const repsMatch = currentRoutineExercise.target_reps.match(/(\d+)/g);
-      const parsedReps = repsMatch ? parseInt(repsMatch[repsMatch.length - 1], 10) : 10;
-      setActiveReps(parsedReps);
-
-      const exId = currentRoutineExercise.exercise_id;
-      const logged = completedSets[exId] || [];
-      setCurrentSetNumber(logged.length + 1);
-    }
-  }, [currentExerciseIndex, currentRoutineExercise]);
-
+  // Rest Timer ticker
   useEffect(() => {
     if (isResting) {
       timerIntervalRef.current = setInterval(() => {
@@ -98,27 +125,21 @@ export default function WorkoutPlayer({
         clearInterval(timerIntervalRef.current);
       }
     }
-
     return () => {
-      if (timerIntervalRef.current) {
-        clearInterval(timerIntervalRef.current);
-      }
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
     };
   }, [isResting]);
 
-  const startRestTimer = (seconds?: number) => {
-    const duration = seconds || currentExercise?.default_rest_seconds || 90;
-    setRestTotalSeconds(duration);
-    setRestSecondsRemaining(duration);
+  const startRestTimer = (seconds = 90) => {
+    setRestTotalSeconds(seconds);
+    setRestSecondsRemaining(seconds);
     setIsResting(true);
     triggerVibration(100);
   };
 
   const stopRestTimer = () => {
     setIsResting(false);
-    if (timerIntervalRef.current) {
-      clearInterval(timerIntervalRef.current);
-    }
+    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
   };
 
   const addRestTime = (seconds: number) => {
@@ -126,44 +147,108 @@ export default function WorkoutPlayer({
     setRestTotalSeconds((prev) => Math.max(5, prev + seconds));
   };
 
-  const handleCompleteSet = () => {
-    if (!currentRoutineExercise || !currentExercise) return;
+  // Toggle set completion (Hevy Checkbox behavior)
+  const handleToggleSetComplete = (blockIndex: number, setIndex: number) => {
+    setExerciseBlocks((prev) => {
+      const updated = [...prev];
+      const targetBlock = { ...updated[blockIndex] };
+      const targetSets = [...targetBlock.sets];
+      const currentSet = { ...targetSets[setIndex] };
 
-    const newLog: SetLog = {
-      session_id: "",
-      exercise_id: currentExercise.id,
-      set_number: currentSetNumber,
-      actual_reps: activeReps,
-      actual_weight_kg: activeWeight,
-      completed: true,
-      exercise: currentExercise,
-    };
+      const wasCompleted = currentSet.completed;
+      currentSet.completed = !wasCompleted;
+      targetSets[setIndex] = currentSet;
+      targetBlock.sets = targetSets;
+      updated[blockIndex] = targetBlock;
 
-    const exId = currentExercise.id;
-    const existing = completedSets[exId] || [];
-    const updated = [...existing, newLog];
-
-    setCompletedSets((prev) => ({
-      ...prev,
-      [exId]: updated,
-    }));
-
-    const nextSet = currentSetNumber + 1;
-    setCurrentSetNumber(nextSet);
-
-    if (nextSet > currentRoutineExercise.target_sets) {
-      if (currentExerciseIndex < routineExercises.length - 1) {
-        startRestTimer(currentExercise.default_rest_seconds || 90);
-        setTimeout(() => {
-          setCurrentExerciseIndex((prev) => prev + 1);
-        }, 300);
-      } else {
-        startRestTimer(60);
-        setShowFinishModal(true);
+      if (!wasCompleted) {
+        // Set completed: trigger haptic & rest timer
+        const restDuration = targetBlock.exercise.default_rest_seconds || 90;
+        startRestTimer(restDuration);
       }
-    } else {
-      startRestTimer(currentExercise.default_rest_seconds || 90);
-    }
+
+      return updated;
+    });
+  };
+
+  // Update Weight / Reps
+  const handleUpdateSetValue = (
+    blockIndex: number,
+    setIndex: number,
+    field: "weight" | "reps",
+    value: number
+  ) => {
+    setExerciseBlocks((prev) => {
+      const updated = [...prev];
+      const targetBlock = { ...updated[blockIndex] };
+      const targetSets = [...targetBlock.sets];
+      targetSets[setIndex] = {
+        ...targetSets[setIndex],
+        [field]: value,
+      };
+      targetBlock.sets = targetSets;
+      updated[blockIndex] = targetBlock;
+      return updated;
+    });
+  };
+
+  // Add Set to Exercise
+  const handleAddSet = (blockIndex: number) => {
+    setExerciseBlocks((prev) => {
+      const updated = [...prev];
+      const targetBlock = { ...updated[blockIndex] };
+      const lastSet = targetBlock.sets[targetBlock.sets.length - 1];
+      const newSetNumber = targetBlock.sets.length + 1;
+
+      const newSet: LocalExerciseSet = {
+        id: `${targetBlock.routineExerciseId}_set_${newSetNumber}_${Date.now()}`,
+        setNumber: newSetNumber,
+        weight: lastSet ? lastSet.weight : 20,
+        reps: lastSet ? lastSet.reps : 10,
+        previous: lastSet ? `${lastSet.weight} kg × ${lastSet.reps}` : "-",
+        completed: false,
+      };
+
+      targetBlock.sets = [...targetBlock.sets, newSet];
+      updated[blockIndex] = targetBlock;
+      return updated;
+    });
+  };
+
+  // Delete Set
+  const handleDeleteSet = (blockIndex: number, setIndex: number) => {
+    setExerciseBlocks((prev) => {
+      const updated = [...prev];
+      const targetBlock = { ...updated[blockIndex] };
+      if (targetBlock.sets.length <= 1) return prev; // Keep at least 1 set
+
+      const filtered = targetBlock.sets.filter((_, idx) => idx !== setIndex);
+      const renumbered = filtered.map((s, idx) => ({ ...s, setNumber: idx + 1 }));
+      targetBlock.sets = renumbered;
+      updated[blockIndex] = targetBlock;
+      return updated;
+    });
+  };
+
+  // Stats calculation
+  let totalVolumeKg = 0;
+  let totalCompletedSets = 0;
+  let totalSetsTarget = 0;
+
+  exerciseBlocks.forEach((b) => {
+    b.sets.forEach((s) => {
+      totalSetsTarget++;
+      if (s.completed) {
+        totalCompletedSets++;
+        totalVolumeKg += s.weight * s.reps;
+      }
+    });
+  });
+
+  const formatStopwatch = (totalSec: number) => {
+    const mins = Math.floor(totalSec / 60);
+    const secs = totalSec % 60;
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
   const handleFinishWorkout = async () => {
@@ -188,7 +273,6 @@ export default function WorkoutPlayer({
       if (sessionErr) throw sessionErr;
 
       const sessionId = sessionData.id;
-
       const logsToInsert: {
         session_id: string;
         exercise_id: string;
@@ -198,16 +282,18 @@ export default function WorkoutPlayer({
         completed: boolean;
       }[] = [];
 
-      Object.values(completedSets).forEach((sets) => {
-        sets.forEach((s) => {
-          logsToInsert.push({
-            session_id: sessionId,
-            exercise_id: s.exercise_id,
-            set_number: s.set_number,
-            actual_reps: s.actual_reps,
-            actual_weight_kg: s.actual_weight_kg,
-            completed: true,
-          });
+      exerciseBlocks.forEach((block) => {
+        block.sets.forEach((s) => {
+          if (s.completed) {
+            logsToInsert.push({
+              session_id: sessionId,
+              exercise_id: block.exercise.id,
+              set_number: s.setNumber,
+              actual_reps: s.reps,
+              actual_weight_kg: s.weight,
+              completed: true,
+            });
+          }
         });
       });
 
@@ -224,15 +310,12 @@ export default function WorkoutPlayer({
     }
   };
 
-  const totalSetsTarget = routineExercises.reduce((acc, curr) => acc + curr.target_sets, 0);
-  const totalSetsCompleted = Object.values(completedSets).reduce((acc, curr) => acc + curr.length, 0);
-  const progressPercent = Math.min(100, Math.round((totalSetsCompleted / (totalSetsTarget || 1)) * 100));
-
   return (
-    <div className="min-h-screen bg-[#090B0E] text-white flex flex-col justify-between select-none">
-      {/* Top App Bar */}
-      <header className="sticky top-0 z-30 bg-[#0C0F15] border-b border-white/[0.08] px-4 py-2.5">
-        <div className="max-w-xl mx-auto flex items-center justify-between gap-3">
+    <div className="min-h-screen bg-[#0B0E14] text-white flex flex-col justify-between select-none pb-24">
+      {/* ── HEVY / STRONG PRO TOP APP BAR ── */}
+      <header className="sticky top-0 z-30 bg-[#121722]/95 backdrop-blur-md border-b border-[#1E2638] px-4 py-2.5 shadow-lg">
+        <div className="max-w-3xl mx-auto flex items-center justify-between gap-3">
+          {/* Cancel / Exit */}
           <button
             onClick={() => {
               if (confirm(t("exitConfirm"))) {
@@ -244,320 +327,280 @@ export default function WorkoutPlayer({
             <X className="w-5 h-5" />
           </button>
 
-          <div className="flex-1 text-center">
-            <h1 className="text-xs sm:text-sm font-bold text-white truncate">
+          {/* Title & Live Stopwatch */}
+          <div className="text-center">
+            <h1 className="text-xs sm:text-sm font-bold text-white truncate max-w-[200px] sm:max-w-xs">
               {routine.name}
             </h1>
-            <div className="flex items-center justify-center gap-2 mt-1">
-              <div className="w-24 bg-[#141822] rounded-full h-1.5 overflow-hidden">
-                <div
-                  className="bg-[#E2F952] h-full rounded-full transition-all duration-300"
-                  style={{ width: `${progressPercent}%` }}
-                />
-              </div>
-              <span className="text-[10px] font-bold text-[#E2F952]">
-                %{progressPercent}
+            <div className="flex items-center justify-center gap-3 text-[11px] text-slate-400 font-mono mt-0.5">
+              <span className="flex items-center gap-1 font-bold text-emerald-400">
+                <Clock className="w-3 h-3" /> {formatStopwatch(elapsedSeconds)}
+              </span>
+              <span>•</span>
+              <span className="font-semibold text-slate-300">
+                {totalVolumeKg.toLocaleString()} kg Hacim
               </span>
             </div>
           </div>
 
+          {/* Finish Button */}
           <button
             onClick={() => setShowFinishModal(true)}
-            className="px-3 py-1 rounded-lg bg-white/[0.08] hover:bg-white/[0.12] text-white font-bold text-xs border border-white/[0.08] tap-effect"
+            className="px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs tap-effect shadow-sm"
           >
             {t("finish")}
           </button>
         </div>
       </header>
 
-      {/* Exercise Tabs */}
-      <div className="bg-[#0E121A] border-b border-white/[0.06] overflow-x-auto py-2 px-4 scrollbar-none">
-        <div className="flex items-center gap-1.5 max-w-xl mx-auto">
-          {routineExercises.map((re, index) => {
-            const isCurrent = index === currentExerciseIndex;
-            const completedCount = completedSets[re.exercise_id]?.length || 0;
-            const isFinished = completedCount >= re.target_sets;
+      {/* ── WORKOUT EXERCISES & SET LOGGING TABLES ── */}
+      <main className="max-w-3xl mx-auto w-full px-3 sm:px-4 py-4 space-y-4 animate-fade-in">
+        {exerciseBlocks.map((block, blockIndex) => {
+          const visual = getExerciseVisual(block.exercise.name);
 
-            return (
-              <button
-                key={re.id}
-                onClick={() => setCurrentExerciseIndex(index)}
-                className={`flex-shrink-0 px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition-all tap-effect ${
-                  isCurrent
-                    ? "bg-[#E2F952] text-black"
-                    : isFinished
-                    ? "bg-white/[0.06] text-[#E2F952]"
-                    : "bg-[#141822] text-slate-400 hover:text-white"
-                }`}
-              >
-                {isFinished && <Check className="w-3 h-3 stroke-[2.5]" />}
-                <span>{index + 1}. {re.exercise?.name.slice(0, 12)}...</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Main Focus Area */}
-      <main className="flex-1 max-w-xl mx-auto w-full p-4 flex flex-col justify-center animate-fade-in">
-        {/* Rest Timer */}
-        {isResting && (
-          <div className="mb-4 bg-[#141822] text-white rounded-2xl p-5 border border-white/[0.1] shadow-xl flex flex-col items-center animate-slide-up">
-            <div className="flex items-center justify-between w-full mb-1 text-xs text-slate-400">
-              <span className="font-bold flex items-center gap-1.5">
-                <Timer className="w-4 h-4 text-[#E2F952]" /> {t("restTimer")}
-              </span>
-              <button
-                onClick={stopRestTimer}
-                className="text-xs text-[#E2F952] hover:underline font-bold tap-effect"
-              >
-                {t("skipRest")}
-              </button>
-            </div>
-
-            <div className="text-5xl sm:text-6xl font-mono font-black tracking-tight my-1 text-white">
-              {Math.floor(restSecondsRemaining / 60)}:
-              {(restSecondsRemaining % 60).toString().padStart(2, "0")}
-            </div>
-
-            <div className="flex items-center gap-2 mt-2">
-              <button
-                onClick={() => addRestTime(-15)}
-                className="px-3 py-1 bg-[#1A202C] hover:bg-[#252D3D] rounded-lg text-xs font-bold tap-effect border border-white/5"
-              >
-                -15s
-              </button>
-              <button
-                onClick={() => addRestTime(30)}
-                className="px-3 py-1 bg-[#1A202C] hover:bg-[#252D3D] rounded-lg text-xs font-bold tap-effect border border-white/5"
-              >
-                +30s
-              </button>
-              <button
-                onClick={stopRestTimer}
-                className="px-4 py-1 btn-primary rounded-lg text-xs font-black tap-effect"
-              >
-                {t("nextSet")}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Current Exercise Card */}
-        <div className="surface-card p-5 md:p-6 flex flex-col">
-          {/* Header */}
-          <div className="flex items-start justify-between gap-3 mb-3">
-            <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-[#171C26] px-2 py-0.5 rounded-md">
-                {currentExercise?.target_muscle} • {currentExercise?.equipment}
-              </span>
-              <h2 className="text-lg sm:text-xl font-black text-white tracking-tight mt-1">
-                {currentExercise?.name}
-              </h2>
-            </div>
-            <span className="px-2.5 py-1 rounded-md bg-[#171C26] text-white font-bold text-xs">
-              {t("set")} {currentSetNumber} / {currentRoutineExercise?.target_sets}
-            </span>
-          </div>
-
-          {/* Animated GIF Frame */}
-          {showAnimation && currentVisual?.gifUrl && (
-            <div className="relative w-full h-44 sm:h-50 bg-black rounded-xl mb-3 overflow-hidden flex items-center justify-center border border-white/[0.08] group">
-              <img
-                src={currentVisual.gifUrl}
-                alt={currentExercise?.name}
-                className="w-full h-full object-contain p-2"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = currentVisual.thumbnailUrl || "";
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => setShowGuideModal(true)}
-                className="absolute bottom-2 right-2 px-2.5 py-1 rounded-lg bg-black/70 hover:bg-black/90 text-[10px] font-bold text-white tap-effect flex items-center gap-1 border border-white/10"
-              >
-                <Maximize2 className="w-3 h-3 text-[#E2F952]" /> {t("maximize")}
-              </button>
-            </div>
-          )}
-
-          {/* Controls */}
-          <div className="flex items-center justify-between gap-2 mb-3">
-            <button
-              type="button"
-              onClick={() => setShowGuideModal(true)}
-              className="px-2.5 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] text-slate-300 font-medium text-xs tap-effect flex items-center gap-1"
+          return (
+            <div
+              key={block.routineExerciseId}
+              className="hevy-card p-3 sm:p-4 space-y-3"
             >
-              <BookOpen className="w-3.5 h-3.5 text-[#E2F952]" />
-              {t("formGuideBtn")}
-            </button>
+              {/* Exercise Header */}
+              <div className="flex items-center justify-between gap-2 pb-2 border-b border-[#1E2638]">
+                <div className="flex items-center gap-3">
+                  {/* Miniature Thumbnail */}
+                  <div
+                    onClick={() => setSelectedGuideExercise(block.exercise)}
+                    className="w-11 h-11 rounded-lg bg-black overflow-hidden flex-shrink-0 relative border border-white/[0.08] cursor-pointer"
+                  >
+                    <img
+                      src={visual.gifUrl}
+                      alt={block.exercise.name}
+                      className="w-full h-full object-contain p-1"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = visual.thumbnailUrl || "";
+                      }}
+                    />
+                  </div>
 
-            <button
-              type="button"
-              onClick={() => setShowAnimation(!showAnimation)}
-              className="px-2.5 py-1 rounded-lg bg-white/[0.04] text-slate-400 hover:text-white text-xs font-medium tap-effect flex items-center gap-1"
-            >
-              {showAnimation ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5 text-[#E2F952]" />}
-              {showAnimation ? t("hideAnimation") : t("showAnimation")}
-            </button>
-          </div>
-
-          {/* Targets */}
-          <div className="flex items-center justify-around bg-[#090B0E] rounded-xl p-2.5 mb-4 border border-white/[0.06]">
-            <div className="text-center">
-              <p className="text-[10px] text-slate-400 font-bold uppercase">{t("targetWeight")}</p>
-              <p className="text-sm font-black text-white mt-0.5">
-                {currentRoutineExercise?.target_weight_kg} kg
-              </p>
-            </div>
-            <div className="w-px h-6 bg-white/[0.08]" />
-            <div className="text-center">
-              <p className="text-[10px] text-slate-400 font-bold uppercase">{t("targetReps")}</p>
-              <p className="text-sm font-black text-white mt-0.5">
-                {currentRoutineExercise?.target_reps}
-              </p>
-            </div>
-            <div className="w-px h-6 bg-white/[0.08]" />
-            <div className="text-center">
-              <p className="text-[10px] text-slate-400 font-bold uppercase">{t("restTime")}</p>
-              <p className="text-sm font-black text-white mt-0.5">
-                {currentExercise?.default_rest_seconds}s
-              </p>
-            </div>
-          </div>
-
-          {/* Stepper Values */}
-          <div className="grid grid-cols-2 gap-2.5 mb-4">
-            <div className="bg-[#090B0E] border border-white/[0.06] rounded-xl p-3 flex flex-col items-center">
-              <span className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">
-                {t("weightKg")}
-              </span>
-              <div className="text-2xl font-black text-white font-mono my-0.5">
-                {activeWeight}
-              </div>
-              <div className="flex items-center gap-1.5 w-full mt-1">
-                <button
-                  type="button"
-                  onClick={() => setActiveWeight((prev) => Math.max(0, Number((prev - 1.25).toFixed(1))))}
-                  className="flex-1 py-1.5 bg-[#171C26] hover:bg-[#202634] rounded-lg font-bold text-slate-200 tap-effect flex items-center justify-center"
-                >
-                  <Minus className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveWeight((prev) => Math.min(24.5, Number((prev + 1.25).toFixed(1))))}
-                  className="flex-1 py-1.5 bg-[#171C26] hover:bg-[#202634] rounded-lg font-bold text-slate-200 tap-effect flex items-center justify-center"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-
-            <div className="bg-[#090B0E] border border-white/[0.06] rounded-xl p-3 flex flex-col items-center">
-              <span className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">
-                {t("reps")}
-              </span>
-              <div className="text-2xl font-black text-white font-mono my-0.5">
-                {activeReps}
-              </div>
-              <div className="flex items-center gap-1.5 w-full mt-1">
-                <button
-                  type="button"
-                  onClick={() => setActiveReps((prev) => Math.max(1, prev - 1))}
-                  className="flex-1 py-1.5 bg-[#171C26] hover:bg-[#202634] rounded-lg font-bold text-slate-200 tap-effect flex items-center justify-center"
-                >
-                  <Minus className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveReps((prev) => prev + 1)}
-                  className="flex-1 py-1.5 bg-[#171C26] hover:bg-[#202634] rounded-lg font-bold text-slate-200 tap-effect flex items-center justify-center"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleCompleteSet}
-            className="w-full py-3.5 rounded-xl btn-primary text-sm font-black tap-effect flex items-center justify-center gap-2"
-          >
-            <Check className="w-5 h-5 stroke-[3]" />
-            {t("completeSet")}
-          </button>
-        </div>
-
-        {/* Completed Sets */}
-        {currentExercise && (completedSets[currentExercise.id]?.length || 0) > 0 && (
-          <div className="mt-3 p-3 surface-card">
-            <h4 className="text-[10px] font-bold text-slate-400 uppercase mb-2">
-              {t("completedSets")}
-            </h4>
-            <div className="flex flex-wrap gap-1.5">
-              {completedSets[currentExercise.id].map((set) => (
-                <div
-                  key={set.set_number}
-                  className="px-2.5 py-1 rounded-lg bg-white/[0.06] text-white text-xs font-bold flex items-center gap-1"
-                >
-                  <Check className="w-3 h-3 text-[#E2F952]" />
-                  <span>Set {set.set_number}: {set.actual_weight_kg}kg × {set.actual_reps}</span>
+                  <div>
+                    <h3 className="text-xs sm:text-sm font-bold text-white">
+                      {blockIndex + 1}. {block.exercise.name}
+                    </h3>
+                    <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-0.5">
+                      <span className="text-emerald-400 font-semibold">{block.exercise.target_muscle}</span>
+                      <span>•</span>
+                      <span>{block.exercise.equipment}</span>
+                    </div>
+                  </div>
                 </div>
-              ))}
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedGuideExercise(block.exercise)}
+                  className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/[0.06] tap-effect"
+                  title="Form Rehberi & GIF"
+                >
+                  <BookOpen className="w-4 h-4 text-emerald-400" />
+                </button>
+              </div>
+
+              {/* Hevy Set Table */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-[#1E2638]/60">
+                      <th className="py-1.5 px-2 w-12 text-center">SET</th>
+                      <th className="py-1.5 px-2 w-28">ÖNCEKİ</th>
+                      <th className="py-1.5 px-2 w-24 text-center">KG</th>
+                      <th className="py-1.5 px-2 w-24 text-center">TEKRAR</th>
+                      <th className="py-1.5 px-2 w-12 text-center">✓</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#1E2638]/40">
+                    {block.sets.map((set, setIndex) => (
+                      <tr
+                        key={set.id}
+                        className={`set-row ${set.completed ? "set-row-completed" : ""}`}
+                      >
+                        {/* Set Number */}
+                        <td className="py-2 px-2 text-center font-bold text-slate-400 font-mono text-xs">
+                          {set.setNumber}
+                        </td>
+
+                        {/* Previous Weight & Reps */}
+                        <td className="py-2 px-2 text-[11px] text-slate-400 font-mono truncate">
+                          {set.previous}
+                        </td>
+
+                        {/* Weight Input Box */}
+                        <td className="py-2 px-2 text-center">
+                          <input
+                            type="number"
+                            step="0.5"
+                            value={set.weight}
+                            onChange={(e) =>
+                              handleUpdateSetValue(
+                                blockIndex,
+                                setIndex,
+                                "weight",
+                                parseFloat(e.target.value) || 0
+                              )
+                            }
+                            className={`w-18 px-2 py-1 text-center font-mono font-bold text-xs rounded-lg border focus:outline-none ${
+                              set.completed
+                                ? "bg-emerald-950/40 border-emerald-500/40 text-emerald-300"
+                                : "bg-[#0B0E14] border-[#1E2638] text-white focus:border-emerald-400"
+                            }`}
+                          />
+                        </td>
+
+                        {/* Reps Input Box */}
+                        <td className="py-2 px-2 text-center">
+                          <input
+                            type="number"
+                            value={set.reps}
+                            onChange={(e) =>
+                              handleUpdateSetValue(
+                                blockIndex,
+                                setIndex,
+                                "reps",
+                                parseInt(e.target.value, 10) || 0
+                              )
+                            }
+                            className={`w-14 px-2 py-1 text-center font-mono font-bold text-xs rounded-lg border focus:outline-none ${
+                              set.completed
+                                ? "bg-emerald-950/40 border-emerald-500/40 text-emerald-300"
+                                : "bg-[#0B0E14] border-[#1E2638] text-white focus:border-emerald-400"
+                            }`}
+                          />
+                        </td>
+
+                        {/* Checkbox Complete Button */}
+                        <td className="py-2 px-2 text-center">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleSetComplete(blockIndex, setIndex)}
+                            className={`w-7 h-7 rounded-lg flex items-center justify-center tap-effect transition-all ${
+                              set.completed
+                                ? "bg-emerald-500 text-black font-black shadow-md shadow-emerald-500/30"
+                                : "bg-[#1E2638] text-slate-400 hover:bg-[#28334A] hover:text-white"
+                            }`}
+                          >
+                            <Check className="w-4 h-4 stroke-[3]" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Bottom: Add Set Button */}
+              <div className="pt-1 flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => handleAddSet(blockIndex)}
+                  className="px-3 py-1.5 rounded-lg bg-[#181F2E] hover:bg-[#20293D] text-xs font-semibold text-slate-300 tap-effect flex items-center gap-1 border border-[#1E2638]"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Set Ekle
+                </button>
+
+                {block.sets.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteSet(blockIndex, block.sets.length - 1)}
+                    className="p-1.5 text-slate-500 hover:text-red-400 rounded-lg tap-effect text-xs"
+                    title="Son Seti Sil"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })}
       </main>
 
-      {/* Footer */}
-      <footer className="bg-[#0C0F15] border-t border-white/[0.08] px-4 py-2.5">
-        <div className="max-w-xl mx-auto flex items-center justify-between gap-3">
-          <button
-            type="button"
-            disabled={currentExerciseIndex === 0}
-            onClick={() => setCurrentExerciseIndex((prev) => prev - 1)}
-            className="px-3.5 py-2 rounded-lg bg-[#141822] hover:bg-[#1A202C] disabled:opacity-30 text-xs font-bold text-slate-300 tap-effect flex items-center gap-1"
-          >
-            <ChevronLeft className="w-4 h-4" /> {t("prevExercise")}
-          </button>
+      {/* ── FLOATING HEVY REST TIMER DOCK ── */}
+      {isResting && (
+        <div className="fixed bottom-3 inset-x-3 max-w-md mx-auto z-40 bg-[#181F2E] border border-emerald-500/30 rounded-2xl p-3 shadow-2xl animate-slide-up flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+              <Timer className="w-5 h-5 animate-spin" />
+            </div>
+            <div>
+              <span className="text-[10px] uppercase font-bold text-slate-400 block">Dinlenme</span>
+              <span className="text-xl font-mono font-black text-white">
+                {Math.floor(restSecondsRemaining / 60)}:
+                {(restSecondsRemaining % 60).toString().padStart(2, "0")}
+              </span>
+            </div>
+          </div>
 
-          <button
-            type="button"
-            disabled={currentExerciseIndex === routineExercises.length - 1}
-            onClick={() => setCurrentExerciseIndex((prev) => prev + 1)}
-            className="px-3.5 py-2 rounded-lg bg-[#141822] hover:bg-[#1A202C] disabled:opacity-30 text-xs font-bold text-slate-300 tap-effect flex items-center gap-1"
-          >
-            {t("nextExercise")} <ChevronRight className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => addRestTime(-15)}
+              className="px-2.5 py-1.5 rounded-lg bg-[#121722] hover:bg-[#20293D] text-xs font-bold text-slate-300 tap-effect border border-white/5"
+            >
+              -15s
+            </button>
+            <button
+              onClick={() => addRestTime(30)}
+              className="px-2.5 py-1.5 rounded-lg bg-[#121722] hover:bg-[#20293D] text-xs font-bold text-slate-300 tap-effect border border-white/5"
+            >
+              +30s
+            </button>
+            <button
+              onClick={stopRestTimer}
+              className="px-3 py-1.5 rounded-lg bg-emerald-500 text-black font-extrabold text-xs tap-effect"
+            >
+              Geç
+            </button>
+          </div>
         </div>
-      </footer>
+      )}
 
       {/* Guide Modal */}
       <ExerciseGuideModal
-        exercise={currentExercise || null}
-        isOpen={showGuideModal}
-        onClose={() => setShowGuideModal(false)}
+        exercise={selectedGuideExercise}
+        isOpen={selectedGuideExercise !== null}
+        onClose={() => setSelectedGuideExercise(null)}
       />
 
-      {/* Finish Modal */}
+      {/* ── FINISH WORKOUT SUMMARY MODAL ── */}
       {showFinishModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-[#11151D] rounded-2xl p-6 border border-white/[0.1] animate-slide-up">
-            <div className="w-12 h-12 rounded-xl bg-white/[0.08] text-[#E2F952] flex items-center justify-center mb-3 mx-auto">
+          <div className="w-full max-w-md bg-[#121722] rounded-2xl p-6 border border-[#1E2638] animate-slide-up shadow-2xl">
+            <div className="w-12 h-12 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center mb-3 mx-auto border border-emerald-500/20">
               <Trophy className="w-6 h-6" />
             </div>
 
             <h3 className="text-lg font-black text-white text-center">
-              {t("finishWorkoutTitle")}
+              Antrenmanı Tamamla
             </h3>
-            <p className="text-xs text-slate-400 text-center mt-0.5 mb-5">
-              Toplam {totalSetsCompleted} set başarıyla tamamlandı.
+            <p className="text-xs text-slate-400 text-center mt-0.5 mb-4">
+              {routine.name} seansınızı özetleyin ve kaydedin.
             </p>
 
+            {/* Quick Stats Grid */}
+            <div className="grid grid-cols-3 gap-2 bg-[#0B0E14] p-3 rounded-xl border border-[#1E2638] mb-4 text-center">
+              <div>
+                <span className="text-[10px] text-slate-400 uppercase font-bold block">Süre</span>
+                <span className="text-sm font-black text-white font-mono">{formatStopwatch(elapsedSeconds)}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-400 uppercase font-bold block">Hacim</span>
+                <span className="text-sm font-black text-emerald-400 font-mono">{totalVolumeKg} kg</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-400 uppercase font-bold block">Setler</span>
+                <span className="text-sm font-black text-white font-mono">{totalCompletedSets} / {totalSetsTarget}</span>
+              </div>
+            </div>
+
+            {/* RPE Rating */}
             <div className="mb-4">
-              <label className="block text-xs font-bold text-slate-300 mb-2">
-                {t("rpeLabel")}
+              <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                Zorluk Derecesi (RPE 1-10)
               </label>
               <div className="flex items-center gap-1">
                 {[5, 6, 7, 8, 9, 10].map((score) => (
@@ -567,8 +610,8 @@ export default function WorkoutPlayer({
                     onClick={() => setRpeScore(score)}
                     className={`flex-1 py-2 rounded-lg text-xs font-bold tap-effect transition-all ${
                       rpeScore === score
-                        ? "bg-[#E2F952] text-black font-black"
-                        : "bg-[#090B0E] text-slate-400 hover:text-white"
+                        ? "bg-emerald-500 text-black font-black"
+                        : "bg-[#0B0E14] text-slate-400 hover:text-white border border-[#1E2638]"
                     }`}
                   >
                     {score}
@@ -577,16 +620,17 @@ export default function WorkoutPlayer({
               </div>
             </div>
 
+            {/* Notes */}
             <div className="mb-5">
               <label className="block text-xs font-bold text-slate-300 mb-1">
-                {t("sessionNotesLabel")}
+                Antrenman Notları (İsteğe Bağlı)
               </label>
               <textarea
                 value={sessionNotes}
                 onChange={(e) => setSessionNotes(e.target.value)}
-                placeholder={t("sessionNotesPlaceholder")}
+                placeholder="Enerjim yüksekti, göğüs presinde tükenişe gittim..."
                 rows={2}
-                className="w-full px-3 py-2 text-xs bg-[#090B0E] border border-white/[0.08] rounded-xl focus:outline-none focus:border-[#E2F952] text-white"
+                className="w-full px-3 py-2 text-xs bg-[#0B0E14] border border-[#1E2638] rounded-xl focus:outline-none focus:border-emerald-400 text-white placeholder-slate-600"
               />
             </div>
 
@@ -594,7 +638,7 @@ export default function WorkoutPlayer({
               <button
                 type="button"
                 onClick={() => setShowFinishModal(false)}
-                className="flex-1 py-2.5 rounded-xl btn-secondary text-xs font-bold tap-effect"
+                className="flex-1 py-2.5 rounded-xl bg-[#181F2E] hover:bg-[#222B3F] text-slate-300 font-bold text-xs tap-effect border border-[#1E2638]"
               >
                 {t("cancel")}
               </button>
@@ -602,9 +646,9 @@ export default function WorkoutPlayer({
                 type="button"
                 disabled={isSaving}
                 onClick={handleFinishWorkout}
-                className="flex-1 py-2.5 rounded-xl btn-primary text-xs tap-effect flex items-center justify-center gap-1.5"
+                className="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs tap-effect flex items-center justify-center gap-1.5 shadow-md"
               >
-                {isSaving ? t("saving") : t("saveAndFinish")}
+                {isSaving ? "Kaydediliyor..." : "Kaydet ve Bitir"}
               </button>
             </div>
           </div>
