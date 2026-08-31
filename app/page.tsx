@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import WorkoutDashboardView from "@/components/workout/WorkoutDashboardView";
 
 export default function Home() {
-  redirect("/workout");
+  return <WorkoutDashboardView />;
 }
