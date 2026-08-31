@@ -28,6 +28,8 @@ export interface AppUser {
   workout_days_per_week?: number;
   equipment?: string[];
   max_dumbbell_weight_kg?: number;
+  injuries_or_limitations?: string;
+  health_notes?: string;
   onboarding_completed?: boolean;
   created_at?: string;
 }

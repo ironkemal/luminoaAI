@@ -17,7 +17,9 @@ import {
   Zap,
   CheckCircle2,
   Calendar,
-  Layers
+  Layers,
+  ShieldAlert,
+  HeartPulse
 } from "lucide-react";
 
 interface WelcomeOnboardingModalProps {
@@ -34,7 +36,7 @@ export default function WelcomeOnboardingModal({
   const { t } = useLanguage();
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
 
-  // String state for flexible number typing & backspacing without jumping
+  // Form String States for fluid typing & deletion
   const [ageStr, setAgeStr] = useState<string>(user.age ? String(user.age) : "28");
   const [heightStr, setHeightStr] = useState<string>(user.height_cm ? String(user.height_cm) : "180");
   const [currentWeightStr, setCurrentWeightStr] = useState<string>(
@@ -55,6 +57,10 @@ export default function WelcomeOnboardingModal({
     user.max_dumbbell_weight_kg ? String(user.max_dumbbell_weight_kg) : "24.5"
   );
 
+  // Injury & Limitation State
+  const [selectedInjuries, setSelectedInjuries] = useState<string[]>([]);
+  const [customInjuryNotes, setCustomInjuryNotes] = useState<string>("");
+
   const [isSaving, setIsSaving] = useState(false);
 
   if (!isOpen) return null;
@@ -67,11 +73,31 @@ export default function WelcomeOnboardingModal({
     }
   };
 
+  const toggleInjuryChip = (chip: string) => {
+    if (chip === "none") {
+      setSelectedInjuries(["none"]);
+      return;
+    }
+    const filtered = selectedInjuries.filter((i) => i !== "none");
+    if (filtered.includes(chip)) {
+      setSelectedInjuries(filtered.filter((i) => i !== chip));
+    } else {
+      setSelectedInjuries([...filtered, chip]);
+    }
+  };
+
   const parsedAge = parseInt(ageStr, 10) || 28;
   const parsedHeight = parseFloat(heightStr) || 180;
   const parsedCurrentWeight = parseFloat(currentWeightStr) || 100;
   const parsedTargetWeight = parseFloat(targetWeightStr) || 85;
   const parsedMaxDumbbell = parseFloat(maxDumbbellWeightStr) || 24.5;
+
+  const compiledLimitations = [
+    ...selectedInjuries.filter((i) => i !== "none"),
+    customInjuryNotes.trim(),
+  ]
+    .filter(Boolean)
+    .join(" | ");
 
   const handleFinishOnboarding = async () => {
     setIsSaving(true);
@@ -91,6 +117,8 @@ export default function WelcomeOnboardingModal({
           workout_days_per_week: workoutDays,
           equipment: selectedEquipment,
           max_dumbbell_weight_kg: parsedMaxDumbbell,
+          injuries_or_limitations: compiledLimitations || "Sakatlık yok",
+          health_notes: customInjuryNotes || null,
           onboarding_completed: true,
         })
         .eq("id", user.id);
@@ -122,6 +150,8 @@ export default function WelcomeOnboardingModal({
         workout_days_per_week: workoutDays,
         equipment: selectedEquipment,
         max_dumbbell_weight_kg: parsedMaxDumbbell,
+        injuries_or_limitations: compiledLimitations || "Sakatlık yok",
+        health_notes: customInjuryNotes || undefined,
         onboarding_completed: true,
       };
 
@@ -151,6 +181,15 @@ export default function WelcomeOnboardingModal({
     { val: "40", label: "40+ kg (Ağır Dambıllar)" },
   ];
 
+  const injuryChips = [
+    { id: "none", label: "🛡️ Sakatlığım Yok (Tam Sağlıklı)" },
+    { id: "Omuz Ağrısı / Impingement", label: "⚡ Omuz Ağrısı (Ağır Overhead Yapamam)" },
+    { id: "Bel Ağrısı / Fıtık", label: "⚡ Bel Ağrısı / Fıtık (Omurga Baskısı İstemem)" },
+    { id: "Diz / Menisküs Hassasiyeti", label: "⚡ Diz / Menisküs Hassasiyeti" },
+    { id: "Bilek / Dirsek Ağrısı", label: "⚡ Bilek / Dirsek Hassasiyeti" },
+    { id: "Masa Başı Postür / Kifoz", label: "⚡ Masa Başı Postür / Kifoz" },
+  ];
+
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-md flex items-center justify-center p-4 select-none animate-fade-in">
       <div className="w-full max-w-lg bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-100 animate-slide-up relative max-h-[92vh] overflow-y-auto">
@@ -166,7 +205,7 @@ export default function WelcomeOnboardingModal({
               </span>
               <h3 className="text-sm font-extrabold text-slate-900">
                 {step === 1 && "Fiziksel Ölçüleriniz"}
-                {step === 2 && "Hedef ve Antrenman Düzeni"}
+                {step === 2 && "Hedef ve Sakatlık / Sağlık Durumu"}
                 {step === 3 && "Mevcut Ekipmanlarınız"}
                 {step === 4 && "Antrenör Harun ile Tanışın"}
               </h3>
@@ -316,18 +355,19 @@ export default function WelcomeOnboardingModal({
           </div>
         )}
 
-        {/* ── STEP 2: GOALS & FREQUENCY ── */}
+        {/* ── STEP 2: GOALS & INJURIES / LIMITATIONS ── */}
         {step === 2 && (
           <div className="space-y-4 animate-fade-in">
             <div>
               <h2 className="text-lg font-black text-slate-900 tracking-tight">
-                Hedefinizi Belirleyin
+                Hedef ve Sağlık / Sakatlık Durumu
               </h2>
               <p className="text-xs text-slate-500 mt-1">
-                Antrenör Harun, antrenman splitinizi ve kalori hedefinizi bu tercihe göre programlayacak.
+                Antrenör Harun, sakatlıklarınızı ve hedefinizi hafızasına alarak riskli hareketleri programdan otomatik çıkaracaktır.
               </p>
             </div>
 
+            {/* Goal Selector */}
             <div className="space-y-2 pt-1">
               {[
                 {
@@ -372,6 +412,49 @@ export default function WelcomeOnboardingModal({
                   )}
                 </div>
               ))}
+            </div>
+
+            {/* Injuries & Limitations Section */}
+            <div className="pt-2">
+              <label className="block text-xs font-bold text-slate-800 mb-2 flex items-center gap-1.5">
+                <HeartPulse className="w-4 h-4 text-rose-500" />
+                <span>Özel Durum & Sakatlık Kısıtlamaları (Harun Hoca Hafızası)</span>
+              </label>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                {injuryChips.map((chip) => {
+                  const isSel =
+                    chip.id === "none"
+                      ? selectedInjuries.includes("none") || selectedInjuries.length === 0
+                      : selectedInjuries.includes(chip.id);
+
+                  return (
+                    <button
+                      key={chip.id}
+                      type="button"
+                      onClick={() => toggleInjuryChip(chip.id)}
+                      className={`p-2 rounded-xl text-[11px] font-bold text-left transition-all border tap-effect flex items-center justify-between ${
+                        isSel
+                          ? "bg-rose-50 border-rose-400 text-rose-900 shadow-sm"
+                          : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
+                      }`}
+                    >
+                      <span className="truncate">{chip.label}</span>
+                      {isSel && <Check className="w-3 h-3 text-rose-600 flex-shrink-0" />}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="mt-2">
+                <input
+                  type="text"
+                  value={customInjuryNotes}
+                  onChange={(e) => setCustomInjuryNotes(e.target.value)}
+                  placeholder="Ekstra detay (örn: Sol omzumda çıtlama var, masa başı çalışıyorum)..."
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-500"
+                />
+              </div>
             </div>
 
             {/* Weekly Workout Days */}
@@ -569,6 +652,11 @@ export default function WelcomeOnboardingModal({
               <p>
                 <strong className="text-slate-900">Profilini analiz ettim:</strong> {parsedCurrentWeight} kg başlangıç kilon, {parsedTargetWeight} kg hedef kilon ve {workoutDays} günlük antrenman hedefin için tüm hazırlıkları yaptım.
               </p>
+              {compiledLimitations && compiledLimitations !== "Sakatlık yok" && (
+                <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-900 font-medium text-xs">
+                  ⚠️ <strong>Sakatlık Kısıtlaması Hafızama Alındı:</strong> {compiledLimitations}. Bu bölgeleri zorlayacak riskli varyasyonlar yerine güvenli hareketler planlayacağım.
+                </div>
+              )}
               <p>
                 {selectedEquipment.includes("Dumbbell")
                   ? `Maksimum ${parsedMaxDumbbell} kg dambıl kapasitene ve mevcut ekipmanlarına göre programını hazırlayacağım.`

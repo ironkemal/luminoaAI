@@ -16,7 +16,8 @@ import {
   Save,
   CheckCircle2,
   Sliders,
-  Layers
+  Layers,
+  HeartPulse
 } from "lucide-react";
 
 interface UserSettingsModalProps {
@@ -49,6 +50,7 @@ export default function UserSettingsModal({
     "Pull-up Bar",
   ]);
   const [maxDumbbellWeightStr, setMaxDumbbellWeightStr] = useState("24.5");
+  const [injuriesLimitations, setInjuriesLimitations] = useState("");
 
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -68,6 +70,7 @@ export default function UserSettingsModal({
         setWorkoutDays(u.workout_days_per_week || 4);
         setSelectedEquipment(u.equipment || ["Dumbbell", "Bodyweight", "Ab-Wheel", "Pull-up Bar"]);
         setMaxDumbbellWeightStr(u.max_dumbbell_weight_kg ? String(u.max_dumbbell_weight_kg) : "24.5");
+        setInjuriesLimitations(u.injuries_or_limitations || "");
       }
       setSaveSuccess(false);
     }
@@ -111,6 +114,7 @@ export default function UserSettingsModal({
           workout_days_per_week: workoutDays,
           equipment: selectedEquipment,
           max_dumbbell_weight_kg: parsedMaxDumbbell,
+          injuries_or_limitations: injuriesLimitations.trim() || "Sakatlık yok",
           onboarding_completed: true,
         })
         .eq("id", currentUser.id);
@@ -131,6 +135,7 @@ export default function UserSettingsModal({
         workout_days_per_week: workoutDays,
         equipment: selectedEquipment,
         max_dumbbell_weight_kg: parsedMaxDumbbell,
+        injuries_or_limitations: injuriesLimitations.trim() || "Sakatlık yok",
         onboarding_completed: true,
       };
 
@@ -174,7 +179,7 @@ export default function UserSettingsModal({
             </div>
             <div>
               <h3 className="text-base font-extrabold text-slate-900">
-                Profil & Ekipman Ayarları
+                Profil, Ekipman & Sakatlık Ayarları
               </h3>
               <p className="text-[11px] text-slate-400">
                 Antrenör Harun antrenmanları bu bilgilere göre düzenler
@@ -292,6 +297,24 @@ export default function UserSettingsModal({
               <option value="intermediate">Orta Seviye ⚡</option>
               <option value="beginner">Yeni Başlayan 🌱</option>
             </select>
+          </div>
+
+          {/* Special Injury & Health Limitations */}
+          <div>
+            <label className="block text-xs font-bold text-slate-800 mb-1 flex items-center gap-1.5">
+              <HeartPulse className="w-4 h-4 text-rose-500" />
+              <span>Sakatlık & Özel Sağlık Durumu (Harun Hoca Hafızası)</span>
+            </label>
+            <textarea
+              rows={2}
+              value={injuriesLimitations}
+              onChange={(e) => setInjuriesLimitations(e.target.value)}
+              placeholder="Örn: Sol omuzda sıkışma var ağır overhead yapamam / Bel fıtığım var / Diz hassasiyetim var..."
+              className="w-full px-3.5 py-2 bg-rose-50/50 border border-rose-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-rose-400 placeholder-slate-400"
+            />
+            <p className="text-[10px] text-slate-400 mt-0.5">
+              Harun Hoca program oluştururken ve ağırlık önerirken bu kısıtlamaları öncelikli gözetir.
+            </p>
           </div>
 
           {/* Weekly Days */}
