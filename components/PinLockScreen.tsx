@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getCurrentUser, loginUser, registerWithInvitationPin, isAppUnlocked } from "@/lib/auth-pin";
+import { getCurrentUser, loginUser, registerWithInvitationPin, isAppUnlocked, setCurrentUser } from "@/lib/auth-pin";
 import { useLanguage, Language } from "@/lib/i18n";
+import { AppUser } from "@/types";
+import WelcomeOnboardingModal from "@/components/onboarding/WelcomeOnboardingModal";
 import { Dumbbell, UserPlus, LogIn, CheckCircle2, KeyRound, Globe } from "lucide-react";
 
 interface PinLockScreenProps {
@@ -13,6 +15,8 @@ export default function PinLockScreen({ children }: PinLockScreenProps) {
   const { language, setLanguage, t } = useLanguage();
   const [unlocked, setUnlocked] = useState(false);
   const [isMounting, setIsMounting] = useState(true);
+  const [activeUser, setActiveUser] = useState<AppUser | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [mode, setMode] = useState<"login" | "register">("login");
 
   // Login Form
@@ -31,8 +35,13 @@ export default function PinLockScreen({ children }: PinLockScreenProps) {
 
   useEffect(() => {
     setIsMounting(false);
-    if (isAppUnlocked()) {
+    const user = getCurrentUser();
+    if (user) {
+      setActiveUser(user);
       setUnlocked(true);
+      if (!user.onboarding_completed) {
+        setShowOnboarding(true);
+      }
     }
   }, []);
 
@@ -42,8 +51,12 @@ export default function PinLockScreen({ children }: PinLockScreenProps) {
     setIsLoggingIn(true);
     try {
       const res = await loginUser(loginUsername, loginPassword);
-      if (res.success) {
+      if (res.success && res.user) {
+        setActiveUser(res.user);
         setUnlocked(true);
+        if (!res.user.onboarding_completed) {
+          setShowOnboarding(true);
+        }
       } else {
         setLoginError(res.error || t("userNotFound"));
       }
@@ -65,8 +78,11 @@ export default function PinLockScreen({ children }: PinLockScreenProps) {
         regPassword,
         regDisplayName
       );
-      if (res.success) {
+      if (res.success && res.user) {
+        setActiveUser(res.user);
         setUnlocked(true);
+        // Brand new users always get the Onboarding Wizard!
+        setShowOnboarding(true);
       } else {
         setRegError(res.error || t("invalidPinError"));
       }
@@ -86,7 +102,22 @@ export default function PinLockScreen({ children }: PinLockScreenProps) {
   }
 
   if (unlocked) {
-    return <>{children}</>;
+    return (
+      <>
+        {children}
+        {showOnboarding && activeUser && (
+          <WelcomeOnboardingModal
+            user={activeUser}
+            isOpen={showOnboarding}
+            onComplete={(updated) => {
+              setActiveUser(updated);
+              setCurrentUser(updated);
+              setShowOnboarding(false);
+            }}
+          />
+        )}
+      </>
+    );
   }
 
   const languages: { code: Language; label: string; flag: string }[] = [
@@ -138,7 +169,7 @@ export default function PinLockScreen({ children }: PinLockScreenProps) {
             className={`py-2 rounded-xl transition-all tap-effect flex items-center justify-center gap-1.5 ${
               mode === "login"
                 ? "bg-white text-slate-900 shadow-sm"
-                : "text-slate-500 hover:text-slate-700"
+                : "text-slate-500 hover:text-slate-800"
             }`}
           >
             <LogIn className="w-3.5 h-3.5" /> {t("loginTab")}
@@ -152,24 +183,24 @@ export default function PinLockScreen({ children }: PinLockScreenProps) {
             className={`py-2 rounded-xl transition-all tap-effect flex items-center justify-center gap-1.5 ${
               mode === "register"
                 ? "bg-white text-slate-900 shadow-sm"
-                : "text-slate-500 hover:text-slate-700"
+                : "text-slate-500 hover:text-slate-800"
             }`}
           >
-            <UserPlus className="w-3.5 h-3.5 text-emerald-600" /> {t("registerTab")}
+            <UserPlus className="w-3.5 h-3.5" /> {t("registerTab")}
           </button>
         </div>
 
         {/* ── LOGIN FORM ── */}
         {mode === "login" && (
-          <form onSubmit={handleLogin} className="w-full space-y-3.5 animate-fade-in">
+          <form onSubmit={handleLogin} className="w-full space-y-4 animate-fade-in">
             {loginError && (
-              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs font-semibold animate-shake">
+              <div className="p-3 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold">
                 {loginError}
               </div>
             )}
 
             <div>
-              <label className="block text-[11px] font-bold text-slate-600 mb-1">
+              <label className="block text-xs font-bold text-slate-700 mb-1">
                 {t("usernameLabel")}
               </label>
               <input
@@ -178,12 +209,12 @@ export default function PinLockScreen({ children }: PinLockScreenProps) {
                 value={loginUsername}
                 onChange={(e) => setLoginUsername(e.target.value)}
                 placeholder={t("usernamePlaceholder")}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-500"
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-500"
               />
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold text-slate-600 mb-1">
+              <label className="block text-xs font-bold text-slate-700 mb-1">
                 {t("passwordLabel")}
               </label>
               <input
@@ -192,14 +223,14 @@ export default function PinLockScreen({ children }: PinLockScreenProps) {
                 value={loginPassword}
                 onChange={(e) => setLoginPassword(e.target.value)}
                 placeholder={t("passwordPlaceholder")}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-500"
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-500"
               />
             </div>
 
             <button
               type="submit"
               disabled={isLoggingIn}
-              className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm tap-effect flex items-center justify-center gap-2 transition-all mt-2"
+              className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-sm tap-effect flex items-center justify-center gap-2 mt-2"
             >
               <LogIn className="w-4 h-4" />
               {isLoggingIn ? t("loggingIn") : t("loginButton")}
@@ -213,22 +244,22 @@ export default function PinLockScreen({ children }: PinLockScreenProps) {
           </form>
         )}
 
-        {/* ── REGISTER FORM (PIN IS HIDDEN) ── */}
+        {/* ── REGISTER FORM (PIN PROTECTED) ── */}
         {mode === "register" && (
-          <form onSubmit={handleRegister} className="w-full space-y-3 animate-fade-in">
+          <form onSubmit={handleRegister} className="w-full space-y-3.5 animate-fade-in">
             {regError && (
-              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs font-semibold animate-shake">
+              <div className="p-3 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold">
                 {regError}
               </div>
             )}
 
-            <div className="p-2.5 rounded-xl bg-emerald-50/80 border border-emerald-200 text-[11px] text-emerald-800 flex items-start gap-2">
+            <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 flex items-start gap-2">
               <KeyRound className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
               <span>{t("registerBadge")}</span>
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold text-slate-600 mb-1">
+              <label className="block text-xs font-bold text-slate-700 mb-1">
                 {t("invitationPinLabel")}
               </label>
               <input
@@ -238,12 +269,12 @@ export default function PinLockScreen({ children }: PinLockScreenProps) {
                 value={regPin}
                 onChange={(e) => setRegPin(e.target.value)}
                 placeholder={t("invitationPinPlaceholder")}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-500 tracking-widest"
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-500 tracking-widest font-mono"
               />
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold text-slate-600 mb-1">
+              <label className="block text-xs font-bold text-slate-700 mb-1">
                 {t("displayNameLabel")}
               </label>
               <input
@@ -251,12 +282,12 @@ export default function PinLockScreen({ children }: PinLockScreenProps) {
                 value={regDisplayName}
                 onChange={(e) => setRegDisplayName(e.target.value)}
                 placeholder={t("displayNamePlaceholder")}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-500"
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-500"
               />
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold text-slate-600 mb-1">
+              <label className="block text-xs font-bold text-slate-700 mb-1">
                 {t("usernameLabel")} *
               </label>
               <input
@@ -265,12 +296,12 @@ export default function PinLockScreen({ children }: PinLockScreenProps) {
                 value={regUsername}
                 onChange={(e) => setRegUsername(e.target.value)}
                 placeholder={t("usernamePlaceholder")}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-500"
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-500"
               />
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold text-slate-600 mb-1">
+              <label className="block text-xs font-bold text-slate-700 mb-1">
                 {t("passwordLabel")} *
               </label>
               <input
@@ -279,14 +310,14 @@ export default function PinLockScreen({ children }: PinLockScreenProps) {
                 value={regPassword}
                 onChange={(e) => setRegPassword(e.target.value)}
                 placeholder={t("passwordPlaceholder")}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-500"
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-500"
               />
             </div>
 
             <button
               type="submit"
               disabled={isRegistering}
-              className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm tap-effect flex items-center justify-center gap-2 transition-all mt-2"
+              className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-sm tap-effect flex items-center justify-center gap-2 mt-2"
             >
               <CheckCircle2 className="w-4 h-4" />
               {isRegistering ? t("registering") : t("registerButton")}

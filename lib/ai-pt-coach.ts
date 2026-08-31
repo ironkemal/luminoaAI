@@ -1,9 +1,10 @@
-import { BodyMetric, SetLog, WorkoutSession, RoutineExercise, Exercise } from "@/types";
+import { BodyMetric, SetLog, WorkoutSession, RoutineExercise, Exercise, AppUser } from "@/types";
 
 export interface EvaluationInput {
   metrics: BodyMetric[];
   recentSessions: WorkoutSession[];
   routineExercises: (RoutineExercise & { exercise?: Exercise })[];
+  userProfile?: AppUser | null;
 }
 
 export interface GeneratedRoutinePlan {
@@ -50,22 +51,31 @@ export interface CoachEvaluationResult {
   };
 }
 
-export function buildCoachSystemPrompt(): string {
-  return `Sen "Lumino Smart PT" adı verilen, son derece bilgili, gerçekçi, kanıta dayalı (evidence-based) ve motive edici bir Kişisel Antrenör (Personal Trainer) ve Yapay Zeka Karar Motorusun.
+export function buildCoachSystemPrompt(userProfile?: AppUser | null): string {
+  const name = userProfile?.display_name || userProfile?.username || "Sporcu";
+  const currentWeight = userProfile?.current_weight_kg || 100;
+  const targetWeight = userProfile?.target_weight_kg || 85;
+  const height = userProfile?.height_cm || 182;
+  const age = userProfile?.age || 28;
+  const goal = userProfile?.fitness_goal || "Body Recomposition & Lean Cut";
+  const experience = userProfile?.experience_level || "Kas Hafızası / Eski Sporcu";
+  const equip = userProfile?.equipment?.join(", ") || "Ayarlanabilir Dambıllar (24.5kg), Ab-Wheel, Barfiks Barı";
 
-Kullanıcı Profili ve Şartlar:
-- Boy: 1.80m, Güncel Kilo: ~100 kg.
-- Geçmiş: Eski sporcu altyapısı var, son 1.5 yılda sedanter çalışma ile +20kg (dirty bulk etkisi) almış. Yüksek iskelet-kas kütlesi ve kas hafızası avantajı mevcut.
-- Hedef: Body Recomposition / Lean Cut (Kas kütlesini koruyup artırarak beli inceltmek ve yağ yakmak).
-- Ekipman Envanteri:
-  1. Ayarlanabilir Dambıl Çifti (Maksimum 24.5 kg her biri).
-  2. Ab-Wheel (Karın Tekeri).
-  3. Barfiks Demiri.
-  4. Vücut Ağırlığı.
-- Beslenme Stratejisi: İştah yüksek olduğu için katı açlık yerine tokluk veren yüksek proteinli, lifli ve hacimli makro dengesi.
+  return `Sen "Antrenör Harun" (Coach Harun) adında, Lumino Smart PT platformunun kıdemli, bilimsel (evidence-based), samimi ve son derece motive edici Baş Antrenörüsün.
 
-Görevin:
-Kullanıcının antrenman seanslarını, RPE puanlarını ve vücut ölçümlerini (kilo + bel/kol) inceleyerek hem anlık Progressive Overload kararları hem de sıfırdan komple haftalık/döngüsel antrenman programları üretebilmektir.`;
+Kullanıcın (${name}) Profili ve Şartları:
+- Yaş: ${age}, Boy: ${height} cm, Güncel Kilo: ${currentWeight} kg, Hedef Kilo: ${targetWeight} kg.
+- Ana Hedef: ${goal}.
+- Deneyim Seviyesi: ${experience}.
+- Ekipman Envanteri: ${equip}.
+  * Ayarlanabilir Dambıllar her biri maksimum 24.5 kg kapasitelidir.
+  * Ab-Wheel (Karın Tekeri) ve Barfiks Barı mevcuttur.
+- Beslenme Stratejisi: Tokluk veren yüksek proteinli (180-200g), lifli ve temiz beslenme.
+
+Davranış Kuralların:
+1. Kendini her zaman samimi bir şekilde "Antrenörün Harun" olarak tanıt.
+2. Kullanıcının antrenman seanslarını, RPE zorluk derecelerini ve vücut ölçümlerini (kilo + bel/kol) yakından inceleyerek konuş.
+3. Kullanıcı yeni program veya revizyon istediğinde onun fiziksel şartlarına ve 24.5 kg dambıl sınırına tam uygun öneriler sun.`;
 }
 
 export function buildFullProgramPrompt(
@@ -73,7 +83,7 @@ export function buildFullProgramPrompt(
   input: EvaluationInput,
   notes?: string
 ): string {
-  const { metrics, recentSessions } = input;
+  const { metrics, recentSessions, userProfile } = input;
 
   const metricsText = metrics
     .slice(0, 5)
@@ -83,13 +93,17 @@ export function buildFullProgramPrompt(
     )
     .join("\n");
 
-  return `Kullanıcı için yepyeni bir antrenman fazı (Full Program) oluşturacaksın.
+  const currentWeight = userProfile?.current_weight_kg || 100;
+  const targetWeight = userProfile?.target_weight_kg || 85;
 
+  return `Antrenör Harun olarak kullanıcı için yepyeni bir antrenman fazı (Full Program) oluşturacaksın.
+
+KULLANICI: ${userProfile?.display_name || "Sporcu"} (${currentWeight}kg ➔ Hedef: ${targetWeight}kg)
 ÖZEL ODAK: ${focus}
 KULLANICI NOTU: ${notes || "Yok"}
 
 KULLANICININ MEVCUT VERİLERİ:
-${metricsText || "100 kg referans başlangıç"}
+${metricsText || `${currentWeight} kg referans başlangıç`}
 
 EKİPMAN SINIRLARI:
 - Dambıllar her biri maksimum 24.5 kg! (Ağırlıkları asla 24.5 kg üzerine yazma).
@@ -98,21 +112,21 @@ EKİPMAN SINIRLARI:
 - Vücut ağırlığı.
 
 Gereksinim:
-En az 3, en fazla 5 seanslık döngüsel bir program oluştur (örn: İtiş A, Çekiş A, Bacak & Core, İtiş B, Çekiş B).
-Her seans için 4-5 egzersiz, hedef set sayısı (3-4), hedef tekrar aralığı ve kullanıcıya uygun hedef ağırlık (kg) belirle.
+1. Döngüsel mantıkta (örneğin İtiş, Çekiş, Bacak/Core gibi) sıralı rutinler planla.
+2. Egzersizleri ve hedef ağırlıkları 24.5 kg kapasiteye göre progressive overload ilkeleriyle belirle.
+3. Yanıtını MUTLAKA aşağıdaki JSON formatında ver:
 
-Çıktı SADECE JSON formatında olmalıdır:
 \`\`\`json
 {
-  "program_title": "Program Fazı Başlığı",
-  "focus": "${focus}",
-  "rationale": "Bu programın kullanıcının mevcut durumuna göre neden yazıldığının bilimsel gerekçesi...",
+  "program_title": "Antrenör Harun - 4-Haftalık Recomp & Güç Programı",
+  "focus": "Body Recomposition & Hipertrofi",
+  "rationale": "24.5 kg dambıllarla kas hafızasını tetiklemek için periyodize edilmiştir.",
   "estimated_duration_weeks": 4,
   "routines": [
     {
-      "name": "İtiş A (Kuvvet & Göğüs)",
+      "name": "İtiş A (Göğüs - Omuz - Triceps)",
       "sequence_order": 1,
-      "description": "Ağır dambıl göğüs presi ve omuz kuvveti",
+      "description": "Ağır dambıl presleri ve omuz hipertrofisi",
       "exercises": [
         {
           "name": "Dumbbell Floor Press / Bench Press",
@@ -121,52 +135,35 @@ Her seans için 4-5 egzersiz, hedef set sayısı (3-4), hedef tekrar aralığı 
           "target_sets": 4,
           "target_reps": "8-10",
           "target_weight_kg": 22.5,
-          "notes": "Kontrollü negatif tempo"
+          "notes": "Ağır ana pres hareketi"
         }
       ]
     }
   ]
 }
-\`\`\``;
+\`\`\`
+SADECE JSON FORMATINDA DÖNÜŞ YAP.`;
 }
 
 export function buildCoachUserPrompt(input: EvaluationInput): string {
-  const { metrics, recentSessions, routineExercises } = input;
+  const { metrics, recentSessions, routineExercises, userProfile } = input;
 
-  const metricsText = metrics
-    .slice(0, 7)
-    .map(
-      (m) =>
-        `- ${m.recorded_at}: Kilo ${m.weight_kg}kg | Bel: ${m.waist_cm || "-"}cm | Kol: ${m.arm_cm || "-"}cm | Göğüs: ${m.chest_cm || "-"}cm`
-    )
-    .join("\n");
+  const currentWeight = userProfile?.current_weight_kg || 100;
+  const targetWeight = userProfile?.target_weight_kg || 85;
 
-  const sessionsText = recentSessions
-    .slice(0, 5)
-    .map(
-      (s) =>
-        `- ${s.completed_at || s.started_at}: Rutin ID: ${s.routine_id} | RPE: ${s.rpe_score || "-"}/10 | Not: ${s.notes || "-"}`
-    )
-    .join("\n");
+  return `Antrenör Harun olarak kullanıcının son antrenman geçmişini ve ölçümlerini incele.
 
-  const exercisesText = routineExercises
-    .slice(0, 10)
-    .map(
-      (re) =>
-        `- ${re.exercise?.name || "Egzersiz"}: Hedef ${re.target_weight_kg}kg × ${re.target_sets} set × ${re.target_reps} tekrar`
-    )
-    .join("\n");
+KULLANICI PROFİLİ:
+- Başlangıç Kilo: ${currentWeight} kg | Hedef: ${targetWeight} kg | Hedef: ${userProfile?.fitness_goal || "Recomp"}
 
-  return `Lütfen aşağıdaki güncel fitness verilerini inceleyip bir sonraki antrenman döngüsü için AI PT Kararını ve JSON yapılandırmasını üret:
+SON VÜCUT ÖLÇÜMLERİ:
+${JSON.stringify(metrics)}
 
-1. SON VÜCUT TARTIM VE MEZURA ÖLÇÜMLERİ:
-${metricsText || "Henüz yeterli ölçüm yok."}
+SON TAMAMLANAN ANTRENMANLAR:
+${JSON.stringify(recentSessions)}
 
-2. SON TAMAMLANAN ANTRENMAN SEANSLARI:
-${sessionsText || "Henüz seans tamamlanmadı."}
+MEVCUT EGZERSİZ HEDEFLERİ:
+${JSON.stringify(routineExercises)}
 
-3. MEVCUT HEDEF AĞIRLIK VE TEKRARLAR:
-${exercisesText}
-
-Şimdi JSON formatında değerlendirmeni yap:`;
+Lütfen bilimsel bir dille durum değerlendirmesi yap ve JSON formatında Progressive Overload önerileri üret.`;
 }

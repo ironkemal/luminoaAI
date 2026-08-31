@@ -295,24 +295,39 @@ export async function POST(request: NextRequest) {
       let metricsQuery = supabase.from("body_metrics").select("*").order("recorded_at", { ascending: false }).limit(5);
       let sessionsQuery = supabase.from("workout_sessions").select("*, routine:workout_routines(name)").not("completed_at", "is", null).order("completed_at", { ascending: false }).limit(5);
       let routinesQuery = supabase.from("workout_routines").select("*, routine_exercises(*, exercise:exercises(*))").eq("is_active", true);
+      let userProfileQuery = supabase.from("app_users").select("*");
 
       if (userId) {
         metricsQuery = metricsQuery.eq("user_id", userId);
         sessionsQuery = sessionsQuery.eq("user_id", userId);
         routinesQuery = routinesQuery.eq("user_id", userId);
+        userProfileQuery = userProfileQuery.eq("id", userId);
       }
 
-      const [{ data: userMetrics }, { data: userSessions }, { data: userRoutines }] = await Promise.all([
+      const [{ data: userMetrics }, { data: userSessions }, { data: userRoutines }, { data: userProfiles }] = await Promise.all([
         metricsQuery,
         sessionsQuery,
         routinesQuery,
+        userProfileQuery.maybeSingle(),
       ]);
 
+      const userProfile = userProfiles as any;
+      const userName = userProfile?.display_name || userProfile?.username || "Sporcu";
+      const currentWeight = userProfile?.current_weight_kg || (userMetrics?.[0]?.weight_kg) || 100;
+      const targetWeight = userProfile?.target_weight_kg || 85;
+      const userGoal = userProfile?.fitness_goal || "Body Recomposition & Lean Cut";
+      const userExp = userProfile?.experience_level || "Kas Hafızası / Eski Sporcu";
+      const userEquip = (userProfile?.equipment || ["Dumbbell", "Bodyweight", "Ab-Wheel", "Pull-up Bar"]).join(", ");
+
       const chatSystemPrompt = `
-Sen Lumino Smart PT platformundaki ultra zeki, proaktif Yapay Zeka Baş Antrenörüsün (Head Coach).
-Kullanıcının Profili:
-- Başlangıç Kilo: 100 kg, Hedef: Body Recomposition & Lean Cut, eski sporcu geçmişi / kas hafızası var.
-- Ekipman: Ayarlanabilir Dambıllar (Maksimum 24.5 kg her biri), Ab-Wheel (Karın Tekeri), Barfiks Barı, Vücut Ağırlığı.
+Sen "Antrenör Harun" (Coach Harun) adında, Lumino Smart PT platformundaki ultra zeki, bilimsel, samimi ve motive edici Baş Antrenörsün.
+
+Kullanıcın (${userName}) Profili ve Şartları:
+- Yaş: ${userProfile?.age || 28}, Boy: ${userProfile?.height_cm || 182} cm
+- Güncel Kilo: ${currentWeight} kg, Hedef Kilo: ${targetWeight} kg
+- Ana Hedef: ${userGoal}
+- Spor Geçmişi / Kas Hafızası: ${userExp}
+- Ekipman Envanteri: ${userEquip} (Maksimum 24.5 kg ayarlanabilir dambıllar, Ab-Wheel, Barfiks Barı).
 
 Kullanıcının Güncel Durumu:
 - Son Ölçümler: ${JSON.stringify(userMetrics || [])}
@@ -320,8 +335,8 @@ Kullanıcının Güncel Durumu:
 - Aktif Programı: ${JSON.stringify((userRoutines || []).map((r) => ({ name: r.name, count: r.routine_exercises?.length })))}
 
 GÖREVLERİN VE SÜPER YETKİLERİN:
-1. Kullanıcı ile samimi, motive edici, net ve bilimsel bir antrenör diliyle konuş.
-2. Eğer kullanıcı senden "yeni bir program yap", "bana program yaz", "omuzlara odaklanalım", "spliti 3 güne çıkar", "ağırlıkları güncelle" derse veya sohbetin akışında antrenmanı değiştirmek gerektiğine karar verirsen:
+1. Kullanıcıya her zaman "Antrenörün Harun" olarak samimi, enerjik, bilimsel ve net yanıtlar ver.
+2. Eğer kullanıcı senden "yeni bir program yap", "bana program yaz", "omuzlara odaklanalım", "spliti 3 güne çıkar", "ağırlıkları güncelle" derse veya antrenmanı değiştirmek gerektiğine karar verirsen:
    - Sadece tavsiye vermekle kalma, doğrudan veritabanına yüklenebilir bir 'action_proposal' JSON nesnesi üret!
 3. Yanıtını MUTLAKA aşağıdaki JSON formatında ver:
 {

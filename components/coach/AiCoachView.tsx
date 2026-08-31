@@ -48,7 +48,7 @@ interface ChatMessage {
 const DEFAULT_WELCOME_MESSAGE: ChatMessage = {
   role: "assistant",
   content:
-    "Merhaba! Ben Lumino AI Baş Antrenörünüzüm. 100 kg Lean Cut sürecinizi, 24.5 kg dambıl antrenmanlarınızı ve beslenmenizi analiz ediyorum. Bana dilediğinizi yazabilirsiniz. Örneğin 'bana yeni bir program yaz' derseniz sizin için sıfırdan komple bir döngü programı oluşturup veritabanınıza yükleyebilirim!",
+    "Selam! Ben Lumino Baş Antrenörün Harun. 💪 Senin için fiziksel ölçülerini, 24.5 kg dambıl antrenmanlarını ve beslenmeni takip ediyorum. Bana dilediğin soruyu sorabilir veya 'Harun bana yeni bir program yaz' diyerek özel splitini hazırlatabilirsin!",
 };
 
 export default function AiCoachView({ initialLogs }: AiCoachViewProps) {

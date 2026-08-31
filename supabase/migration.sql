@@ -380,3 +380,13 @@ CREATE POLICY "Allow public insert chat_sessions" ON public.chat_sessions FOR IN
 CREATE POLICY "Allow public update chat_sessions" ON public.chat_sessions FOR UPDATE USING (true);
 CREATE POLICY "Allow public delete chat_sessions" ON public.chat_sessions FOR DELETE USING (true);
 
+-- 9. Kullanıcı Profili ve Onboarding Kolonları
+ALTER TABLE public.app_users ADD COLUMN IF NOT EXISTS age INTEGER;
+ALTER TABLE public.app_users ADD COLUMN IF NOT EXISTS current_weight_kg NUMERIC(5,2);
+ALTER TABLE public.app_users ADD COLUMN IF NOT EXISTS fitness_goal TEXT;
+ALTER TABLE public.app_users ADD COLUMN IF NOT EXISTS experience_level TEXT;
+ALTER TABLE public.app_users ADD COLUMN IF NOT EXISTS workout_days_per_week INTEGER DEFAULT 4;
+ALTER TABLE public.app_users ADD COLUMN IF NOT EXISTS equipment TEXT[] DEFAULT ARRAY['Dumbbell', 'Bodyweight', 'Ab-Wheel', 'Pull-up Bar'];
+ALTER TABLE public.app_users ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT FALSE;
+
+

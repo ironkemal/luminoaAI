@@ -20,7 +20,14 @@ export interface AppUser {
   username: string;
   display_name?: string | null;
   height_cm?: number;
+  current_weight_kg?: number;
   target_weight_kg?: number;
+  age?: number;
+  fitness_goal?: string;
+  experience_level?: string;
+  workout_days_per_week?: number;
+  equipment?: string[];
+  onboarding_completed?: boolean;
   created_at?: string;
 }
 
