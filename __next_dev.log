@@ -1,0 +1,75 @@
+   ▲ Next.js 15.3.3
+   - Local:        http://localhost:3000
+   - Network:      http://172.23.112.1:3000
+   - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 3.9s
+ ○ Compiling /middleware ...
+ ✓ Compiled /middleware in 518ms (162 modules)
+ ○ Compiling /login ...
+ ✓ Compiled /login in 4.4s (849 modules)
+ ✓ Compiled in 1015ms (385 modules)
+ GET /login 200 in 161ms
+ GET /login 200 in 90ms
+ ○ Compiling /register ...
+ ✓ Compiled /register in 881ms (842 modules)
+ GET /register 200 in 1099ms
+ GET /login 200 in 33ms
+ GET /login 200 in 44ms
+ GET /login 200 in 35ms
+ GET /login 200 in 234ms
+ ○ Compiling /dashboard ...
+ ✓ Compiled /dashboard in 2.4s (931 modules)
+ GET /dashboard 200 in 4007ms
+ GET /dashboard 200 in 781ms
+ GET /dashboard 200 in 1027ms
+ GET /dashboard 200 in 713ms
+ ○ Compiling /interview/new ...
+ ✓ Compiled /interview/new in 763ms (940 modules)
+ GET /interview/new 200 in 917ms
+ ○ Compiling /api/sessions/create ...
+ ✓ Compiled /api/sessions/create in 568ms (944 modules)
+ POST /api/sessions/create 200 in 1303ms
+ ○ Compiling /interview/[sessionId] ...
+ ✓ Compiled /interview/[sessionId] in 990ms (957 modules)
+ GET /interview/84835175-6cc4-495a-baef-cbfa1f568fe9 200 in 2618ms
+ ○ Compiling /api/interview/start ...
+ ✓ Compiled /api/interview/start in 540ms (961 modules)
+ POST /api/interview/start 400 in 751ms
+ ✓ Compiled in 1681ms (975 modules)
+ GET /interview/new 200 in 149ms
+ POST /api/sessions/create 200 in 288ms
+ GET /interview/1161cc98-d2c8-4e2d-9dd2-8bb4a1855b8f 200 in 42ms
+ POST /api/interview/start 500 in 1077ms
+ ✓ Compiled in 771ms (399 modules)
+ GET /interview/1161cc98-d2c8-4e2d-9dd2-8bb4a1855b8f 200 in 49ms
+ ✓ Compiled in 709ms (399 modules)
+ GET /interview/1161cc98-d2c8-4e2d-9dd2-8bb4a1855b8f 200 in 86ms
+ ✓ Compiled in 624ms (399 modules)
+ GET /interview/1161cc98-d2c8-4e2d-9dd2-8bb4a1855b8f 200 in 44ms
+ ✓ Compiled in 421ms (399 modules)
+ GET /interview/1161cc98-d2c8-4e2d-9dd2-8bb4a1855b8f 200 in 40ms
+ ✓ Compiled in 752ms (975 modules)
+ GET /interview/1161cc98-d2c8-4e2d-9dd2-8bb4a1855b8f 200 in 196ms
+ ✓ Compiled in 2.4s (963 modules)
+ GET /interview/1161cc98-d2c8-4e2d-9dd2-8bb4a1855b8f 200 in 251ms
+ ✓ Compiled /api/interview/start in 374ms (572 modules)
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 1902ms (1289 modules)
+ GET /interview/1161cc98-d2c8-4e2d-9dd2-8bb4a1855b8f 200 in 1670ms
+ POST /api/interview/start 500 in 4922ms
+ GET /interview/1161cc98-d2c8-4e2d-9dd2-8bb4a1855b8f 500 in 1781ms
+ GET /interview/1161cc98-d2c8-4e2d-9dd2-8bb4a1855b8f 500 in 1605ms
+ ✓ Compiled in 2.6s (1303 modules)
+ GET /interview/1161cc98-d2c8-4e2d-9dd2-8bb4a1855b8f 200 in 162ms
+ GET /interview/1161cc98-d2c8-4e2d-9dd2-8bb4a1855b8f 500 in 1268ms
+ ✓ Compiled in 843ms (1303 modules)
+ GET /interview/1161cc98-d2c8-4e2d-9dd2-8bb4a1855b8f 500 in 1815ms
+ ✓ Compiled in 946ms (1303 modules)
+ GET /interview/1161cc98-d2c8-4e2d-9dd2-8bb4a1855b8f 500 in 2242ms
+ ✓ Compiled in 2.3s (1303 modules)
+ GET /interview/1161cc98-d2c8-4e2d-9dd2-8bb4a1855b8f 500 in 1226ms
+ ✓ Compiled in 819ms (1303 modules)
+ GET /interview/1161cc98-d2c8-4e2d-9dd2-8bb4a1855b8f 500 in 1794ms
+ GET /login 200 in 236ms

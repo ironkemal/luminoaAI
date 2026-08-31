@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
+import PinLockScreen from "@/components/PinLockScreen";
+import Navbar from "@/components/Navbar";
+import BottomNav from "@/components/BottomNav";
 
 const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -10,17 +13,23 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Lumino AI – Karriere-Coaching",
+  title: "Lumino PT – Akıllı Kişisel Fitness & Antrenör Platformu",
   description:
-    "Trainiere schwierige Berufsgespräche mit KI. Vorstellungsgespräche, Gehaltsverhandlungen und Mitarbeitergespräche.",
+    "100 kg Body Recomposition & Lean Cut takibi, 24.5 kg dambıl antrenman motoru ve AI PT karar mekanizması.",
 };
 
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="de" className={jakarta.variable}>
-      <body className="antialiased">{children}</body>
+    <html lang="tr" className={jakarta.variable}>
+      <body className="antialiased bg-slate-50 text-slate-900 min-h-screen">
+        <PinLockScreen>
+          <Navbar />
+          <main className="w-full">{children}</main>
+          <BottomNav />
+        </PinLockScreen>
+      </body>
     </html>
   );
 }

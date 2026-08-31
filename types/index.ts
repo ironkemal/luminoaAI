@@ -1,120 +1,123 @@
-export type JobStatus = "employed" | "job_seeking";
+export type TargetMuscle =
+  | "Chest"
+  | "Back"
+  | "Legs"
+  | "Shoulders"
+  | "Arms"
+  | "Core";
 
-export type ScenarioType =
-  | "job_interview"
-  | "salary_negotiation"
-  | "performance_review";
+export type EquipmentType =
+  | "Dumbbell"
+  | "Bodyweight"
+  | "Ab-Wheel"
+  | "Pull-up Bar";
 
-export type Difficulty = "easy" | "medium" | "hard";
-
-export type SessionStatus = "active" | "completed";
-
-export interface Profile {
+export interface Exercise {
   id: string;
-  full_name: string | null;
-  job_status: JobStatus | null;
-  sector: string | null;
-  created_at: string;
+  name: string;
+  target_muscle: TargetMuscle;
+  equipment: EquipmentType;
+  default_rest_seconds: number;
+  instructions?: string | null;
+  created_at?: string;
 }
 
-export interface CvData {
+export interface WorkoutRoutine {
   id: string;
-  user_id: string;
-  file_name: string;
-  extracted_text: string;
-  created_at: string;
+  name: string;
+  sequence_order: number;
+  description?: string | null;
+  is_active: boolean;
+  created_at?: string;
 }
 
-export interface Session {
+export interface RoutineExercise {
   id: string;
-  user_id: string;
-  scenario_type: ScenarioType;
-  company_name: string | null;
-  job_title: string | null;
-  sector: string | null;
-  difficulty: Difficulty;
-  status: SessionStatus;
-  company_research: string | null;
-  job_listing_url: string | null;
-  job_listing_text: string | null;
-  created_at: string;
+  routine_id: string;
+  exercise_id: string;
+  order_in_routine: number;
+  target_sets: number;
+  target_reps: string;
+  target_weight_kg: number;
+  notes?: string | null;
+  created_at?: string;
+  exercise?: Exercise;
+}
+
+export interface WorkoutSession {
+  id: string;
+  routine_id: string | null;
+  started_at: string;
   completed_at: string | null;
+  notes?: string | null;
+  rpe_score?: number | null;
+  created_at?: string;
+  routine?: WorkoutRoutine;
+  set_logs?: SetLog[];
 }
 
-export interface Message {
-  id: string;
+export interface SetLog {
+  id?: string;
   session_id: string;
-  role: "user" | "assistant";
-  content: string;
-  created_at: string;
-}
-
-export interface SessionAnalysis {
-  id: string;
-  session_id: string;
-  strengths: string[];
-  weaknesses: string[];
-  best_moment: string;
-  overall_score: number;
-  created_at: string;
-}
-
-export interface Todo {
-  id: string;
-  user_id: string;
-  session_id: string | null;
-  content: string;
+  exercise_id: string;
+  set_number: number;
+  actual_reps: number;
+  actual_weight_kg: number;
   completed: boolean;
+  created_at?: string;
+  exercise?: Exercise;
+}
+
+export interface BodyMetric {
+  id: string;
+  recorded_at: string;
+  weight_kg: number;
+  waist_cm?: number | null;
+  arm_cm?: number | null;
+  chest_cm?: number | null;
+  notes?: string | null;
+  created_at?: string;
+}
+
+export interface AiCoachLog {
+  id: string;
   created_at: string;
+  evaluation_summary: string;
+  suggested_changes?: {
+    recommendations: {
+      exercise: string;
+      routine?: string;
+      exercise_id?: string;
+      action: "increase_weight" | "increase_reps" | "increase_sets" | "decrease_weight" | "form_focus";
+      old_val?: string;
+      new_val: string;
+      reason?: string;
+    }[];
+    recomp_assessment?: {
+      status: "recomposing" | "cutting" | "plateau" | "bulking";
+      explanation: string;
+      estimated_progress: string;
+    };
+    nutrition_tip?: string;
+  } | null;
+  applied: boolean;
 }
 
-export interface ChatMessage {
-  role: "user" | "assistant";
-  content: string;
+export interface ActiveWorkoutState {
+  routine: WorkoutRoutine;
+  exercises: (RoutineExercise & { exercise: Exercise })[];
+  currentExerciseIndex: number;
+  currentSetIndex: number;
+  completedSets: Record<string, SetLog[]>;
+  isResting: boolean;
+  restRemainingSeconds: number;
+  startedAt: string;
 }
 
-export interface InterviewConfig {
-  scenarioType: ScenarioType;
-  companyName?: string;
-  jobTitle?: string;
-  sector?: string;
-  difficulty: Difficulty;
-  cvText?: string;
-  companyResearch?: string;
-  jobListingText?: string;
+export interface QueueStatus {
+  nextRoutine: WorkoutRoutine;
+  lastSession: WorkoutSession | null;
+  hoursSinceLastWorkout: number | null;
+  recoveryStatus: "fresh" | "recovering" | "ready";
+  recoveryMessage: string;
 }
-
-export interface AnalysisResult {
-  strengths: string[];
-  weaknesses: string[];
-  best_moment: string;
-  overall_score: number;
-  todos: string[];
-}
-
-export const SCENARIO_LABELS: Record<ScenarioType, string> = {
-  job_interview: "Vorstellungsgespräch",
-  salary_negotiation: "Gehaltsverhandlung",
-  performance_review: "Mitarbeitergespräch",
-};
-
-export const DIFFICULTY_LABELS: Record<Difficulty, string> = {
-  easy: "Einfach",
-  medium: "Mittel",
-  hard: "Schwer",
-};
-
-export const SECTORS = [
-  "Technologie & IT",
-  "Finanzen & Banking",
-  "Marketing & Kommunikation",
-  "Consulting & Beratung",
-  "Ingenieurwesen",
-  "Gesundheitswesen",
-  "Bildung & Wissenschaft",
-  "Einzelhandel & E-Commerce",
-  "Logistik & Supply Chain",
-  "Human Resources",
-  "Recht & Compliance",
-  "Sonstiges",
-];

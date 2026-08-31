@@ -1,110 +1,97 @@
 "use client";
 
-import { createClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { Dumbbell, Activity, CalendarDays, Bot, Lock } from "lucide-react";
+import { lockApp } from "@/lib/auth-pin";
 
-interface NavbarProps {
-  userName?: string | null;
-}
-
-export default function Navbar({ userName }: NavbarProps) {
+export default function Navbar() {
+  const pathname = usePathname();
   const router = useRouter();
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  const handleLogout = async () => {
-    setIsLoggingOut(true);
-    try {
-      const supabase = createClient();
-      await supabase.auth.signOut();
-      router.push("/login");
-    } catch (err) {
-      console.error("Logout error:", err);
-      setIsLoggingOut(false);
-    }
+  // Hide in workout player for complete focus
+  if (pathname.includes("/workout/player")) {
+    return null;
+  }
+
+  const handleLock = () => {
+    lockApp();
+    window.location.reload();
   };
 
-  const initials = userName
-    ? userName.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase()
-    : "?";
-
-  const displayName = userName?.split(" ")[0] ?? "Profil";
+  const navLinks = [
+    { href: "/workout", label: "Antrenman", icon: Dumbbell },
+    { href: "/metrics", label: "Ölçüm & Kilo", icon: Activity },
+    { href: "/routines", label: "Programlar", icon: CalendarDays },
+    { href: "/coach", label: "AI Antrenör", icon: Bot },
+  ];
 
   return (
-    <nav
-      className="sticky top-0 z-50 w-full"
-      style={{
-        background: "rgba(255,255,255,0.9)",
-        backdropFilter: "blur(16px)",
-        WebkitBackdropFilter: "blur(16px)",
-        borderBottom: "1px solid rgba(226,232,240,0.7)",
-        boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 1px 0 rgba(0,0,0,0.02)",
-      }}
-    >
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-[60px] flex items-center justify-between">
-        {/* Logo */}
+    <header className="sticky top-0 z-30 w-full bg-white/85 backdrop-blur-md border-b border-slate-200/80">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+        {/* Brand */}
         <Link
-          href="/dashboard"
+          href="/workout"
           className="flex items-center gap-2.5 group select-none"
-          style={{ textDecoration: "none" }}
         >
-          <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center transition-transform duration-200 group-hover:scale-105"
-            style={{ background: "linear-gradient(135deg, #1a56db 0%, #1340b8 100%)", boxShadow: "0 2px 8px rgba(26,86,219,0.3)" }}
-          >
-            <svg viewBox="0 0 24 24" fill="white" className="w-4 h-4">
-              <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" />
-            </svg>
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center text-white shadow-sm shadow-emerald-500/20 group-hover:scale-105 transition-transform">
+            <Dumbbell className="w-5 h-5" />
           </div>
-          <span className="text-[15px] font-bold tracking-tight text-slate-900">
-            Lumino<span style={{ color: "#1a56db" }}>AI</span>
-          </span>
+          <div>
+            <span className="text-base font-bold tracking-tight text-slate-900 flex items-center gap-1">
+              Lumino<span className="text-emerald-600">PT</span>
+            </span>
+            <span className="hidden sm:block text-[10px] font-medium text-slate-400 -mt-1 tracking-wider uppercase">
+              Smart Fitness Platform
+            </span>
+          </div>
         </Link>
 
-        {/* Right side */}
+        {/* Desktop Navigation Links */}
+        <nav className="hidden md:flex items-center gap-1.5">
+          {navLinks.map((link) => {
+            const Icon = link.icon;
+            const isActive =
+              pathname === link.href ||
+              (link.href === "/workout" && pathname === "/") ||
+              pathname.startsWith(link.href);
+
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium transition-all ${
+                  isActive
+                    ? "bg-emerald-50 text-emerald-700 font-semibold"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                }`}
+              >
+                <Icon className={`w-4 h-4 ${isActive ? "text-emerald-600" : "text-slate-400"}`} />
+                {link.label}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Action / Lock */}
         <div className="flex items-center gap-2">
-          {/* User avatar + name */}
-          <div
-            className="hidden sm:flex items-center gap-2.5 px-3 py-1.5 rounded-lg"
-            style={{ background: "#F8FAFC", border: "1px solid #E8EDF5" }}
-          >
-            <div
-              className="w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0"
-              style={{ background: "linear-gradient(135deg, #1a56db, #7c3aed)" }}
-            >
-              {initials}
-            </div>
-            <span className="text-sm font-medium text-slate-600">{displayName}</span>
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200/70 text-xs text-slate-600">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="font-semibold text-slate-700">100 kg</span>
+            <span className="text-slate-400">|</span>
+            <span>Recomp Modu</span>
           </div>
 
-          {/* Logout */}
           <button
-            onClick={handleLogout}
-            disabled={isLoggingOut}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-500 transition-all duration-150 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            type="button"
+            onClick={handleLock}
+            title="Uygulamayı Kilitle"
+            className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 tap-effect"
           >
-            {isLoggingOut ? (
-              <>
-                <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth={3} strokeOpacity={0.3} />
-                  <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth={3} strokeLinecap="round" />
-                </svg>
-                <span className="hidden sm:inline">Abmelden…</span>
-              </>
-            ) : (
-              <>
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                  <polyline points="16 17 21 12 16 7" />
-                  <line x1="21" y1="12" x2="9" y2="12" />
-                </svg>
-                <span className="hidden sm:inline">Abmelden</span>
-              </>
-            )}
+            <Lock className="w-4 h-4" />
           </button>
         </div>
       </div>
-    </nav>
+    </header>
   );
 }

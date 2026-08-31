@@ -3,105 +3,71 @@
 @tailwind utilities;
 
 :root {
-  --background: #F6F9FF;
+  --background: #F8FAFC;
   --foreground: #0F172A;
-  --brand: #1a56db;
-  --brand-dark: #1648c0;
+  --primary: #10B981;
+  --primary-dark: #059669;
+  --accent: #F59E0B;
   --font-jakarta: "Plus Jakarta Sans", system-ui, sans-serif;
 }
 
-/* ── Base ── */
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-jakarta);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  padding-bottom: 5.5rem; /* Space for bottom navigation */
 }
 
-/* ── Scrollbar ── */
+@media (min-width: 768px) {
+  body {
+    padding-bottom: 2rem;
+  }
+}
+
+/* Custom scrollbar */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 99px; }
-::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+::-webkit-scrollbar-thumb { background: #E2E8F0; border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: #CBD5E1; }
 
-/* ── Selection ── */
-::selection { background: rgba(26, 86, 219, 0.15); color: #0F172A; }
-
-/* ── Focus visible ── */
-*:focus-visible {
-  outline: 2px solid rgba(26, 86, 219, 0.5);
-  outline-offset: 2px;
+::selection {
+  background: rgba(16, 185, 129, 0.2);
+  color: #064E3B;
 }
 
-/* ── Page entry animations ── */
-@keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(16px); }
-  to   { opacity: 1; transform: translateY(0); }
+/* Glass & Card Utilities */
+.surface-card {
+  background: #FFFFFF;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 2px 12px -2px rgba(0, 0, 0, 0.04), 0 1px 3px 0 rgba(0, 0, 0, 0.02);
+  border-radius: 1.25rem;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+.glass-nav {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-top: 1px solid rgba(226, 232, 240, 0.8);
 }
 
-@keyframes scaleIn {
-  from { opacity: 0; transform: scale(0.97); }
-  to   { opacity: 1; transform: scale(1); }
+.tap-effect {
+  transition: transform 0.12s ease, opacity 0.12s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.tap-effect:active {
+  transform: scale(0.96);
+  opacity: 0.9;
 }
 
-.animate-fade-up   { animation: fadeInUp 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
-.animate-fade-in   { animation: fadeIn   0.35s ease both; }
-.animate-scale-in  { animation: scaleIn  0.35s cubic-bezier(0.22, 1, 0.36, 1) both; }
-
-/* Stagger children */
-.stagger > * { animation: fadeInUp 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
-.stagger > *:nth-child(1) { animation-delay: 0.04s; }
-.stagger > *:nth-child(2) { animation-delay: 0.08s; }
-.stagger > *:nth-child(3) { animation-delay: 0.12s; }
-.stagger > *:nth-child(4) { animation-delay: 0.16s; }
-.stagger > *:nth-child(5) { animation-delay: 0.20s; }
-
-/* Compatibility shim for tailwindcss-animate-style classes used in code */
-.animate-in { animation: fadeInUp 0.4s cubic-bezier(0.22, 1, 0.36, 1) both; }
-
-/* ── Avatar animations ── */
-@keyframes pulse-ring {
-  0%   { transform: scale(0.9); opacity: 0.7; }
-  100% { transform: scale(1.4); opacity: 0; }
-}
-@keyframes wave-bar {
-  0%, 100% { transform: scaleY(0.4); }
-  50%       { transform: scaleY(1); }
-}
-@keyframes typing-dot {
-  0%, 60%, 100% { transform: translateY(0); }
-  30%            { transform: translateY(-6px); }
+/* Animation utilities */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.wave-bar-1 { animation-delay: 0s; }
-.wave-bar-2 { animation-delay: 0.15s; }
-.wave-bar-3 { animation-delay: 0.3s; }
-.wave-bar-4 { animation-delay: 0.45s; }
-.wave-bar-5 { animation-delay: 0.6s; }
-
-.typing-dot-1 { animation-delay: 0s; }
-.typing-dot-2 { animation-delay: 0.2s; }
-.typing-dot-3 { animation-delay: 0.4s; }
-
-/* ── Input base polish ── */
-input[type="text"],
-input[type="email"],
-input[type="password"] {
-  font-family: var(--font-jakarta);
-}
-
-/* ── Smooth link transitions ── */
-a { transition: color 0.15s ease, opacity 0.15s ease; }
-
-/* ── Card glass effect helper ── */
-.glass {
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+.animate-slide-up {
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
 }

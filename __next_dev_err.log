@@ -1,0 +1,224 @@
+Error in /api/interview/start: Error: OpenRouter error: 429 - {"error":{"message":"Provider returned error","code":429,"metadata":{"raw":"meta-llama/llama-3.3-70b-instruct:free is temporarily rate-limited upstream. Please retry shortly, or add your own key to accumulate your rate limits: https://openrouter.ai/settings/integrations","provider_name":"Venice","is_byok":false,"retry_after_seconds":28,"retry_after_seconds_raw":27.122,"headers":{"Retry-After":"28"}}},"user_id":"user_3DgAMck7Bd3YSpSbLFNXdRAPmPi"}
+    at chat (lib\openrouter.ts:31:10)
+    at async POST (app\api\interview\start\route.ts:50:24)
+  29 |   if (!response.ok) {
+  30 |     const err = await response.text();
+> 31 |     throw new Error(`OpenRouter error: ${response.status} - ${err}`);
+     |          ^
+  32 |   }
+  33 |
+  34 |   const data = await response.json();
+ ⨯ Error: Cannot find module './80.js'
+Require stack:
+- C:\Users\Test\Desktop\claude\Lumino.ai\.next\server\webpack-runtime.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\.next\server\app\api\interview\start\route.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\server\require.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\server\load-components.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\build\utils.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\build\swc\options.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\build\swc\index.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\build\next-config-ts\transpile-config.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\server\config.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\server\next.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\server\lib\start-server.js
+    at __webpack_require__.f.require (C:\Users\Test\Desktop\claude\Lumino.ai\.next\server\webpack-runtime.js:198:28)
+    at <unknown> (C:\Users\Test\Desktop\claude\Lumino.ai\.next\server\webpack-runtime.js:111:40)
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e (C:\Users\Test\Desktop\claude\Lumino.ai\.next\server\webpack-runtime.js:110:67)
+    at Array.map (<anonymous>)
+    at __webpack_require__.X (C:\Users\Test\Desktop\claude\Lumino.ai\.next\server\webpack-runtime.js:162:22)
+    at <unknown> (C:\Users\Test\Desktop\claude\Lumino.ai\.next\server\app\api\interview\start\route.js:67:2471)
+    at Object.<anonymous> (C:\Users\Test\Desktop\claude\Lumino.ai\.next\server\app\api\interview\start\route.js:67:2515) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [Array],
+  page: '/api/interview/start'
+}
+ ⨯ Failed to generate static paths for /interview/[sessionId]:
+[Error: Cannot find module './vendor-chunks/@supabase.js'
+Require stack:
+- C:\Users\Test\Desktop\claude\Lumino.ai\.next\server\webpack-runtime.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\.next\server\app\interview\[sessionId]\page.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\server\require.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\server\load-components.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\build\utils.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\server\dev\static-paths-worker.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\compiled\jest-worker\processChild.js] {
+  type: 'Error',
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [Array]
+}
+ ⨯ Failed to generate static paths for /interview/[sessionId]:
+[Error: Cannot find module './vendor-chunks/@supabase.js'
+Require stack:
+- C:\Users\Test\Desktop\claude\Lumino.ai\.next\server\webpack-runtime.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\.next\server\app\interview\[sessionId]\page.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\server\require.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\server\load-components.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\build\utils.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\server\dev\static-paths-worker.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\compiled\jest-worker\processChild.js] {
+  type: 'Error',
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [Array]
+}
+ ⨯ [Error: Cannot find module './vendor-chunks/@supabase.js'
+Require stack:
+- C:\Users\Test\Desktop\claude\Lumino.ai\.next\server\webpack-runtime.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\.next\server\app\interview\[sessionId]\page.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\server\require.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\server\load-components.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\build\utils.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\server\dev\static-paths-worker.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\compiled\jest-worker\processChild.js] {
+  type: 'Error',
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [Array],
+  page: '/interview/1161cc98-d2c8-4e2d-9dd2-8bb4a1855b8f'
+}
+ ⨯ [Error: Cannot find module './vendor-chunks/@supabase.js'
+Require stack:
+- C:\Users\Test\Desktop\claude\Lumino.ai\.next\server\webpack-runtime.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\.next\server\app\interview\[sessionId]\page.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\server\require.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\server\load-components.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\build\utils.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\server\dev\static-paths-worker.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\compiled\jest-worker\processChild.js] {
+  type: 'Error',
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [Array],
+  page: '/interview/1161cc98-d2c8-4e2d-9dd2-8bb4a1855b8f'
+}
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⨯ [Error: Cannot find module './vendor-chunks/@supabase.js'
+Require stack:
+- C:\Users\Test\Desktop\claude\Lumino.ai\.next\server\webpack-runtime.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\.next\server\app\interview\[sessionId]\page.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\server\require.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\server\load-components.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\build\utils.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\server\dev\static-paths-worker.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\compiled\jest-worker\processChild.js] {
+  type: 'Error',
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [Array],
+  page: '/interview/1161cc98-d2c8-4e2d-9dd2-8bb4a1855b8f'
+}
+ ⨯ [Error: Cannot find module './vendor-chunks/@supabase.js'
+Require stack:
+- C:\Users\Test\Desktop\claude\Lumino.ai\.next\server\webpack-runtime.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\.next\server\app\interview\[sessionId]\page.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\server\require.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\server\load-components.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\build\utils.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\server\dev\static-paths-worker.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\compiled\jest-worker\processChild.js] {
+  type: 'Error',
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [Array],
+  page: '/interview/1161cc98-d2c8-4e2d-9dd2-8bb4a1855b8f'
+}
+ ⨯ [Error: Cannot find module './vendor-chunks/@supabase.js'
+Require stack:
+- C:\Users\Test\Desktop\claude\Lumino.ai\.next\server\webpack-runtime.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\.next\server\app\interview\[sessionId]\page.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\server\require.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\server\load-components.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\build\utils.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\server\dev\static-paths-worker.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\compiled\jest-worker\processChild.js] {
+  type: 'Error',
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [Array],
+  page: '/interview/1161cc98-d2c8-4e2d-9dd2-8bb4a1855b8f'
+}
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⨯ [Error: Cannot find module './vendor-chunks/@supabase.js'
+Require stack:
+- C:\Users\Test\Desktop\claude\Lumino.ai\.next\server\webpack-runtime.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\.next\server\app\interview\[sessionId]\page.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\server\require.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\server\load-components.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\build\utils.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\server\dev\static-paths-worker.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\compiled\jest-worker\processChild.js] {
+  type: 'Error',
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [Array],
+  page: '/interview/1161cc98-d2c8-4e2d-9dd2-8bb4a1855b8f'
+}
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⨯ [Error: Cannot find module './vendor-chunks/@supabase.js'
+Require stack:
+- C:\Users\Test\Desktop\claude\Lumino.ai\.next\server\webpack-runtime.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\.next\server\app\interview\[sessionId]\page.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\server\require.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\server\load-components.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\build\utils.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\server\dev\static-paths-worker.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\compiled\jest-worker\processChild.js] {
+  type: 'Error',
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [Array],
+  page: '/interview/1161cc98-d2c8-4e2d-9dd2-8bb4a1855b8f'
+}
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⨯ [Error: Cannot find module './vendor-chunks/@supabase.js'
+Require stack:
+- C:\Users\Test\Desktop\claude\Lumino.ai\.next\server\webpack-runtime.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\.next\server\app\interview\[sessionId]\page.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\server\require.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\server\load-components.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\build\utils.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\server\dev\static-paths-worker.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\compiled\jest-worker\processChild.js] {
+  type: 'Error',
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [Array],
+  page: '/interview/1161cc98-d2c8-4e2d-9dd2-8bb4a1855b8f'
+}
+ ⨯ [Error: Cannot find module './vendor-chunks/@supabase.js'
+Require stack:
+- C:\Users\Test\Desktop\claude\Lumino.ai\.next\server\webpack-runtime.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\.next\server\app\interview\[sessionId]\page.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\server\require.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\server\load-components.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\build\utils.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\server\dev\static-paths-worker.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\compiled\jest-worker\processChild.js] {
+  type: 'Error',
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [Array],
+  page: '/interview/1161cc98-d2c8-4e2d-9dd2-8bb4a1855b8f'
+}
+ ⨯ [Error: Cannot find module './vendor-chunks/@supabase.js'
+Require stack:
+- C:\Users\Test\Desktop\claude\Lumino.ai\.next\server\webpack-runtime.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\.next\server\app\interview\[sessionId]\page.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\server\require.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\server\load-components.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\build\utils.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\server\dev\static-paths-worker.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\compiled\jest-worker\processChild.js] {
+  type: 'Error',
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [Array],
+  page: '/interview/1161cc98-d2c8-4e2d-9dd2-8bb4a1855b8f'
+}
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⨯ [Error: Cannot find module './vendor-chunks/@supabase.js'
+Require stack:
+- C:\Users\Test\Desktop\claude\Lumino.ai\.next\server\webpack-runtime.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\.next\server\app\interview\[sessionId]\page.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\server\require.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\server\load-components.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\build\utils.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\server\dev\static-paths-worker.js
+- C:\Users\Test\Desktop\claude\Lumino.ai\node_modules\next\dist\compiled\jest-worker\processChild.js] {
+  type: 'Error',
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [Array],
+  page: '/interview/1161cc98-d2c8-4e2d-9dd2-8bb4a1855b8f'
+}

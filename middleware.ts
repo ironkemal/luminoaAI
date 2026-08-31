@@ -1,8 +1,8 @@
-import { type NextRequest } from "next/server";
-import { updateSession } from "@/lib/supabase/middleware";
+import { NextResponse, type NextRequest } from "next/server";
 
 export async function middleware(request: NextRequest) {
-  return await updateSession(request);
+  // Personal Smart Fitness Platform uses client PIN lock screen
+  return NextResponse.next();
 }
 
 export const config = {
