@@ -7,7 +7,7 @@ import {
   Dumbbell,
   Activity,
   CalendarDays,
-  Bot,
+  UserCheck,
   LogOut,
   Menu,
   X,
@@ -48,7 +48,7 @@ export default function Navbar() {
     { href: "/workout", label: t("navWorkout"), icon: Dumbbell, desc: "Döngüsel Antrenman & Sayaç" },
     { href: "/metrics", label: t("navMetrics"), icon: Activity, desc: "7G Hareketli Ort. & Mezura" },
     { href: "/routines", label: t("navRoutines"), icon: CalendarDays, desc: "Programlar & Egzersiz GIF'leri" },
-    { href: "/coach", label: t("navCoach"), icon: Bot, desc: "Canlı PT Sohbeti & Karar Motoru" },
+    { href: "/coach", label: t("navCoach"), icon: UserCheck, desc: "Harun Hoca ile Canlı Sohbet" },
   ];
 
   const languages: { code: Language; label: string; flag: string }[] = [

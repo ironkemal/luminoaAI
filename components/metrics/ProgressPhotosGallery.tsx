@@ -220,11 +220,11 @@ export default function ProgressPhotosGallery({ currentWeight }: ProgressPhotosG
           <div className="flex items-center gap-2">
             <Camera className="w-5 h-5 text-emerald-600" />
             <h3 className="text-sm md:text-base font-bold text-slate-900">
-              Haftalık Gelişim Fotoğrafları & Karşılaştırma
+              {t("photosTitle")}
             </h3>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            Soğuk (Antrenman Öncesi) vs. Pump (Antrenman Sonrası) fotoğraflarınızı kaydedin.
+            {t("photosSubtitle")}
           </p>
         </div>
 
@@ -233,7 +233,7 @@ export default function ProgressPhotosGallery({ currentWeight }: ProgressPhotosG
           onClick={() => setShowUploadModal(true)}
           className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm tap-effect flex items-center gap-1.5 self-start sm:self-auto"
         >
-          <Plus className="w-4 h-4" /> Fotoğraf Ekle
+          <Plus className="w-4 h-4" /> {t("addPhotoBtn")}
         </button>
       </div>
 
@@ -248,7 +248,7 @@ export default function ProgressPhotosGallery({ currentWeight }: ProgressPhotosG
               : "text-slate-500 hover:text-slate-900"
           }`}
         >
-          Tümü ({photos.length})
+          {t("timingAll")} ({photos.length})
         </button>
 
         <button
@@ -260,7 +260,7 @@ export default function ProgressPhotosGallery({ currentWeight }: ProgressPhotosG
               : "text-slate-500 hover:text-slate-900"
           }`}
         >
-          <Snowflake className="w-3.5 h-3.5 text-cyan-600" /> Soğuk (Pre-Workout)
+          <Snowflake className="w-3.5 h-3.5 text-cyan-600" /> {t("timingPre")}
         </button>
 
         <button
@@ -272,7 +272,7 @@ export default function ProgressPhotosGallery({ currentWeight }: ProgressPhotosG
               : "text-slate-500 hover:text-slate-900"
           }`}
         >
-          <Flame className="w-3.5 h-3.5 text-amber-600" /> Pump (Post-Workout)
+          <Flame className="w-3.5 h-3.5 text-amber-600" /> {t("timingPost")}
         </button>
       </div>
 

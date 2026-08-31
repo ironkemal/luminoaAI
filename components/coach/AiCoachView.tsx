@@ -10,7 +10,7 @@ import AiProgramGeneratorModal from "@/components/coach/AiProgramGeneratorModal"
 import AiMemoryTimeline from "@/components/coach/AiMemoryTimeline";
 import ChatHistoryDrawer from "@/components/coach/ChatHistoryDrawer";
 import {
-  Bot,
+  UserCheck,
   Sparkles,
   ArrowUpRight,
   Check,
@@ -45,14 +45,8 @@ interface ChatMessage {
   proposalApplied?: boolean;
 }
 
-const DEFAULT_WELCOME_MESSAGE: ChatMessage = {
-  role: "assistant",
-  content:
-    "Selam! Ben Lumino Baş Antrenörün Harun. 💪 Senin için fiziksel ölçülerini, 24.5 kg dambıl antrenmanlarını ve beslenmeni takip ediyorum. Bana dilediğin soruyu sorabilir veya 'Harun bana yeni bir program yaz' diyerek özel splitini hazırlatabilirsin!",
-};
-
 export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [logs, setLogs] = useState<AiCoachLog[]>(initialLogs);
   const [activeTab, setActiveTab] = useState<"analysis" | "memory" | "chat">("chat");
 
@@ -72,8 +66,18 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
   const [isApplying, setIsApplying] = useState(false);
   const [appliedSuccessMessage, setAppliedSuccessMessage] = useState<string | null>(null);
 
+  const defaultWelcomeMessage: ChatMessage = {
+    role: "assistant",
+    content:
+      language === "tr"
+        ? "Selam! Ben Lumino Baş Antrenörün Harun. 💪 Senin için fiziksel ölçülerini, 24.5 kg dambıl antrenmanlarını ve beslenmeni takip ediyorum. Bana dilediğin soruyu sorabilir veya 'Harun bana yeni bir program yaz' diyerek özel splitini hazırlatabilirsin!"
+        : language === "de"
+        ? "Hallo! Ich bin dein Lumino-Cheftrainer Harun. 💪 Ich verfolge deine Messungen, dein 24.5kg Hanteltraining und deine Ernährung. Frage mich alles oder sage 'Harun schreibe mir einen neuen Plan'!"
+        : "Hey! I'm your Lumino Head Coach Harun. 💪 I track your metrics, 24.5kg dumbbell workouts, and nutrition. Ask me anything or say 'Harun write me a new program'!",
+  };
+
   // Active Chat State
-  const [messages, setMessages] = useState<ChatMessage[]>([DEFAULT_WELCOME_MESSAGE]);
+  const [messages, setMessages] = useState<ChatMessage[]>([defaultWelcomeMessage]);
   const [inputMessage, setInputMessage] = useState("");
   const [isChatSending, setIsChatSending] = useState(false);
   const [applyingProposalIndex, setApplyingProposalIndex] = useState<number | null>(null);
@@ -102,14 +106,12 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
       const { data, error } = await query;
       if (!error && data && data.length > 0) {
         setSessions(data as ChatSession[]);
-        // Load the most recent session
         const latest = data[0] as ChatSession;
         setCurrentSessionId(latest.id);
         if (latest.messages && latest.messages.length > 0) {
           setMessages(latest.messages);
         }
       } else {
-        // Check local storage fallback
         const localSaved = localStorage.getItem("lumino_chat_sessions");
         if (localSaved) {
           try {
@@ -129,13 +131,11 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
     }
   };
 
-  // Save/Sync Active Session to Supabase and LocalStorage
   const saveSessionMessages = async (newMessages: ChatMessage[]) => {
     const supabase = createClient();
     const currentUser = getCurrentUser();
 
-    // Determine Title from first user message
-    const firstUserMsg = newMessages.find((m) => m.role === "user")?.content || "Yeni Sohbet";
+    const firstUserMsg = newMessages.find((m) => m.role === "user")?.content || t("newChat");
     const sessionTitle = firstUserMsg.slice(0, 32) + (firstUserMsg.length > 32 ? "..." : "");
 
     let activeId = currentSessionId;
@@ -169,7 +169,6 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
       console.warn("Save session to Supabase failed, saving local:", err);
     }
 
-    // Always update local sessions list
     setSessions((prev) => {
       const existingIdx = prev.findIndex((s) => s.id === activeId);
       const updatedSession: ChatSession = {
@@ -197,19 +196,16 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
     });
   };
 
-  // Start New Chat Session
   const handleStartNewSession = () => {
     setCurrentSessionId(null);
-    setMessages([DEFAULT_WELCOME_MESSAGE]);
+    setMessages([defaultWelcomeMessage]);
   };
 
-  // Select Previous Session
   const handleSelectSession = (session: ChatSession) => {
     setCurrentSessionId(session.id);
-    setMessages(session.messages || [DEFAULT_WELCOME_MESSAGE]);
+    setMessages(session.messages || [defaultWelcomeMessage]);
   };
 
-  // Delete Session
   const handleDeleteSession = async (sessionId: string) => {
     const supabase = createClient();
     try {
@@ -327,7 +323,6 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
       ];
 
       setMessages(finalMessages);
-      // Auto-save session to Supabase
       saveSessionMessages(finalMessages);
       return reply;
     } catch (err) {
@@ -386,10 +381,10 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
   };
 
   const quickPrompts = [
-    "💡 Bana 4 günlük yeni bir program yaz",
-    "📊 Son ağırlıklarımı analiz et",
-    "⚡ Omuzlara odaklanan bir split hazırla",
-    "🥗 100 kg Lean Cut beslenme stratejisi",
+    t("quickPrompt1"),
+    t("quickPrompt2"),
+    t("quickPrompt3"),
+    t("quickPrompt4"),
   ];
 
   return (
@@ -398,7 +393,9 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl md:text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-            <Bot className="w-6 h-6 text-emerald-600" />
+            <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-sm">
+              <UserCheck className="w-5 h-5" />
+            </div>
             <span>{t("coachTitle")}</span>
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
@@ -413,7 +410,7 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
             <button
               type="button"
               onClick={() => setAiMode("fast")}
-              title="Anlık yanıtlar (1-2s)"
+              title="1-2s"
               className={`px-2.5 py-1.5 rounded-lg transition-all tap-effect flex items-center gap-1 ${
                 aiMode === "fast"
                   ? "bg-emerald-600 text-white shadow-sm font-black"
@@ -421,13 +418,13 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
               }`}
             >
               <Zap className="w-3.5 h-3.5" />
-              <span>Hızlı (1-2s)</span>
+              <span>{t("fastMode")}</span>
             </button>
 
             <button
               type="button"
               onClick={() => setAiMode("deep")}
-              title="Kapsamlı analiz ve derin akıl yürütme"
+              title="Deep Reasoning"
               className={`px-2.5 py-1.5 rounded-lg transition-all tap-effect flex items-center gap-1 ${
                 aiMode === "deep"
                   ? "bg-indigo-600 text-white shadow-sm font-black"
@@ -435,7 +432,7 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
               }`}
             >
               <Brain className="w-3.5 h-3.5" />
-              <span>Derin Düşünme</span>
+              <span>{t("deepMode")}</span>
             </button>
           </div>
 
@@ -464,7 +461,7 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
             className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold shadow-sm tap-effect flex items-center gap-1.5"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isEvaluating ? "animate-spin" : ""}`} />
-            {isEvaluating ? "Analiz Ediliyor..." : "Yeni Analiz Yap"}
+            {isEvaluating ? "..." : t("tabAnalysis")}
           </button>
         </div>
       </div>
@@ -516,20 +513,20 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-sm font-bold text-slate-800">
-                  AI Antrenör Sohbeti & Canlı Programlama
+                  {t("tabChat")}
                 </h3>
                 {aiMode === "deep" ? (
                   <span className="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 font-bold text-[10px] border border-indigo-200 flex items-center gap-1">
-                    <Brain className="w-3 h-3" /> Derin Düşünme Modu
+                    <Brain className="w-3 h-3" /> {t("deepModeActive")}
                   </span>
                 ) : (
                   <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-bold text-[10px] border border-emerald-200 flex items-center gap-1">
-                    <Zap className="w-3 h-3" /> Hızlı Mod (1-2s)
+                    <Zap className="w-3 h-3" /> {t("fastModeActive")}
                   </span>
                 )}
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
-                Oturumlarınız otomatik kaydedilir; istediğiniz an eski yazışmalara devam edebilirsiniz.
+                {t("syncDeviceNotice")}
               </p>
             </div>
 
@@ -538,21 +535,21 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
               <button
                 type="button"
                 onClick={handleStartNewSession}
-                title="Yeni Sohbet Başlat"
+                title={t("startNewChat")}
                 className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-bold border border-slate-200/80 flex items-center gap-1 tap-effect"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Yeni</span>
+                <span className="hidden sm:inline">{t("newChat")}</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setIsHistoryDrawerOpen(true)}
-                title="Geçmiş Sohbet Oturumlarını Aç"
+                title={t("chatSessions")}
                 className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-200 flex items-center gap-1.5 tap-effect"
               >
                 <Clock className="w-4 h-4 text-emerald-600" />
-                <span className="font-extrabold">Geçmiş ({sessions.length})</span>
+                <span className="font-extrabold">{t("chatHistory")} ({sessions.length})</span>
               </button>
 
               <button
@@ -561,7 +558,7 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
                 className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center gap-1 tap-effect"
               >
                 <Mic className="w-3.5 h-3.5 text-emerald-400" />
-                <span className="hidden sm:inline">Sesli</span>
+                <span className="hidden sm:inline">{t("voiceCall")}</span>
               </button>
             </div>
           </div>
@@ -655,7 +652,7 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
                   <span className={`w-2 h-2 rounded-full ${aiMode === "deep" ? "bg-indigo-600" : "bg-emerald-600"} animate-bounce [animation-delay:0.2s]`} />
                   <span className={`w-2 h-2 rounded-full ${aiMode === "deep" ? "bg-indigo-600" : "bg-emerald-600"} animate-bounce [animation-delay:0.4s]`} />
                   <span className="text-[11px] font-bold text-slate-600">
-                    {aiMode === "deep" ? "Derin akıl yürütme yapılıyor..." : "Yanıt üretiliyor..."}
+                    {aiMode === "deep" ? "Derin akıl yürütme yapılıyor..." : "Harun Hoca yanıtlıyor..."}
                   </span>
                 </div>
               </div>
@@ -691,8 +688,8 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
                 onChange={(e) => setInputMessage(e.target.value)}
                 placeholder={
                   aiMode === "deep"
-                    ? "Derin Düşünme modunda antrenörünüze yazın (örn: 'Bana 4 haftalık periyodizasyon hazırla')..."
-                    : "Antrenörünüze yazın (örn: 'Naber', 'Bugün ne yapalım?')..."
+                    ? t("chatInputPlaceholderDeep")
+                    : t("chatInputPlaceholderFast")
                 }
                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-500 pr-24"
               />
@@ -738,10 +735,10 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
                   </div>
                   <div>
                     <h3 className="text-base font-bold text-slate-800">
-                      AI PT Değerlendirmesi
+                      Harun Hoca Değerlendirmesi
                     </h3>
                     <p className="text-xs text-slate-400">
-                      {new Date(latestLog.created_at).toLocaleDateString("tr-TR", {
+                      {new Date(latestLog.created_at).toLocaleDateString(language === "tr" ? "tr-TR" : language === "de" ? "de-DE" : "en-US", {
                         day: "numeric",
                         month: "long",
                         year: "numeric",
@@ -857,8 +854,8 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
             </div>
           ) : (
             <div className="surface-card p-10 text-center text-slate-400 text-xs">
-              <Bot className="w-10 h-10 mx-auto mb-2 text-slate-300" />
-              Henüz bir AI değerlendirmesi oluşturulmadı. Yukarıdaki &quot;Yeni Analiz Yap&quot; butonuna basabilirsiniz.
+              <UserCheck className="w-10 h-10 mx-auto mb-2 text-slate-300" />
+              Henüz bir Harun Hoca değerlendirmesi oluşturulmadı. Yukarıdaki &quot;Yeni Analiz Yap&quot; butonuna basabilirsiniz.
             </div>
           )}
         </div>

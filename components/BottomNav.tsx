@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Dumbbell, Activity, CalendarDays, Bot } from "lucide-react";
+import { Dumbbell, Activity, CalendarDays, UserCheck } from "lucide-react";
 import { useLanguage } from "@/lib/i18n";
 
 export default function BottomNav() {
@@ -35,7 +35,7 @@ export default function BottomNav() {
     {
       href: "/coach",
       label: t("navCoach"),
-      icon: Bot,
+      icon: UserCheck,
       active: pathname.startsWith("/coach"),
     },
   ];

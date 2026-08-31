@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ChatSession } from "@/types";
+import { useLanguage } from "@/lib/i18n";
 import {
   History,
   Plus,
@@ -32,6 +33,8 @@ export default function ChatHistoryDrawer({
   onNewSession,
   onDeleteSession,
 }: ChatHistoryDrawerProps) {
+  const { t, language } = useLanguage();
+
   if (!isOpen) return null;
 
   return (
@@ -53,10 +56,10 @@ export default function ChatHistoryDrawer({
               </div>
               <div>
                 <h3 className="text-sm font-bold text-slate-900">
-                  Sohbet Oturumları
+                  {t("chatSessions")}
                 </h3>
                 <p className="text-[10px] text-slate-400">
-                  Kayıtlı AI yazışmalarınız
+                  {t("chatSessionsDesc")}
                 </p>
               </div>
             </div>
@@ -79,23 +82,23 @@ export default function ChatHistoryDrawer({
             className="w-full py-2.5 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm tap-effect flex items-center justify-center gap-2 transition-colors"
           >
             <Plus className="w-4 h-4" />
-            <span>Yeni Sohbet Başlat</span>
+            <span>{t("startNewChat")}</span>
           </button>
 
           {/* Sessions List */}
           <div className="space-y-2 pt-1">
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1">
-              Geçmiş Oturumlar ({sessions.length})
+              {t("savedSessions")} ({sessions.length})
             </p>
 
             {sessions.length === 0 ? (
               <div className="p-6 rounded-2xl bg-slate-50 border border-dashed border-slate-200 text-center">
                 <Clock className="w-6 h-6 text-slate-400 mx-auto mb-1.5" />
                 <p className="text-xs font-semibold text-slate-600">
-                  Kayıtlı oturum bulunmuyor.
+                  {t("noSavedSessions")}
                 </p>
                 <p className="text-[10px] text-slate-400 mt-0.5">
-                  Yazıştığınız sohbetler burada saklanır.
+                  {t("chatSessionsDesc")}
                 </p>
               </div>
             ) : (
@@ -121,7 +124,7 @@ export default function ChatHistoryDrawer({
                         <div className="flex items-center gap-1.5">
                           <MessageSquare className={`w-3.5 h-3.5 flex-shrink-0 ${isCurrent ? "text-emerald-600" : "text-slate-400"}`} />
                           <h4 className="text-xs font-bold truncate">
-                            {sess.title || "Sohbet"}
+                            {sess.title || t("newChat")}
                           </h4>
                         </div>
                         {lastMsg && (
@@ -130,12 +133,12 @@ export default function ChatHistoryDrawer({
                           </p>
                         )}
                         <p className="text-[9px] text-slate-400 mt-1">
-                          {new Date(sess.updated_at || sess.created_at).toLocaleDateString("tr-TR", {
+                          {new Date(sess.updated_at || sess.created_at).toLocaleDateString(language === "tr" ? "tr-TR" : language === "de" ? "de-DE" : "en-US", {
                             day: "numeric",
                             month: "short",
                             hour: "2-digit",
                             minute: "2-digit",
-                          })} • {sess.messages?.length || 0} mesaj
+                          })} • {sess.messages?.length || 0}
                         </p>
                       </div>
 
@@ -143,12 +146,12 @@ export default function ChatHistoryDrawer({
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (confirm("Bu sohbet oturumunu silmek istediğinize emin misiniz?")) {
+                          if (confirm(language === "tr" ? "Bu sohbet oturumunu silmek istediğinize emin misiniz?" : "Delete this session?")) {
                             onDeleteSession(sess.id);
                           }
                         }}
                         className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity tap-effect"
-                        title="Oturumu Sil"
+                        title={t("delete")}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -162,7 +165,7 @@ export default function ChatHistoryDrawer({
 
         {/* Footer */}
         <div className="pt-3 border-t border-slate-100 text-[10px] text-slate-400 text-center">
-          PC & Mobilde otomatik senkronize edilir.
+          {t("syncDeviceNotice")}
         </div>
       </div>
     </div>
