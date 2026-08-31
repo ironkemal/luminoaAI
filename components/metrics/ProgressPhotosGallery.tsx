@@ -204,38 +204,57 @@ export default function ProgressPhotosGallery({ currentWeight }: ProgressPhotosG
     startCamera(nextFacing);
   };
 
-  // Trigger Native Phone Camera immediately using dynamically created input
-  // This bypasses React's attribute handling issues with `capture`
+  // Detect if running on a mobile device
+  const isMobileDevice = (): boolean => {
+    if (typeof navigator === "undefined") return false;
+    return /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+      || (navigator.maxTouchPoints > 0 && /Mobi|Android/i.test(navigator.userAgent));
+  };
+
+  // Smart Camera Handler: mobile = native camera app, desktop = WebRTC viewfinder
   const handleTriggerNativeCamera = () => {
-    // Create a fresh input element every time to ensure capture works
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "image/*";
-    input.setAttribute("capture", "environment"); // Critical: setAttribute ensures the attribute is properly set
-    input.style.display = "none";
-    document.body.appendChild(input);
+    if (isMobileDevice()) {
+      // MOBILE: Create a fresh input element with capture attribute
+      // This opens the native camera app directly on iOS/Android
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = "image/*";
+      // Try multiple capture attribute approaches for maximum compatibility
+      input.setAttribute("capture", "environment");
+      (input as any).capture = "environment";
+      input.style.position = "fixed";
+      input.style.top = "-9999px";
+      input.style.left = "-9999px";
+      input.style.opacity = "0";
+      document.body.appendChild(input);
 
-    input.addEventListener("change", (e: Event) => {
-      const target = e.target as HTMLInputElement;
-      const file = target.files?.[0];
-      if (file) {
-        setSelectedFile(file);
-        const url = URL.createObjectURL(file);
-        setPreviewUrl(url);
-        stopCameraStream();
-        setShowUploadModal(true);
-      }
-      // Cleanup: remove the temporary input from DOM
-      document.body.removeChild(input);
-    });
+      const cleanup = () => {
+        try { document.body.removeChild(input); } catch {}
+      };
 
-    // Also clean up if user cancels
-    input.addEventListener("cancel", () => {
-      document.body.removeChild(input);
-    });
+      input.addEventListener("change", (e: Event) => {
+        const target = e.target as HTMLInputElement;
+        const file = target.files?.[0];
+        if (file) {
+          setSelectedFile(file);
+          const url = URL.createObjectURL(file);
+          setPreviewUrl(url);
+          stopCameraStream();
+          setShowUploadModal(true);
+        }
+        cleanup();
+      });
 
-    // Trigger the click
-    input.click();
+      input.addEventListener("cancel", cleanup);
+
+      // Small delay for iOS Safari compatibility
+      setTimeout(() => input.click(), 50);
+    } else {
+      // DESKTOP: Open WebRTC live camera viewfinder modal
+      setCaptureMode("camera");
+      setCameraError(null);
+      setShowUploadModal(true);
+    }
   };
 
   // Trigger Gallery Picker immediately
