@@ -3,22 +3,22 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { getCurrentUser } from "@/lib/auth-pin";
 import { WorkoutRoutine, RoutineExercise, Exercise, SetLog } from "@/types";
 import { playRestCompleteSound, playTimerTick, triggerVibration } from "@/lib/sound-haptic";
+import ExerciseGuideModal from "@/components/workout/ExerciseGuideModal";
 import {
   ChevronLeft,
   ChevronRight,
   Check,
   Plus,
   Minus,
-  RotateCcw,
   Timer,
-  Volume2,
   X,
-  Sparkles,
   Trophy,
   Dumbbell,
-  AlertCircle
+  BookOpen,
+  Play
 } from "lucide-react";
 
 interface WorkoutPlayerProps {
@@ -41,6 +41,9 @@ export default function WorkoutPlayer({
   // Completed sets dictionary: exerciseId -> SetLog[]
   const [completedSets, setCompletedSets] = useState<Record<string, SetLog[]>>({});
 
+  // Visual Guide Modal state
+  const [showGuideModal, setShowGuideModal] = useState(false);
+
   // Rest Timer State
   const [isResting, setIsResting] = useState(false);
   const [restSecondsRemaining, setRestSecondsRemaining] = useState(90);
@@ -57,25 +60,21 @@ export default function WorkoutPlayer({
   const currentRoutineExercise = routineExercises[currentExerciseIndex];
   const currentExercise = currentRoutineExercise?.exercise;
 
-  // Initialize weights/reps when switching exercise
   useEffect(() => {
     if (currentRoutineExercise) {
       const targetWeight = Number(currentRoutineExercise.target_weight_kg) || 0;
       setActiveWeight(targetWeight);
 
-      // Parse default target reps (e.g. "8-10" -> 10, "12" -> 12)
       const repsMatch = currentRoutineExercise.target_reps.match(/(\d+)/g);
       const parsedReps = repsMatch ? parseInt(repsMatch[repsMatch.length - 1], 10) : 10;
       setActiveReps(parsedReps);
 
-      // Calculate next set number for this exercise
       const exId = currentRoutineExercise.exercise_id;
       const logged = completedSets[exId] || [];
       setCurrentSetNumber(logged.length + 1);
     }
   }, [currentExerciseIndex, currentRoutineExercise]);
 
-  // Timer Tick & Completion Effect
   useEffect(() => {
     if (isResting) {
       timerIntervalRef.current = setInterval(() => {
@@ -129,7 +128,7 @@ export default function WorkoutPlayer({
     if (!currentRoutineExercise || !currentExercise) return;
 
     const newLog: SetLog = {
-      session_id: "", // filled upon saving
+      session_id: "",
       exercise_id: currentExercise.id,
       set_number: currentSetNumber,
       actual_reps: activeReps,
@@ -150,21 +149,17 @@ export default function WorkoutPlayer({
     const nextSet = currentSetNumber + 1;
     setCurrentSetNumber(nextSet);
 
-    // If all sets for this exercise completed, prompt moving to next exercise
     if (nextSet > currentRoutineExercise.target_sets) {
       if (currentExerciseIndex < routineExercises.length - 1) {
-        // Start rest and advance after or prepare next exercise
         startRestTimer(currentExercise.default_rest_seconds || 90);
         setTimeout(() => {
           setCurrentExerciseIndex((prev) => prev + 1);
         }, 300);
       } else {
-        // Last exercise sets completed
         startRestTimer(60);
         setShowFinishModal(true);
       }
     } else {
-      // Normal set completion: start rest timer
       startRestTimer(currentExercise.default_rest_seconds || 90);
     }
   };
@@ -172,12 +167,13 @@ export default function WorkoutPlayer({
   const handleFinishWorkout = async () => {
     setIsSaving(true);
     const supabase = createClient();
+    const currentUser = getCurrentUser();
 
     try {
-      // 1. Create Workout Session
       const { data: sessionData, error: sessionErr } = await supabase
         .from("workout_sessions")
         .insert({
+          user_id: currentUser?.id || null,
           routine_id: routine.id,
           started_at: sessionStartedAt,
           completed_at: new Date().toISOString(),
@@ -191,7 +187,6 @@ export default function WorkoutPlayer({
 
       const sessionId = sessionData.id;
 
-      // 2. Prepare Set Logs
       const logsToInsert: {
         session_id: string;
         exercise_id: string;
@@ -215,14 +210,9 @@ export default function WorkoutPlayer({
       });
 
       if (logsToInsert.length > 0) {
-        const { error: logsErr } = await supabase
-          .from("set_logs")
-          .insert(logsToInsert);
-
-        if (logsErr) console.error("Error inserting set logs:", logsErr);
+        await supabase.from("set_logs").insert(logsToInsert);
       }
 
-      // Done! Redirect to dashboard with success message
       router.push("/workout?completed=true");
     } catch (err) {
       console.error("Error saving workout session:", err);
@@ -238,12 +228,12 @@ export default function WorkoutPlayer({
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-between select-none">
-      {/* Top App Bar / Progress */}
+      {/* Top App Bar */}
       <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 py-3">
         <div className="max-w-xl mx-auto flex items-center justify-between gap-3">
           <button
             onClick={() => {
-              if (confirm("Antrenmandan çıkmak istediğinize emin misiniz? Kaydedilmemiş setler kaybolacaktır.")) {
+              if (confirm("Antrenmandan çıkmak istediğinize emin misiniz?")) {
                 router.push("/workout");
               }
             }}
@@ -308,7 +298,7 @@ export default function WorkoutPlayer({
 
       {/* Main Focus Area */}
       <main className="flex-1 max-w-xl mx-auto w-full p-4 flex flex-col justify-center animate-fade-in">
-        {/* Active Rest Timer Bar (if active) */}
+        {/* Rest Timer Bar */}
         {isResting && (
           <div className="mb-4 bg-emerald-600 text-white rounded-3xl p-5 shadow-card flex flex-col items-center animate-slide-up relative overflow-hidden">
             <div className="flex items-center justify-between w-full mb-2 text-xs text-emerald-100">
@@ -328,7 +318,6 @@ export default function WorkoutPlayer({
               {(restSecondsRemaining % 60).toString().padStart(2, "0")}
             </div>
 
-            {/* Quick adjust timer buttons */}
             <div className="flex items-center gap-2 mt-3">
               <button
                 onClick={() => addRestTime(-15)}
@@ -368,13 +357,19 @@ export default function WorkoutPlayer({
             </span>
           </div>
 
-          {currentExercise?.instructions && (
-            <p className="text-xs text-slate-500 mb-6 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-              💡 {currentExercise.instructions}
-            </p>
-          )}
+          {/* Visual Guide Button & Instruction */}
+          <div className="flex items-center gap-2 mb-5">
+            <button
+              type="button"
+              onClick={() => setShowGuideModal(true)}
+              className="px-3.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs border border-emerald-200 tap-effect flex items-center gap-1.5"
+            >
+              <BookOpen className="w-3.5 h-3.5 text-emerald-600" />
+              Nasıl Yapılır? (Görsel & Video Rehberi)
+            </button>
+          </div>
 
-          {/* Quick Target Values Indicator */}
+          {/* Target Values Indicator */}
           <div className="flex items-center justify-around bg-slate-50 rounded-2xl p-3.5 mb-6 border border-slate-100">
             <div className="text-center">
               <p className="text-[11px] text-slate-400 font-medium">Hedef Ağırlık</p>
@@ -398,9 +393,8 @@ export default function WorkoutPlayer({
             </div>
           </div>
 
-          {/* Large Deviation Adjusters */}
+          {/* Deviation Adjusters */}
           <div className="grid grid-cols-2 gap-4 mb-6">
-            {/* Weight Box */}
             <div className="bg-slate-50/70 border border-slate-200 rounded-2xl p-3.5 flex flex-col items-center">
               <span className="text-xs font-semibold text-slate-500 mb-1">
                 Ağırlık (kg)
@@ -418,7 +412,7 @@ export default function WorkoutPlayer({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setActiveWeight((prev) => Number((prev + 1.25).toFixed(1)))}
+                  onClick={() => setActiveWeight((prev) => Math.min(24.5, Number((prev + 1.25).toFixed(1))))}
                   className="flex-1 py-2 bg-white border border-slate-200 hover:bg-slate-100 rounded-xl font-bold text-slate-700 tap-effect flex items-center justify-center"
                 >
                   <Plus className="w-4 h-4" />
@@ -426,7 +420,6 @@ export default function WorkoutPlayer({
               </div>
             </div>
 
-            {/* Reps Box */}
             <div className="bg-slate-50/70 border border-slate-200 rounded-2xl p-3.5 flex flex-col items-center">
               <span className="text-xs font-semibold text-slate-500 mb-1">
                 Tekrar (Reps)
@@ -453,7 +446,6 @@ export default function WorkoutPlayer({
             </div>
           </div>
 
-          {/* Big Log Set Button */}
           <button
             type="button"
             onClick={handleCompleteSet}
@@ -464,7 +456,7 @@ export default function WorkoutPlayer({
           </button>
         </div>
 
-        {/* Previous Completed Sets for this exercise */}
+        {/* Previous Completed Sets */}
         {currentExercise && (completedSets[currentExercise.id]?.length || 0) > 0 && (
           <div className="mt-4 p-4 bg-white rounded-2xl border border-slate-200/80">
             <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
@@ -485,7 +477,7 @@ export default function WorkoutPlayer({
         )}
       </main>
 
-      {/* Navigation Footer Controls */}
+      {/* Footer Navigation */}
       <footer className="bg-white border-t border-slate-200 px-4 py-3">
         <div className="max-w-xl mx-auto flex items-center justify-between gap-3">
           <button
@@ -508,6 +500,13 @@ export default function WorkoutPlayer({
         </div>
       </footer>
 
+      {/* Exercise Visual Guide Modal */}
+      <ExerciseGuideModal
+        exercise={currentExercise || null}
+        isOpen={showGuideModal}
+        onClose={() => setShowGuideModal(false)}
+      />
+
       {/* Finish Workout Modal */}
       {showFinishModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
@@ -523,7 +522,6 @@ export default function WorkoutPlayer({
               Toplam {totalSetsCompleted} set başarıyla tamamlandı.
             </p>
 
-            {/* RPE Selector */}
             <div className="mb-4">
               <label className="block text-xs font-bold text-slate-700 mb-2">
                 Genel Zorluk Derecesi (RPE: 1 - 10)
@@ -544,16 +542,8 @@ export default function WorkoutPlayer({
                   </button>
                 ))}
               </div>
-              <p className="text-[11px] text-slate-400 mt-1.5 text-center">
-                {rpeScore <= 6 && "Oldukça rahat geçti"}
-                {rpeScore === 7 && "Orta yoğunlukta, iyi efor"}
-                {rpeScore === 8 && "İdeal hipertrofi zorluğu (1-2 tekrar payı kaldı)"}
-                {rpeScore === 9 && "Çok zorlayıcı, sınıra yakın"}
-                {rpeScore === 10 && "Tam tükeniş"}
-              </p>
             </div>
 
-            {/* Notes */}
             <div className="mb-6">
               <label className="block text-xs font-bold text-slate-700 mb-1.5">
                 Antrenman Notu (İsteğe Bağlı)
@@ -561,7 +551,7 @@ export default function WorkoutPlayer({
               <textarea
                 value={sessionNotes}
                 onChange={(e) => setSessionNotes(e.target.value)}
-                placeholder="Örn: Shoulder press çok güçlü hissettirdi, bir dahaki sefere +1.25kg artırılabilir..."
+                placeholder="Örn: Shoulder press çok güçlü hissettirdi..."
                 rows={3}
                 className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-500 text-slate-800"
               />

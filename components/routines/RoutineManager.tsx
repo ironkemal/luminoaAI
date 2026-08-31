@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { WorkoutRoutine, RoutineExercise, Exercise } from "@/types";
 import { createClient } from "@/lib/supabase/client";
+import ExerciseGuideModal from "@/components/workout/ExerciseGuideModal";
 import {
   CalendarDays,
   Dumbbell,
@@ -12,7 +13,9 @@ import {
   Flame,
   ArrowRight,
   Filter,
-  Info
+  Info,
+  BookOpen,
+  Play
 } from "lucide-react";
 import Link from "next/link";
 
@@ -31,6 +34,7 @@ export default function RoutineManager({
     routines[0]?.id || ""
   );
   const [editingExerciseId, setEditingExerciseId] = useState<string | null>(null);
+  const [selectedGuideExercise, setSelectedGuideExercise] = useState<Exercise | null>(null);
 
   // Edit fields state
   const [editWeight, setEditWeight] = useState<number>(0);
@@ -65,7 +69,6 @@ export default function RoutineManager({
 
       if (error) throw error;
 
-      // Update locally
       if (currentRoutine) {
         const found = currentRoutine.routine_exercises.find((r) => r.id === reId);
         if (found) {
@@ -97,7 +100,7 @@ export default function RoutineManager({
             Program & Egzersiz Yönetimi
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Dinamik döngü rutinleri ve 24.5kg dambıl ilerleme hedefleri
+            Dinamik döngü rutinleri, 24.5kg dambıl hedefleri ve görsel form rehberleri
           </p>
         </div>
 
@@ -155,6 +158,7 @@ export default function RoutineManager({
           <div className="divide-y divide-slate-100">
             {currentRoutine.routine_exercises.map((re, index) => {
               const isEditing = editingExerciseId === re.id;
+              const ex = re.exercise;
 
               return (
                 <div
@@ -166,11 +170,20 @@ export default function RoutineManager({
                       {index + 1}
                     </div>
                     <div>
-                      <h4 className="text-sm font-bold text-slate-800">
-                        {re.exercise?.name}
-                      </h4>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-bold text-slate-800">
+                          {ex?.name}
+                        </h4>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedGuideExercise(ex || null)}
+                          className="px-2 py-0.5 rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[10px] font-bold tap-effect flex items-center gap-1"
+                        >
+                          <BookOpen className="w-3 h-3" /> Rehber
+                        </button>
+                      </div>
                       <p className="text-[11px] text-slate-400">
-                        {re.exercise?.target_muscle} • {re.exercise?.equipment}
+                        {ex?.target_muscle} • {ex?.equipment}
                       </p>
                     </div>
                   </div>
@@ -242,13 +255,13 @@ export default function RoutineManager({
         </div>
       )}
 
-      {/* Exercise Library Directory */}
+      {/* Exercise Library Directory with Visual Cards */}
       <div className="surface-card p-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
           <div className="flex items-center gap-2">
             <Dumbbell className="w-4 h-4 text-emerald-600" />
             <h3 className="text-base font-bold text-slate-800">
-              Egzersiz Kütüphanesi ({allExercises.length})
+              Görsel Egzersiz Kütüphanesi ({allExercises.length})
             </h3>
           </div>
 
@@ -270,27 +283,47 @@ export default function RoutineManager({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
           {filteredExercises.map((exercise) => (
             <div
               key={exercise.id}
-              className="p-3.5 rounded-2xl bg-slate-50/70 border border-slate-200/60 hover:bg-slate-50 transition-colors"
+              onClick={() => setSelectedGuideExercise(exercise)}
+              className="p-3.5 rounded-2xl bg-white border border-slate-200 hover:border-emerald-300 hover:shadow-sm transition-all cursor-pointer group flex flex-col justify-between"
             >
-              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
-                {exercise.target_muscle} • {exercise.equipment}
-              </span>
-              <h4 className="text-xs font-bold text-slate-800 mt-1.5">
-                {exercise.name}
-              </h4>
-              {exercise.instructions && (
-                <p className="text-[11px] text-slate-500 mt-1 line-clamp-2">
-                  {exercise.instructions}
-                </p>
-              )}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
+                    {exercise.target_muscle} • {exercise.equipment}
+                  </span>
+                  <BookOpen className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-600" />
+                </div>
+                <h4 className="text-xs font-bold text-slate-900 group-hover:text-emerald-700 transition-colors">
+                  {exercise.name}
+                </h4>
+                {exercise.instructions && (
+                  <p className="text-[11px] text-slate-500 mt-1 line-clamp-2">
+                    {exercise.instructions}
+                  </p>
+                )}
+              </div>
+
+              <div className="pt-2 mt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400 font-semibold">
+                <span>{exercise.default_rest_seconds}s Dinlenme</span>
+                <span className="text-emerald-600 flex items-center gap-0.5">
+                  Form Rehberini Aç →
+                </span>
+              </div>
             </div>
           ))}
         </div>
       </div>
+
+      {/* Guide Modal */}
+      <ExerciseGuideModal
+        exercise={selectedGuideExercise}
+        isOpen={selectedGuideExercise !== null}
+        onClose={() => setSelectedGuideExercise(null)}
+      />
     </div>
   );
 }

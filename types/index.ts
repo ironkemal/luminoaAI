@@ -12,18 +12,33 @@ export type EquipmentType =
   | "Ab-Wheel"
   | "Pull-up Bar";
 
+export interface AppUser {
+  id: string;
+  username: string;
+  display_name?: string | null;
+  height_cm?: number;
+  target_weight_kg?: number;
+  created_at?: string;
+}
+
 export interface Exercise {
   id: string;
   name: string;
   target_muscle: TargetMuscle;
+  secondary_muscles?: string[];
   equipment: EquipmentType;
   default_rest_seconds: number;
   instructions?: string | null;
+  form_cues?: string[];
+  common_mistakes?: string[];
+  image_url?: string | null;
+  video_url?: string | null;
   created_at?: string;
 }
 
 export interface WorkoutRoutine {
   id: string;
+  user_id?: string;
   name: string;
   sequence_order: number;
   description?: string | null;
@@ -46,6 +61,7 @@ export interface RoutineExercise {
 
 export interface WorkoutSession {
   id: string;
+  user_id?: string;
   routine_id: string | null;
   started_at: string;
   completed_at: string | null;
@@ -70,6 +86,7 @@ export interface SetLog {
 
 export interface BodyMetric {
   id: string;
+  user_id?: string;
   recorded_at: string;
   weight_kg: number;
   waist_cm?: number | null;
@@ -81,10 +98,11 @@ export interface BodyMetric {
 
 export interface AiCoachLog {
   id: string;
+  user_id?: string;
   created_at: string;
   evaluation_summary: string;
   suggested_changes?: {
-    recommendations: {
+    recommendations?: {
       exercise: string;
       routine?: string;
       exercise_id?: string;

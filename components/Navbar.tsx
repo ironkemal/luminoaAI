@@ -2,21 +2,26 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Dumbbell, Activity, CalendarDays, Bot, Lock } from "lucide-react";
-import { lockApp } from "@/lib/auth-pin";
+import { useState, useEffect } from "react";
+import { Dumbbell, Activity, CalendarDays, Bot, LogOut, User } from "lucide-react";
+import { getCurrentUser, logout } from "@/lib/auth-pin";
+import { AppUser } from "@/types";
 
 export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
+  const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
 
-  // Hide in workout player for complete focus
+  useEffect(() => {
+    setCurrentUser(getCurrentUser());
+  }, []);
+
   if (pathname.includes("/workout/player")) {
     return null;
   }
 
-  const handleLock = () => {
-    lockApp();
-    window.location.reload();
+  const handleLogout = () => {
+    logout();
   };
 
   const navLinks = [
@@ -73,22 +78,26 @@ export default function Navbar() {
           })}
         </nav>
 
-        {/* Action / Lock */}
+        {/* User Account / Profile Info */}
         <div className="flex items-center gap-2">
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200/70 text-xs text-slate-600">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="font-semibold text-slate-700">100 kg</span>
-            <span className="text-slate-400">|</span>
-            <span>Recomp Modu</span>
-          </div>
+          {currentUser && (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200/70 text-xs">
+              <div className="w-5 h-5 rounded-lg bg-emerald-600 text-white font-bold text-[10px] flex items-center justify-center">
+                {currentUser.display_name?.[0]?.toUpperCase() || currentUser.username[0]?.toUpperCase()}
+              </div>
+              <span className="font-bold text-slate-800 hidden sm:inline">
+                {currentUser.display_name || currentUser.username}
+              </span>
+            </div>
+          )}
 
           <button
             type="button"
-            onClick={handleLock}
-            title="Uygulamayı Kilitle"
-            className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 tap-effect"
+            onClick={handleLogout}
+            title="Çıkış Yap / Hesap Değiştir"
+            className="p-2 rounded-xl text-slate-400 hover:text-red-600 hover:bg-slate-100 tap-effect"
           >
-            <Lock className="w-4 h-4" />
+            <LogOut className="w-4 h-4" />
           </button>
         </div>
       </div>

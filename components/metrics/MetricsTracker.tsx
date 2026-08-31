@@ -4,6 +4,7 @@ import { useState } from "react";
 import { BodyMetric } from "@/types";
 import { analyzeBodyMetrics } from "@/lib/metrics-calculator";
 import { createClient } from "@/lib/supabase/client";
+import { getCurrentUser } from "@/lib/auth-pin";
 import {
   Scale,
   Sparkles,
@@ -42,9 +43,11 @@ export default function MetricsTracker({ initialMetrics }: MetricsTrackerProps) 
 
     setIsSubmitting(true);
     const supabase = createClient();
+    const currentUser = getCurrentUser();
 
     try {
       const newEntry = {
+        user_id: currentUser?.id || null,
         recorded_at: new Date().toISOString().split("T")[0],
         weight_kg: weightNum,
         waist_cm: waistCm ? parseFloat(waistCm) : null,
