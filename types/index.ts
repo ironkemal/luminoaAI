@@ -12,6 +12,9 @@ export type EquipmentType =
   | "Ab-Wheel"
   | "Pull-up Bar";
 
+export type PhotoTiming = "pre_workout" | "post_workout";
+export type PhotoPose = "front" | "side" | "back" | "other";
+
 export interface AppUser {
   id: string;
   username: string;
@@ -92,6 +95,19 @@ export interface BodyMetric {
   waist_cm?: number | null;
   arm_cm?: number | null;
   chest_cm?: number | null;
+  notes?: string | null;
+  photo_url?: string | null;
+  created_at?: string;
+}
+
+export interface ProgressPhoto {
+  id: string;
+  user_id?: string;
+  photo_url: string;
+  timing: PhotoTiming; // 'pre_workout' (Soğuk) vs 'post_workout' (Pump)
+  pose: PhotoPose; // 'front', 'side', 'back', 'other'
+  weight_kg?: number | null;
+  recorded_at: string;
   notes?: string | null;
   created_at?: string;
 }

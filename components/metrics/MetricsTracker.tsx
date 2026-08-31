@@ -6,6 +6,7 @@ import { analyzeBodyMetrics } from "@/lib/metrics-calculator";
 import { createClient } from "@/lib/supabase/client";
 import { getCurrentUser } from "@/lib/auth-pin";
 import { useLanguage } from "@/lib/i18n";
+import ProgressPhotosGallery from "@/components/metrics/ProgressPhotosGallery";
 import {
   Scale,
   Sparkles,
@@ -16,7 +17,8 @@ import {
   CheckCircle2,
   Calendar,
   Flame,
-  Activity
+  Activity,
+  Camera
 } from "lucide-react";
 
 interface MetricsTrackerProps {
@@ -298,6 +300,9 @@ export default function MetricsTracker({ initialMetrics }: MetricsTrackerProps) 
           </div>
         </div>
       )}
+
+      {/* ── PROGRESS PHOTOS GALLERY SECTION (PRE-WORKOUT VS PUMP) ── */}
+      <ProgressPhotosGallery currentWeight={analysis?.currentWeight} />
 
       {/* Visual Data Points / Trend Log Table */}
       <div className="surface-card p-6">

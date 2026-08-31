@@ -5,6 +5,7 @@
 
 -- 1. TABLOLARI TEMİZLE
 DROP TABLE IF EXISTS public.ai_coach_logs CASCADE;
+DROP TABLE IF EXISTS public.progress_photos CASCADE;
 DROP TABLE IF EXISTS public.body_metrics CASCADE;
 DROP TABLE IF EXISTS public.set_logs CASCADE;
 DROP TABLE IF EXISTS public.workout_sessions CASCADE;
@@ -106,11 +107,27 @@ CREATE TABLE public.body_metrics (
   arm_cm NUMERIC(4,1),
   chest_cm NUMERIC(4,1),
   notes TEXT,
+  photo_url TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- ============================================================
--- 7. AI ANTRENÖR LOGLARI VE HAFIZA DOSYASI (Kullanıcıya Özel)
+-- 7. GELİŞİM FOTOĞRAFLARI (Soğuk vs. Pump Karşılaştırmalı)
+-- ============================================================
+CREATE TABLE public.progress_photos (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES public.app_users(id) ON DELETE CASCADE,
+  photo_url TEXT NOT NULL,
+  timing TEXT NOT NULL DEFAULT 'pre_workout', -- 'pre_workout' (Soğuk) vs 'post_workout' (Pump)
+  pose TEXT NOT NULL DEFAULT 'front', -- 'front', 'side', 'back', 'other'
+  weight_kg NUMERIC(4,1),
+  recorded_at DATE DEFAULT CURRENT_DATE NOT NULL,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================================
+-- 8. AI ANTRENÖR LOGLARI VE HAFIZA DOSYASI (Kullanıcıya Özel)
 -- ============================================================
 CREATE TABLE public.ai_coach_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -122,7 +139,7 @@ CREATE TABLE public.ai_coach_logs (
 );
 
 -- ============================================================
--- 8. İNDEKSLER VE RLS
+-- 9. İNDEKSLER VE RLS
 -- ============================================================
 CREATE INDEX idx_app_users_username ON public.app_users(username);
 CREATE INDEX idx_workout_routines_user_id ON public.workout_routines(user_id);
@@ -130,6 +147,7 @@ CREATE INDEX idx_routine_exercises_routine_id ON public.routine_exercises(routin
 CREATE INDEX idx_workout_sessions_user_id ON public.workout_sessions(user_id);
 CREATE INDEX idx_set_logs_session_id ON public.set_logs(session_id);
 CREATE INDEX idx_body_metrics_user_id ON public.body_metrics(user_id);
+CREATE INDEX idx_progress_photos_user_id ON public.progress_photos(user_id);
 CREATE INDEX idx_ai_coach_logs_user_id ON public.ai_coach_logs(user_id);
 
 ALTER TABLE public.app_users ENABLE ROW LEVEL SECURITY;
@@ -139,6 +157,7 @@ ALTER TABLE public.routine_exercises ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.workout_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.set_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.body_metrics ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.progress_photos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ai_coach_logs ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Public access on app_users" ON public.app_users FOR ALL USING (true) WITH CHECK (true);
@@ -148,10 +167,11 @@ CREATE POLICY "Public access on routine_exercises" ON public.routine_exercises F
 CREATE POLICY "Public access on workout_sessions" ON public.workout_sessions FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Public access on set_logs" ON public.set_logs FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Public access on body_metrics" ON public.body_metrics FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Public access on progress_photos" ON public.progress_photos FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Public access on ai_coach_logs" ON public.ai_coach_logs FOR ALL USING (true) WITH CHECK (true);
 
 -- ============================================================
--- 9. GÖRSEL VE VİDEO/FORM REHBERLİ BAŞLANGIÇ EGZERSİZLERİ
+-- 10. GÖRSEL VE VİDEO/FORM REHBERLİ BAŞLANGIÇ EGZERSİZLERİ
 -- ============================================================
 INSERT INTO public.exercises (id, name, target_muscle, secondary_muscles, equipment, default_rest_seconds, instructions, form_cues, common_mistakes, image_url, video_url) VALUES
 ('10000000-0000-0000-0000-000000000001', 'Dumbbell Floor Press / Bench Press', 'Chest', ARRAY['Triceps', 'Front Delt'], 'Dumbbell', 90, 
@@ -295,7 +315,7 @@ INSERT INTO public.exercises (id, name, target_muscle, secondary_muscles, equipm
  'https://www.youtube.com/watch?v=pSHjTRCQxIw');
 
 -- ============================================================
--- 10. İLK HESAP (Kemal - Varsayılan Kullanıcı)
+-- 11. İLK HESAP (Kemal - Varsayılan Kullanıcı)
 -- ============================================================
 INSERT INTO public.app_users (id, username, password_hash, display_name, height_cm, target_weight_kg)
 VALUES ('00000000-0000-0000-0000-000000000001', 'kemal', '1234', 'Kemal', 180.0, 85.0)
