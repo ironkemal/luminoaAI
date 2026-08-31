@@ -144,23 +144,28 @@ export async function POST(request: NextRequest) {
         .order("completed_at", { ascending: false })
         .limit(6);
 
+      let userProfileQuery = supabase.from("app_users").select("*");
+
       if (userId) {
         metricsQuery = metricsQuery.eq("user_id", userId);
         sessionsQuery = sessionsQuery.eq("user_id", userId);
+        userProfileQuery = userProfileQuery.eq("id", userId);
       }
 
-      const [{ data: metrics }, { data: recentSessions }] = await Promise.all([
+      const [{ data: metrics }, { data: recentSessions }, { data: userProfile }] = await Promise.all([
         metricsQuery,
         sessionsQuery,
+        userProfileQuery.maybeSingle(),
       ]);
 
-      const systemPrompt = buildCoachSystemPrompt();
+      const systemPrompt = buildCoachSystemPrompt(userProfile as any);
       const prompt = buildFullProgramPrompt(
-        programFocus || "Body Recomposition & Lean Cut",
+        programFocus || (userProfile?.fitness_goal || "Body Recomposition"),
         {
           metrics: metrics || [],
           recentSessions: (recentSessions as any) || [],
           routineExercises: [],
+          userProfile: userProfile as any,
         },
         programNotes
       );
@@ -421,23 +426,27 @@ SADECE JSON FORMATINDA DÖNÜŞ YAP.
     let metricsQuery = supabase.from("body_metrics").select("*").order("recorded_at", { ascending: false }).limit(10);
     let sessionsQuery = supabase.from("workout_sessions").select("*, routine:workout_routines(name)").not("completed_at", "is", null).order("completed_at", { ascending: false }).limit(6);
     let routineExercisesQuery = supabase.from("routine_exercises").select("*, exercise:exercises(*)").order("order_in_routine", { ascending: true }).limit(15);
+    let userProfileQuery = supabase.from("app_users").select("*");
 
     if (userId) {
       metricsQuery = metricsQuery.eq("user_id", userId);
       sessionsQuery = sessionsQuery.eq("user_id", userId);
+      userProfileQuery = userProfileQuery.eq("id", userId);
     }
 
-    const [{ data: metrics }, { data: recentSessions }, { data: routineExercises }] = await Promise.all([
+    const [{ data: metrics }, { data: recentSessions }, { data: routineExercises }, { data: userProfile }] = await Promise.all([
       metricsQuery,
       sessionsQuery,
       routineExercisesQuery,
+      userProfileQuery.maybeSingle(),
     ]);
 
-    const systemPrompt = buildCoachSystemPrompt();
+    const systemPrompt = buildCoachSystemPrompt(userProfile as any);
     const userPrompt = buildCoachUserPrompt({
       metrics: metrics || [],
       recentSessions: (recentSessions as any) || [],
       routineExercises: (routineExercises as any) || [],
+      userProfile: userProfile as any,
     });
 
     let evalResult: CoachEvaluationResult;

@@ -27,6 +27,7 @@ export interface AppUser {
   experience_level?: string;
   workout_days_per_week?: number;
   equipment?: string[];
+  max_dumbbell_weight_kg?: number;
   onboarding_completed?: boolean;
   created_at?: string;
 }

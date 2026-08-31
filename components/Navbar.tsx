@@ -14,11 +14,13 @@ import {
   Sparkles,
   ChevronRight,
   Shield,
-  User
+  User,
+  Sliders
 } from "lucide-react";
 import { getCurrentUser, logout } from "@/lib/auth-pin";
 import { useLanguage, Language } from "@/lib/i18n";
 import { AppUser } from "@/types";
+import UserSettingsModal from "@/components/settings/UserSettingsModal";
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -26,6 +28,7 @@ export default function Navbar() {
   const { language, setLanguage, t } = useLanguage();
   const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   useEffect(() => {
     setCurrentUser(getCurrentUser());
@@ -141,14 +144,20 @@ export default function Navbar() {
             </div>
 
             {currentUser && (
-              <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1.5 rounded-xl bg-slate-50 border border-slate-200/70 text-xs">
+              <button
+                type="button"
+                onClick={() => setIsSettingsOpen(true)}
+                title="Profil & Ekipman Ayarları"
+                className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200/70 text-xs tap-effect transition-colors cursor-pointer"
+              >
                 <div className="w-5 h-5 rounded-lg bg-emerald-600 text-white font-bold text-[10px] flex items-center justify-center">
                   {currentUser.display_name?.[0]?.toUpperCase() || currentUser.username[0]?.toUpperCase()}
                 </div>
                 <span className="font-bold text-slate-800 hidden sm:inline">
                   {currentUser.display_name || currentUser.username}
                 </span>
-              </div>
+                <Sliders className="w-3.5 h-3.5 text-slate-400" />
+              </button>
             )}
 
             <button
@@ -162,6 +171,13 @@ export default function Navbar() {
           </div>
         </div>
       </header>
+
+      {/* User Settings Modal */}
+      <UserSettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        onUserUpdated={(updated) => setCurrentUser(updated)}
+      />
 
       {/* ── LEFT SLIDE-OUT SIDEBAR / DRAWER MENU ── */}
       {isSidebarOpen && (
@@ -202,18 +218,27 @@ export default function Navbar() {
 
               {/* Active User Card */}
               {currentUser && (
-                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white font-black text-sm flex items-center justify-center shadow-sm">
-                    {currentUser.display_name?.[0]?.toUpperCase() || currentUser.username[0]?.toUpperCase()}
+                <div
+                  onClick={() => {
+                    setIsSidebarOpen(false);
+                    setIsSettingsOpen(true);
+                  }}
+                  className="p-3.5 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200/80 flex items-center justify-between gap-3 cursor-pointer tap-effect transition-colors"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white font-black text-sm flex items-center justify-center shadow-sm">
+                      {currentUser.display_name?.[0]?.toUpperCase() || currentUser.username[0]?.toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-xs font-bold text-slate-900 truncate">
+                        {currentUser.display_name || currentUser.username}
+                      </h4>
+                      <p className="text-[10px] text-slate-400 truncate">
+                        @{currentUser.username} • {currentUser.current_weight_kg || 100} kg • {currentUser.fitness_goal || "Recomp"}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="text-xs font-bold text-slate-900 truncate">
-                      {currentUser.display_name || currentUser.username}
-                    </h4>
-                    <p className="text-[10px] text-slate-400 truncate">
-                      @{currentUser.username} • 100 kg Recomp
-                    </p>
-                  </div>
+                  <Sliders className="w-4 h-4 text-slate-400" />
                 </div>
               )}
 

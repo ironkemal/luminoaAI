@@ -34,20 +34,27 @@ export default function WelcomeOnboardingModal({
   const { t } = useLanguage();
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
 
-  // Form State
-  const [age, setAge] = useState<number>(28);
-  const [heightCm, setHeightCm] = useState<number>(user.height_cm || 182);
-  const [currentWeightKg, setCurrentWeightKg] = useState<number>(100.0);
-  const [targetWeightKg, setTargetWeightKg] = useState<number>(user.target_weight_kg || 85.0);
-  const [experienceLevel, setExperienceLevel] = useState<string>("muscle_memory");
-  const [fitnessGoal, setFitnessGoal] = useState<string>("recomp");
-  const [workoutDays, setWorkoutDays] = useState<number>(4);
-  const [selectedEquipment, setSelectedEquipment] = useState<string[]>([
-    "Dumbbell",
-    "Bodyweight",
-    "Ab-Wheel",
-    "Pull-up Bar",
-  ]);
+  // String state for flexible number typing & backspacing without jumping
+  const [ageStr, setAgeStr] = useState<string>(user.age ? String(user.age) : "28");
+  const [heightStr, setHeightStr] = useState<string>(user.height_cm ? String(user.height_cm) : "180");
+  const [currentWeightStr, setCurrentWeightStr] = useState<string>(
+    user.current_weight_kg ? String(user.current_weight_kg) : "100.0"
+  );
+  const [targetWeightStr, setTargetWeightStr] = useState<string>(
+    user.target_weight_kg ? String(user.target_weight_kg) : "85.0"
+  );
+
+  const [experienceLevel, setExperienceLevel] = useState<string>(user.experience_level || "muscle_memory");
+  const [fitnessGoal, setFitnessGoal] = useState<string>(user.fitness_goal || "recomp");
+  const [workoutDays, setWorkoutDays] = useState<number>(user.workout_days_per_week || 4);
+
+  const [selectedEquipment, setSelectedEquipment] = useState<string[]>(
+    user.equipment || ["Dumbbell", "Bodyweight", "Ab-Wheel", "Pull-up Bar"]
+  );
+  const [maxDumbbellWeightStr, setMaxDumbbellWeightStr] = useState<string>(
+    user.max_dumbbell_weight_kg ? String(user.max_dumbbell_weight_kg) : "24.5"
+  );
+
   const [isSaving, setIsSaving] = useState(false);
 
   if (!isOpen) return null;
@@ -60,28 +67,33 @@ export default function WelcomeOnboardingModal({
     }
   };
 
+  const parsedAge = parseInt(ageStr, 10) || 28;
+  const parsedHeight = parseFloat(heightStr) || 180;
+  const parsedCurrentWeight = parseFloat(currentWeightStr) || 100;
+  const parsedTargetWeight = parseFloat(targetWeightStr) || 85;
+  const parsedMaxDumbbell = parseFloat(maxDumbbellWeightStr) || 24.5;
+
   const handleFinishOnboarding = async () => {
     setIsSaving(true);
     const supabase = createClient();
 
     try {
       // 1. Update user record in Supabase
-      const { data: updatedUserData, error: userErr } = await supabase
+      const { error: userErr } = await supabase
         .from("app_users")
         .update({
-          age,
-          height_cm: heightCm,
-          current_weight_kg: currentWeightKg,
-          target_weight_kg: targetWeightKg,
+          age: parsedAge,
+          height_cm: parsedHeight,
+          current_weight_kg: parsedCurrentWeight,
+          target_weight_kg: parsedTargetWeight,
           fitness_goal: fitnessGoal,
           experience_level: experienceLevel,
           workout_days_per_week: workoutDays,
           equipment: selectedEquipment,
+          max_dumbbell_weight_kg: parsedMaxDumbbell,
           onboarding_completed: true,
         })
-        .eq("id", user.id)
-        .select()
-        .single();
+        .eq("id", user.id);
 
       if (userErr) {
         console.warn("User update error:", userErr);
@@ -92,23 +104,24 @@ export default function WelcomeOnboardingModal({
       await supabase.from("body_metrics").insert({
         user_id: user.id,
         recorded_at: today,
-        weight_kg: currentWeightKg,
-        waist_cm: 101.0,
+        weight_kg: parsedCurrentWeight,
+        waist_cm: 100.0,
         arm_cm: 40.0,
-        chest_cm: 113.0,
-        notes: "Antrenör Harun ile başlangıç kurulum tartımı",
+        chest_cm: 112.0,
+        notes: "Antrenör Harun ile profil kurulum tartımı",
       });
 
       const updatedUser: AppUser = {
         ...user,
-        age,
-        height_cm: heightCm,
-        current_weight_kg: currentWeightKg,
-        target_weight_kg: targetWeightKg,
+        age: parsedAge,
+        height_cm: parsedHeight,
+        current_weight_kg: parsedCurrentWeight,
+        target_weight_kg: parsedTargetWeight,
         fitness_goal: fitnessGoal,
         experience_level: experienceLevel,
         workout_days_per_week: workoutDays,
         equipment: selectedEquipment,
+        max_dumbbell_weight_kg: parsedMaxDumbbell,
         onboarding_completed: true,
       };
 
@@ -116,7 +129,6 @@ export default function WelcomeOnboardingModal({
       onComplete(updatedUser);
     } catch (err) {
       console.error("Onboarding finish error:", err);
-      // Fallback
       const fallbackUser: AppUser = {
         ...user,
         onboarding_completed: true,
@@ -127,6 +139,17 @@ export default function WelcomeOnboardingModal({
       setIsSaving(false);
     }
   };
+
+  const dumbbellOptions = [
+    { val: "5", label: "5 kg" },
+    { val: "10", label: "10 kg" },
+    { val: "15", label: "15 kg" },
+    { val: "20", label: "20 kg" },
+    { val: "24.5", label: "24.5 kg (Standart Ayarlanabilir)" },
+    { val: "30", label: "30 kg" },
+    { val: "35", label: "35 kg" },
+    { val: "40", label: "40+ kg (Ağır Dambıllar)" },
+  ];
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-md flex items-center justify-center p-4 select-none animate-fade-in">
@@ -184,11 +207,11 @@ export default function WelcomeOnboardingModal({
                   Yaş
                 </label>
                 <input
-                  type="number"
-                  min={14}
-                  max={90}
-                  value={age}
-                  onChange={(e) => setAge(parseInt(e.target.value, 10) || 28)}
+                  type="text"
+                  inputMode="numeric"
+                  value={ageStr}
+                  onChange={(e) => setAgeStr(e.target.value)}
+                  placeholder="28"
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:border-emerald-500"
                 />
               </div>
@@ -198,11 +221,11 @@ export default function WelcomeOnboardingModal({
                   Boy (cm)
                 </label>
                 <input
-                  type="number"
-                  min={120}
-                  max={240}
-                  value={heightCm}
-                  onChange={(e) => setHeightCm(parseFloat(e.target.value) || 180)}
+                  type="text"
+                  inputMode="decimal"
+                  value={heightStr}
+                  onChange={(e) => setHeightStr(e.target.value)}
+                  placeholder="180"
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:border-emerald-500"
                 />
               </div>
@@ -212,10 +235,11 @@ export default function WelcomeOnboardingModal({
                   Güncel Kilo (kg) *
                 </label>
                 <input
-                  type="number"
-                  step="0.1"
-                  value={currentWeightKg}
-                  onChange={(e) => setCurrentWeightKg(parseFloat(e.target.value) || 100)}
+                  type="text"
+                  inputMode="decimal"
+                  value={currentWeightStr}
+                  onChange={(e) => setCurrentWeightStr(e.target.value)}
+                  placeholder="100.0"
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-black text-slate-900 focus:outline-none focus:border-emerald-500"
                 />
               </div>
@@ -225,11 +249,12 @@ export default function WelcomeOnboardingModal({
                   Hedef Kilo (kg) *
                 </label>
                 <input
-                  type="number"
-                  step="0.1"
-                  value={targetWeightKg}
-                  onChange={(e) => setTargetWeightKg(parseFloat(e.target.value) || 85)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-emerald-700 focus:outline-none focus:border-emerald-500"
+                  type="text"
+                  inputMode="decimal"
+                  value={targetWeightStr}
+                  onChange={(e) => setTargetWeightStr(e.target.value)}
+                  placeholder="85.0"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-black text-emerald-700 focus:outline-none focus:border-emerald-500"
                 />
               </div>
             </div>
@@ -321,7 +346,7 @@ export default function WelcomeOnboardingModal({
                   id: "hypertrophy",
                   title: "Kas Kazanımı & Hipertrofi 🦍",
                   badge: "HACİM VE GÜÇ",
-                  desc: "24.5 kg dambıllarla progressive overload ve maksimum kas kütlesi.",
+                  desc: "Dambıllarla progressive overload ve maksimum kas kütlesi.",
                 },
               ].map((item) => (
                 <div
@@ -393,7 +418,7 @@ export default function WelcomeOnboardingModal({
           </div>
         )}
 
-        {/* ── STEP 3: EQUIPMENT ── */}
+        {/* ── STEP 3: EQUIPMENT & MAX DUMBBELL WEIGHT ── */}
         {step === 3 && (
           <div className="space-y-4 animate-fade-in">
             <div>
@@ -401,7 +426,7 @@ export default function WelcomeOnboardingModal({
                 Mevcut Ekipmanlarınız
               </h2>
               <p className="text-xs text-slate-500 mt-1">
-                Antrenör Harun, egzersizlerinizi sahip olduğunuz ekipmanlara göre seçecek.
+                Antrenör Harun, egzersizlerinizi ve ağırlık hedeflerinizi sahip olduğunuz ekipmana göre ayarlayacaktır.
               </p>
             </div>
 
@@ -409,18 +434,33 @@ export default function WelcomeOnboardingModal({
               {[
                 {
                   id: "Dumbbell",
-                  title: "Ayarlanabilir Dambıllar (2x 24.5 kg) 🏋️‍♂️",
-                  desc: "Tüm pres, row, goblet squat ve kol hareketleri için temel ağırlık.",
+                  title: "Dambıllar (Ayarlanabilir / Sabit Set) 🏋️‍♂️",
+                  desc: "Presler, row, goblet squat ve kol hareketleri.",
                 },
                 {
-                  id: "Ab-Wheel",
-                  title: "Ab-Wheel (Karın Tekeri) ⚙️",
-                  desc: "Core ve karın stabilitesi için en etkili ekipman.",
+                  id: "Bench",
+                  title: "Ayarlanabilir Sehpa / Düz Bench 🪑",
+                  desc: "Incline & flat bench press ve izole hareketler.",
                 },
                 {
                   id: "Pull-up Bar",
                   title: "Barfiks Barı 🚪",
-                  desc: "Geniş sırt, kanat ve biceps gelişimi için çekiş hareketleri.",
+                  desc: "Geniş sırt, kanat ve biceps çekişleri.",
+                },
+                {
+                  id: "Ab-Wheel",
+                  title: "Ab-Wheel (Karın Tekeri) ⚙️",
+                  desc: "Core ve karın stabilitesi.",
+                },
+                {
+                  id: "Bands",
+                  title: "Direnç Lastikleri (Resistance Bands) 🤸",
+                  desc: "Isınma, omuz ve eklem destek egzersizleri.",
+                },
+                {
+                  id: "FullGym",
+                  title: "Tam Donanımlı Spor Salonu (Barbell & Cable) 🏢",
+                  desc: "Tüm salon makineleri ve barbell istasyonları.",
                 },
                 {
                   id: "Bodyweight",
@@ -454,6 +494,40 @@ export default function WelcomeOnboardingModal({
                 );
               })}
             </div>
+
+            {/* Max Dumbbell Weight Dropdown/Input if Dumbbells selected */}
+            {selectedEquipment.includes("Dumbbell") && (
+              <div className="p-4 bg-emerald-50/80 border border-emerald-200 rounded-2xl space-y-2 animate-slide-up">
+                <label className="block text-xs font-black text-emerald-900">
+                  🏋️‍♂️ Tek Elde Maksimum Dambıl Kapasiteniz Kaç kg?
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <select
+                    value={maxDumbbellWeightStr}
+                    onChange={(e) => setMaxDumbbellWeightStr(e.target.value)}
+                    className="px-3 py-2 bg-white border border-emerald-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-500"
+                  >
+                    {dumbbellOptions.map((opt) => (
+                      <option key={opt.val} value={opt.val}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={maxDumbbellWeightStr}
+                    onChange={(e) => setMaxDumbbellWeightStr(e.target.value)}
+                    placeholder="Örn: 24.5"
+                    className="px-3 py-2 bg-white border border-emerald-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+                <p className="text-[10px] text-emerald-700">
+                  Antrenör Harun, program yazarken ağırlıklarınızı asla bu sınırın ({parsedMaxDumbbell} kg) üzerine çıkarmayacaktır.
+                </p>
+              </div>
+            )}
 
             <div className="pt-3 flex items-center justify-between">
               <button
@@ -493,10 +567,12 @@ export default function WelcomeOnboardingModal({
 
             <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl text-left text-xs text-slate-700 leading-relaxed space-y-2">
               <p>
-                <strong className="text-slate-900">Profilini analiz ettim:</strong> {currentWeightKg} kg başlangıç kilon, {targetWeightKg} kg hedef kilon ve {workoutDays} günlük döngüsel antrenman hedefin için tüm hazırlıkları yaptım.
+                <strong className="text-slate-900">Profilini analiz ettim:</strong> {parsedCurrentWeight} kg başlangıç kilon, {parsedTargetWeight} kg hedef kilon ve {workoutDays} günlük antrenman hedefin için tüm hazırlıkları yaptım.
               </p>
               <p>
-                24.5 kg ayarlanabilir dambılların ve barfiks barınla kas hafızanı çok hızlı tetikleyeceğiz. Her hafta ölçümlerini ve fotoğraflarını inceleyip ağırlıklarını optimize edeceğim.
+                {selectedEquipment.includes("Dumbbell")
+                  ? `Maksimum ${parsedMaxDumbbell} kg dambıl kapasitene ve mevcut ekipmanlarına göre programını hazırlayacağım.`
+                  : "Mevcut ekipmanlarına göre tamamen kişiselleştirilmiş bir program uygulayacağız."}
               </p>
             </div>
 
@@ -504,15 +580,15 @@ export default function WelcomeOnboardingModal({
             <div className="grid grid-cols-3 gap-2 bg-emerald-50/60 p-3 rounded-2xl border border-emerald-200/70 text-left">
               <div>
                 <span className="text-[10px] text-slate-400 font-bold block">KİLO / HEDEF</span>
-                <span className="text-xs font-black text-slate-900">{currentWeightKg}kg ➔ {targetWeightKg}kg</span>
+                <span className="text-xs font-black text-slate-900">{parsedCurrentWeight}kg ➔ {parsedTargetWeight}kg</span>
               </div>
               <div>
                 <span className="text-[10px] text-slate-400 font-bold block">HAFTALIK DÖNGÜ</span>
                 <span className="text-xs font-black text-emerald-800">{workoutDays} Gün / Hafta</span>
               </div>
               <div>
-                <span className="text-[10px] text-slate-400 font-bold block">STRATEJİ</span>
-                <span className="text-xs font-black text-slate-900 uppercase">{fitnessGoal}</span>
+                <span className="text-[10px] text-slate-400 font-bold block">EKİPMAN SINIRI</span>
+                <span className="text-xs font-black text-slate-900">{parsedMaxDumbbell} kg Max</span>
               </div>
             </div>
 

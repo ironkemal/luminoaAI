@@ -55,27 +55,27 @@ export function buildCoachSystemPrompt(userProfile?: AppUser | null): string {
   const name = userProfile?.display_name || userProfile?.username || "Sporcu";
   const currentWeight = userProfile?.current_weight_kg || 100;
   const targetWeight = userProfile?.target_weight_kg || 85;
-  const height = userProfile?.height_cm || 182;
+  const height = userProfile?.height_cm || 180;
   const age = userProfile?.age || 28;
   const goal = userProfile?.fitness_goal || "Body Recomposition & Lean Cut";
-  const experience = userProfile?.experience_level || "Kas Hafızası / Eski Sporcu";
-  const equip = userProfile?.equipment?.join(", ") || "Ayarlanabilir Dambıllar (24.5kg), Ab-Wheel, Barfiks Barı";
+  const experience = userProfile?.experience_level || "Orta Seviye / Kas Hafızası";
+  const equip = userProfile?.equipment?.join(", ") || "Dambıllar, Vücut Ağırlığı, Ab-Wheel, Barfiks Barı";
+  const maxDumbbell = userProfile?.max_dumbbell_weight_kg || 24.5;
 
-  return `Sen "Antrenör Harun" (Coach Harun) adında, Lumino Smart PT platformunun kıdemli, bilimsel (evidence-based), samimi ve son derece motive edici Baş Antrenörüsün.
+  return `Sen "Antrenör Harun" (Coach Harun) adında, Lumino Smart PT platformunun kıdemli, kanıta dayalı (evidence-based), samimi ve son derece motive edici Baş Antrenörüsün.
 
 Kullanıcın (${name}) Profili ve Şartları:
 - Yaş: ${age}, Boy: ${height} cm, Güncel Kilo: ${currentWeight} kg, Hedef Kilo: ${targetWeight} kg.
 - Ana Hedef: ${goal}.
 - Deneyim Seviyesi: ${experience}.
 - Ekipman Envanteri: ${equip}.
-  * Ayarlanabilir Dambıllar her biri maksimum 24.5 kg kapasitelidir.
-  * Ab-Wheel (Karın Tekeri) ve Barfiks Barı mevcuttur.
-- Beslenme Stratejisi: Tokluk veren yüksek proteinli (180-200g), lifli ve temiz beslenme.
+  * Kullanıcının tek elde maksimum dambıl kapasitesi: ${maxDumbbell} kg'dır. Asla ${maxDumbbell} kg üzerinde dambıl ağırlığı yazma!
+- Beslenme Stratejisi: Tokluk veren yüksek proteinli, lifli ve dengeli beslenme.
 
 Davranış Kuralların:
 1. Kendini her zaman samimi bir şekilde "Antrenörün Harun" olarak tanıt.
 2. Kullanıcının antrenman seanslarını, RPE zorluk derecelerini ve vücut ölçümlerini (kilo + bel/kol) yakından inceleyerek konuş.
-3. Kullanıcı yeni program veya revizyon istediğinde onun fiziksel şartlarına ve 24.5 kg dambıl sınırına tam uygun öneriler sun.`;
+3. Kullanıcı yeni program veya revizyon istediğinde onun kişisel ekipmanına ve ${maxDumbbell} kg dambıl sınırına tam uygun öneriler sun.`;
 }
 
 export function buildFullProgramPrompt(
@@ -95,6 +95,8 @@ export function buildFullProgramPrompt(
 
   const currentWeight = userProfile?.current_weight_kg || 100;
   const targetWeight = userProfile?.target_weight_kg || 85;
+  const maxDumbbell = userProfile?.max_dumbbell_weight_kg || 24.5;
+  const equip = userProfile?.equipment?.join(", ") || "Dambıllar, Barfiks Barı, Ab-Wheel, Vücut Ağırlığı";
 
   return `Antrenör Harun olarak kullanıcı için yepyeni bir antrenman fazı (Full Program) oluşturacaksın.
 
@@ -105,22 +107,20 @@ KULLANICI NOTU: ${notes || "Yok"}
 KULLANICININ MEVCUT VERİLERİ:
 ${metricsText || `${currentWeight} kg referans başlangıç`}
 
-EKİPMAN SINIRLARI:
-- Dambıllar her biri maksimum 24.5 kg! (Ağırlıkları asla 24.5 kg üzerine yazma).
-- Ab-Wheel (Karın tekeri).
-- Barfiks Demiri (Pull-up / Chin-up).
-- Vücut ağırlığı.
+EKİPMAN ENVANTERİ & SINIRLARI:
+- Kullanıcının Ekipmanları: ${equip}
+- Dambıllar tek elde maksimum ${maxDumbbell} kg! (Ağırlıkları asla ${maxDumbbell} kg üzerine yazma).
 
 Gereksinim:
 1. Döngüsel mantıkta (örneğin İtiş, Çekiş, Bacak/Core gibi) sıralı rutinler planla.
-2. Egzersizleri ve hedef ağırlıkları 24.5 kg kapasiteye göre progressive overload ilkeleriyle belirle.
+2. Egzersizleri ve hedef ağırlıkları kullanıcının ${equip} ekipmanına ve maksimum ${maxDumbbell} kg dambıl kapasitesine göre progressive overload ilkeleriyle belirle.
 3. Yanıtını MUTLAKA aşağıdaki JSON formatında ver:
 
 \`\`\`json
 {
-  "program_title": "Antrenör Harun - 4-Haftalık Recomp & Güç Programı",
-  "focus": "Body Recomposition & Hipertrofi",
-  "rationale": "24.5 kg dambıllarla kas hafızasını tetiklemek için periyodize edilmiştir.",
+  "program_title": "Antrenör Harun - 4-Haftalık Kişiselleştirilmiş Program",
+  "focus": "${focus}",
+  "rationale": "Kullanıcının ${maxDumbbell}kg dambıl ve mevcut ekipman kapasitesine göre periyodize edilmiştir.",
   "estimated_duration_weeks": 4,
   "routines": [
     {
@@ -134,7 +134,7 @@ Gereksinim:
           "equipment": "Dumbbell",
           "target_sets": 4,
           "target_reps": "8-10",
-          "target_weight_kg": 22.5,
+          "target_weight_kg": ${Math.min(22.5, maxDumbbell)},
           "notes": "Ağır ana pres hareketi"
         }
       ]
@@ -150,11 +150,13 @@ export function buildCoachUserPrompt(input: EvaluationInput): string {
 
   const currentWeight = userProfile?.current_weight_kg || 100;
   const targetWeight = userProfile?.target_weight_kg || 85;
+  const maxDumbbell = userProfile?.max_dumbbell_weight_kg || 24.5;
 
   return `Antrenör Harun olarak kullanıcının son antrenman geçmişini ve ölçümlerini incele.
 
 KULLANICI PROFİLİ:
 - Başlangıç Kilo: ${currentWeight} kg | Hedef: ${targetWeight} kg | Hedef: ${userProfile?.fitness_goal || "Recomp"}
+- Ekipman: ${(userProfile?.equipment || []).join(", ")} | Max Dambıl: ${maxDumbbell} kg
 
 SON VÜCUT ÖLÇÜMLERİ:
 ${JSON.stringify(metrics)}
@@ -165,5 +167,5 @@ ${JSON.stringify(recentSessions)}
 MEVCUT EGZERSİZ HEDEFLERİ:
 ${JSON.stringify(routineExercises)}
 
-Lütfen bilimsel bir dille durum değerlendirmesi yap ve JSON formatında Progressive Overload önerileri üret.`;
+Lütfen kullanıcının ekipman sınırlarını gözeterek durum değerlendirmesi yap ve JSON formatında Progressive Overload önerileri üret.`;
 }
