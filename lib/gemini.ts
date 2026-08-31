@@ -1,9 +1,14 @@
 /**
- * Google Gemini Flash API Integration Client
+ * Google Gemini Flash API Integration Client with Multi-Model Fallback
  */
 
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
-const DEFAULT_MODEL = process.env.GEMINI_MODEL || "gemini-flash-latest";
+const FALLBACK_MODELS = [
+  "gemini-3.6-flash",
+  "gemini-3.5-flash",
+  "gemini-flash-latest",
+  "gemini-2.5-pro",
+];
 
 export interface GeminiMessage {
   role: "user" | "assistant" | "system";
@@ -21,8 +26,11 @@ export async function generateGeminiContent(
     throw new Error("GEMINI_API_KEY is not configured in environment variables.");
   }
 
-  const model = DEFAULT_MODEL;
-  const url = `${GEMINI_BASE}/${model}:generateContent`;
+  const preferredModel = process.env.GEMINI_MODEL || "gemini-3.6-flash";
+  const modelsToTry = [
+    preferredModel,
+    ...FALLBACK_MODELS.filter((m) => m !== preferredModel),
+  ];
 
   // Format contents for Gemini API (user / model)
   const contents = messages
@@ -46,28 +54,37 @@ export async function generateGeminiContent(
     };
   }
 
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-goog-api-key": apiKey,
-    },
-    body: JSON.stringify(payload),
-  });
+  let lastError: Error | null = null;
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error(`Gemini API error [${response.status}]:`, errorText);
-    throw new Error(`Gemini API Error: ${response.status} - ${errorText}`);
+  for (const model of modelsToTry) {
+    try {
+      const url = `${GEMINI_BASE}/${model}:generateContent?key=${apiKey}`;
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-goog-api-key": apiKey,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const candidate = data.candidates?.[0];
+        const text = candidate?.content?.parts?.[0]?.text;
+        if (text) {
+          return text;
+        }
+      } else {
+        const errorText = await response.text();
+        console.warn(`Gemini [${model}] returned status ${response.status}: ${errorText}`);
+        lastError = new Error(`Gemini ${model} error: ${response.status} - ${errorText}`);
+      }
+    } catch (err: any) {
+      console.warn(`Gemini [${model}] request failed:`, err.message);
+      lastError = err;
+    }
   }
 
-  const data = await response.json();
-  const candidate = data.candidates?.[0];
-  const text = candidate?.content?.parts?.[0]?.text;
-
-  if (!text) {
-    throw new Error("Gemini returned empty response.");
-  }
-
-  return text;
+  throw lastError || new Error("All Gemini models failed to generate content.");
 }
