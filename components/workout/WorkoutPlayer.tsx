@@ -7,6 +7,7 @@ import { getCurrentUser } from "@/lib/auth-pin";
 import { WorkoutRoutine, RoutineExercise, Exercise, SetLog } from "@/types";
 import { playRestCompleteSound, playTimerTick, triggerVibration } from "@/lib/sound-haptic";
 import { getExerciseVisual } from "@/lib/exercise-visuals";
+import { useLanguage } from "@/lib/i18n";
 import ExerciseGuideModal from "@/components/workout/ExerciseGuideModal";
 import {
   ChevronLeft,
@@ -21,7 +22,8 @@ import {
   BookOpen,
   Eye,
   EyeOff,
-  Maximize2
+  Maximize2,
+  Zap
 } from "lucide-react";
 
 interface WorkoutPlayerProps {
@@ -34,6 +36,7 @@ export default function WorkoutPlayer({
   routineExercises,
 }: WorkoutPlayerProps) {
   const router = useRouter();
+  const { t } = useLanguage();
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const [currentSetNumber, setCurrentSetNumber] = useState(1);
 
@@ -223,7 +226,7 @@ export default function WorkoutPlayer({
       router.push("/workout?completed=true");
     } catch (err) {
       console.error("Error saving workout session:", err);
-      alert("Antrenman kaydedilirken hata oluştu. Lütfen tekrar deneyin.");
+      alert("Antrenman kaydedilirken hata oluştu.");
     } finally {
       setIsSaving(false);
     }
@@ -234,33 +237,33 @@ export default function WorkoutPlayer({
   const progressPercent = Math.min(100, Math.round((totalSetsCompleted / (totalSetsTarget || 1)) * 100));
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-between select-none">
+    <div className="min-h-screen bg-[#080C14] text-white flex flex-col justify-between select-none">
       {/* Top App Bar */}
-      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 py-3">
+      <header className="sticky top-0 z-30 bg-slate-950/85 backdrop-blur-xl border-b border-white/[0.08] px-4 py-3 shadow-xl">
         <div className="max-w-xl mx-auto flex items-center justify-between gap-3">
           <button
             onClick={() => {
-              if (confirm("Antrenmandan çıkmak istediğinize emin misiniz?")) {
+              if (confirm(t("exitConfirm"))) {
                 router.push("/workout");
               }
             }}
-            className="p-2 rounded-xl text-slate-500 hover:bg-slate-100 tap-effect"
+            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/[0.08] tap-effect"
           >
             <X className="w-5 h-5" />
           </button>
 
           <div className="flex-1 text-center">
-            <h1 className="text-sm font-bold text-slate-800 truncate">
+            <h1 className="text-sm font-black text-white truncate tracking-tight">
               {routine.name}
             </h1>
             <div className="flex items-center justify-center gap-2 mt-1">
-              <div className="w-32 bg-slate-100 rounded-full h-2 overflow-hidden">
+              <div className="w-32 bg-slate-900 border border-white/[0.06] rounded-full h-2 overflow-hidden">
                 <div
-                  className="bg-emerald-500 h-full rounded-full transition-all duration-300"
+                  className="bg-gradient-to-r from-emerald-400 to-teal-500 h-full rounded-full transition-all duration-300 shadow-sm shadow-emerald-500/50"
                   style={{ width: `${progressPercent}%` }}
                 />
               </div>
-              <span className="text-[11px] font-bold text-slate-500">
+              <span className="text-[10px] font-black text-emerald-400">
                 %{progressPercent}
               </span>
             </div>
@@ -268,15 +271,15 @@ export default function WorkoutPlayer({
 
           <button
             onClick={() => setShowFinishModal(true)}
-            className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs border border-emerald-200 tap-effect"
+            className="px-3.5 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 font-extrabold text-xs border border-emerald-500/30 tap-effect transition-all"
           >
-            Bitir
+            {t("finish")}
           </button>
         </div>
       </header>
 
       {/* Exercise Pill Tabs */}
-      <div className="bg-white border-b border-slate-200/60 overflow-x-auto py-2.5 px-4 scrollbar-none">
+      <div className="bg-slate-950/90 border-b border-white/[0.08] overflow-x-auto py-2.5 px-4 scrollbar-none">
         <div className="flex items-center gap-2 max-w-xl mx-auto">
           {routineExercises.map((re, index) => {
             const isCurrent = index === currentExerciseIndex;
@@ -287,15 +290,15 @@ export default function WorkoutPlayer({
               <button
                 key={re.id}
                 onClick={() => setCurrentExerciseIndex(index)}
-                className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all tap-effect ${
+                className={`flex-shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all tap-effect ${
                   isCurrent
-                    ? "bg-slate-900 text-white shadow-sm"
+                    ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-slate-950 font-black shadow-md shadow-emerald-500/30 scale-105"
                     : isFinished
-                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                    : "bg-slate-900/80 text-slate-400 hover:text-white border border-white/[0.06]"
                 }`}
               >
-                {isFinished && <Check className="w-3.5 h-3.5 text-emerald-600" />}
+                {isFinished && <Check className="w-3.5 h-3.5 text-emerald-400" />}
                 <span>{index + 1}. {re.exercise?.name.slice(0, 14)}...</span>
               </button>
             );
@@ -307,20 +310,20 @@ export default function WorkoutPlayer({
       <main className="flex-1 max-w-xl mx-auto w-full p-4 flex flex-col justify-center animate-fade-in">
         {/* Rest Timer Bar */}
         {isResting && (
-          <div className="mb-4 bg-emerald-600 text-white rounded-3xl p-5 shadow-card flex flex-col items-center animate-slide-up relative overflow-hidden">
+          <div className="mb-4 bg-gradient-to-br from-emerald-600 to-teal-800 text-white rounded-3xl p-5 shadow-2xl flex flex-col items-center animate-slide-up relative overflow-hidden border border-emerald-400/30">
             <div className="flex items-center justify-between w-full mb-2 text-xs text-emerald-100">
-              <span className="font-semibold flex items-center gap-1.5">
-                <Timer className="w-4 h-4 animate-spin" /> Dinlenme Sayacı
+              <span className="font-extrabold flex items-center gap-1.5">
+                <Timer className="w-4 h-4 animate-spin text-emerald-200" /> {t("restTimer")}
               </span>
               <button
                 onClick={stopRestTimer}
-                className="text-xs underline text-emerald-200 hover:text-white font-medium"
+                className="text-xs underline text-emerald-200 hover:text-white font-bold tap-effect"
               >
-                Dinlenmeyi Atla
+                {t("skipRest")}
               </button>
             </div>
 
-            <div className="text-4xl sm:text-5xl font-black tracking-tight my-1">
+            <div className="text-5xl sm:text-6xl font-black tracking-tight my-1 text-white drop-shadow-md">
               {Math.floor(restSecondsRemaining / 60)}:
               {(restSecondsRemaining % 60).toString().padStart(2, "0")}
             </div>
@@ -328,46 +331,46 @@ export default function WorkoutPlayer({
             <div className="flex items-center gap-2 mt-3">
               <button
                 onClick={() => addRestTime(-15)}
-                className="px-3 py-1 bg-emerald-700/60 hover:bg-emerald-700 rounded-lg text-xs font-semibold tap-effect"
+                className="px-3 py-1.5 bg-emerald-950/40 hover:bg-emerald-950/60 rounded-xl text-xs font-bold tap-effect border border-white/10"
               >
                 -15s
               </button>
               <button
                 onClick={() => addRestTime(30)}
-                className="px-3 py-1 bg-emerald-700/60 hover:bg-emerald-700 rounded-lg text-xs font-semibold tap-effect"
+                className="px-3 py-1.5 bg-emerald-950/40 hover:bg-emerald-950/60 rounded-xl text-xs font-bold tap-effect border border-white/10"
               >
                 +30s
               </button>
               <button
                 onClick={stopRestTimer}
-                className="px-4 py-1 bg-white text-emerald-800 rounded-lg text-xs font-bold tap-effect"
+                className="px-4 py-1.5 bg-white text-emerald-950 rounded-xl text-xs font-black shadow-md tap-effect"
               >
-                Sonraki Sete Geç
+                {t("nextSet")}
               </button>
             </div>
           </div>
         )}
 
         {/* Current Exercise Card */}
-        <div className="surface-card p-5 md:p-7 flex flex-col overflow-hidden">
+        <div className="surface-card p-5 md:p-7 flex flex-col overflow-hidden border-emerald-500/20">
           {/* Header & Badges */}
           <div className="flex items-start justify-between gap-3 mb-3">
             <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-emerald-600">
+              <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
                 {currentExercise?.target_muscle} • {currentExercise?.equipment}
               </span>
-              <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight mt-0.5">
+              <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight mt-1.5">
                 {currentExercise?.name}
               </h2>
             </div>
-            <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-700 font-bold text-xs">
-              Set {currentSetNumber} / {currentRoutineExercise?.target_sets}
+            <span className="px-3 py-1 rounded-full bg-slate-900 border border-white/[0.08] text-emerald-300 font-extrabold text-xs">
+              {t("set")} {currentSetNumber} / {currentRoutineExercise?.target_sets}
             </span>
           </div>
 
           {/* ── LIVE ANIMATED MOTION GIF CONTAINER ── */}
           {showAnimation && currentVisual?.gifUrl && (
-            <div className="relative w-full h-44 sm:h-52 bg-slate-950 rounded-2xl mb-4 overflow-hidden flex items-center justify-center border border-slate-200/50 shadow-inner group">
+            <div className="relative w-full h-44 sm:h-52 bg-slate-950 rounded-2xl mb-4 overflow-hidden flex items-center justify-center border border-white/[0.1] shadow-2xl group">
               <img
                 src={currentVisual.gifUrl}
                 alt={currentExercise?.name}
@@ -376,16 +379,16 @@ export default function WorkoutPlayer({
                   (e.target as HTMLImageElement).src = currentVisual.thumbnailUrl || "";
                 }}
               />
-              <div className="absolute bottom-2 left-2 px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-md text-[10px] font-bold text-white flex items-center gap-1.5">
+              <div className="absolute bottom-2 left-2 px-2.5 py-1 rounded-xl bg-black/70 backdrop-blur-md text-[10px] font-black text-white flex items-center gap-1.5 border border-white/10">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                Canlı Form Animasyonu
+                {t("liveAnimation")}
               </div>
               <button
                 type="button"
                 onClick={() => setShowGuideModal(true)}
-                className="absolute bottom-2 right-2 px-2.5 py-1 rounded-lg bg-black/60 hover:bg-black/80 backdrop-blur-md text-[10px] font-bold text-white tap-effect flex items-center gap-1"
+                className="absolute bottom-2 right-2 px-2.5 py-1 rounded-xl bg-black/70 hover:bg-black/90 backdrop-blur-md text-[10px] font-black text-white tap-effect flex items-center gap-1 border border-white/10"
               >
-                <Maximize2 className="w-3 h-3" /> Büyüt
+                <Maximize2 className="w-3 h-3 text-emerald-400" /> {t("maximize")}
               </button>
             </div>
           )}
@@ -395,41 +398,41 @@ export default function WorkoutPlayer({
             <button
               type="button"
               onClick={() => setShowGuideModal(true)}
-              className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs border border-emerald-200 tap-effect flex items-center gap-1.5"
+              className="px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 font-bold text-xs border border-emerald-500/20 tap-effect flex items-center gap-1.5 transition-colors"
             >
-              <BookOpen className="w-3.5 h-3.5 text-emerald-600" />
-              Tüm Rehberi Aç (İpuçları & Hatalar)
+              <BookOpen className="w-3.5 h-3.5 text-emerald-400" />
+              {t("formGuideBtn")}
             </button>
 
             <button
               type="button"
               onClick={() => setShowAnimation(!showAnimation)}
-              className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold tap-effect flex items-center gap-1"
+              className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-white/[0.08] text-slate-300 text-xs font-semibold tap-effect flex items-center gap-1 transition-colors"
             >
-              {showAnimation ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-              {showAnimation ? "Animasyonu Gizle" : "Animasyonu Göster"}
+              {showAnimation ? <EyeOff className="w-3.5 h-3.5 text-slate-400" /> : <Eye className="w-3.5 h-3.5 text-emerald-400" />}
+              {showAnimation ? t("hideAnimation") : t("showAnimation")}
             </button>
           </div>
 
           {/* Target Values Indicator */}
-          <div className="flex items-center justify-around bg-slate-50 rounded-2xl p-3 mb-5 border border-slate-100">
+          <div className="flex items-center justify-around bg-slate-900/90 rounded-2xl p-3 mb-5 border border-white/[0.08]">
             <div className="text-center">
-              <p className="text-[10px] text-slate-400 font-medium">Hedef Ağırlık</p>
-              <p className="text-sm sm:text-base font-bold text-slate-800">
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{t("targetWeight")}</p>
+              <p className="text-sm sm:text-base font-black text-white mt-0.5">
                 {currentRoutineExercise?.target_weight_kg} kg
               </p>
             </div>
-            <div className="w-px h-7 bg-slate-200" />
+            <div className="w-px h-7 bg-white/[0.08]" />
             <div className="text-center">
-              <p className="text-[10px] text-slate-400 font-medium">Hedef Tekrar</p>
-              <p className="text-sm sm:text-base font-bold text-slate-800">
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{t("targetReps")}</p>
+              <p className="text-sm sm:text-base font-black text-white mt-0.5">
                 {currentRoutineExercise?.target_reps}
               </p>
             </div>
-            <div className="w-px h-7 bg-slate-200" />
+            <div className="w-px h-7 bg-white/[0.08]" />
             <div className="text-center">
-              <p className="text-[10px] text-slate-400 font-medium">Dinlenme</p>
-              <p className="text-sm sm:text-base font-bold text-slate-800">
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{t("restTime")}</p>
+              <p className="text-sm sm:text-base font-black text-white mt-0.5">
                 {currentExercise?.default_rest_seconds} sn
               </p>
             </div>
@@ -437,52 +440,52 @@ export default function WorkoutPlayer({
 
           {/* Deviation Adjusters */}
           <div className="grid grid-cols-2 gap-3 mb-5">
-            <div className="bg-slate-50/70 border border-slate-200 rounded-2xl p-3 flex flex-col items-center">
-              <span className="text-xs font-semibold text-slate-500 mb-0.5">
-                Ağırlık (kg)
+            <div className="bg-slate-900/90 border border-white/[0.08] rounded-2xl p-3 flex flex-col items-center">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">
+                {t("weightKg")}
               </span>
-              <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 my-0.5">
+              <div className="text-3xl font-black text-white my-0.5">
                 {activeWeight}
               </div>
               <div className="flex items-center gap-1.5 w-full mt-1.5">
                 <button
                   type="button"
                   onClick={() => setActiveWeight((prev) => Math.max(0, Number((prev - 1.25).toFixed(1))))}
-                  className="flex-1 py-1.5 bg-white border border-slate-200 hover:bg-slate-100 rounded-xl font-bold text-slate-700 tap-effect flex items-center justify-center"
+                  className="flex-1 py-2 bg-slate-800 hover:bg-slate-700 border border-white/[0.08] rounded-xl font-black text-slate-200 tap-effect flex items-center justify-center"
                 >
-                  <Minus className="w-3.5 h-3.5" />
+                  <Minus className="w-4 h-4" />
                 </button>
                 <button
                   type="button"
                   onClick={() => setActiveWeight((prev) => Math.min(24.5, Number((prev + 1.25).toFixed(1))))}
-                  className="flex-1 py-1.5 bg-white border border-slate-200 hover:bg-slate-100 rounded-xl font-bold text-slate-700 tap-effect flex items-center justify-center"
+                  className="flex-1 py-2 bg-slate-800 hover:bg-slate-700 border border-white/[0.08] rounded-xl font-black text-slate-200 tap-effect flex items-center justify-center"
                 >
-                  <Plus className="w-3.5 h-3.5" />
+                  <Plus className="w-4 h-4" />
                 </button>
               </div>
             </div>
 
-            <div className="bg-slate-50/70 border border-slate-200 rounded-2xl p-3 flex flex-col items-center">
-              <span className="text-xs font-semibold text-slate-500 mb-0.5">
-                Tekrar (Reps)
+            <div className="bg-slate-900/90 border border-white/[0.08] rounded-2xl p-3 flex flex-col items-center">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">
+                {t("reps")}
               </span>
-              <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 my-0.5">
+              <div className="text-3xl font-black text-white my-0.5">
                 {activeReps}
               </div>
               <div className="flex items-center gap-1.5 w-full mt-1.5">
                 <button
                   type="button"
                   onClick={() => setActiveReps((prev) => Math.max(1, prev - 1))}
-                  className="flex-1 py-1.5 bg-white border border-slate-200 hover:bg-slate-100 rounded-xl font-bold text-slate-700 tap-effect flex items-center justify-center"
+                  className="flex-1 py-2 bg-slate-800 hover:bg-slate-700 border border-white/[0.08] rounded-xl font-black text-slate-200 tap-effect flex items-center justify-center"
                 >
-                  <Minus className="w-3.5 h-3.5" />
+                  <Minus className="w-4 h-4" />
                 </button>
                 <button
                   type="button"
                   onClick={() => setActiveReps((prev) => prev + 1)}
-                  className="flex-1 py-1.5 bg-white border border-slate-200 hover:bg-slate-100 rounded-xl font-bold text-slate-700 tap-effect flex items-center justify-center"
+                  className="flex-1 py-2 bg-slate-800 hover:bg-slate-700 border border-white/[0.08] rounded-xl font-black text-slate-200 tap-effect flex items-center justify-center"
                 >
-                  <Plus className="w-3.5 h-3.5" />
+                  <Plus className="w-4 h-4" />
                 </button>
               </div>
             </div>
@@ -491,27 +494,27 @@ export default function WorkoutPlayer({
           <button
             type="button"
             onClick={handleCompleteSet}
-            className="w-full py-3.5 sm:py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-base sm:text-lg shadow-sm hover:shadow-md tap-effect flex items-center justify-center gap-2.5 transition-all"
+            className="w-full py-4 rounded-2xl bg-gradient-to-r from-emerald-400 via-emerald-500 to-teal-600 hover:from-emerald-300 hover:to-teal-500 text-slate-950 font-black text-base sm:text-lg shadow-xl shadow-emerald-500/30 tap-effect flex items-center justify-center gap-2.5 transition-all"
           >
-            <Check className="w-5 h-5 sm:w-6 sm:h-6 stroke-[3]" />
-            Seti Tamamla ve Sayacı Başlat
+            <Check className="w-6 h-6 stroke-[3]" />
+            {t("completeSet")}
           </button>
         </div>
 
         {/* Previous Completed Sets */}
         {currentExercise && (completedSets[currentExercise.id]?.length || 0) > 0 && (
-          <div className="mt-3.5 p-4 bg-white rounded-2xl border border-slate-200/80">
-            <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-              Tamamlanan Setler
+          <div className="mt-3.5 p-4 surface-card">
+            <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-wider mb-2.5">
+              {t("completedSets")}
             </h4>
             <div className="flex flex-wrap gap-2">
               {completedSets[currentExercise.id].map((set) => (
                 <div
                   key={set.set_number}
-                  className="px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-1.5"
+                  className="px-3 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-bold flex items-center gap-1.5"
                 >
-                  <Check className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Set {set.set_number}: {set.actual_weight_kg}kg x {set.actual_reps} tekrar</span>
+                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Set {set.set_number}: {set.actual_weight_kg}kg x {set.actual_reps} wdh</span>
                 </div>
               ))}
             </div>
@@ -520,24 +523,24 @@ export default function WorkoutPlayer({
       </main>
 
       {/* Footer Navigation */}
-      <footer className="bg-white border-t border-slate-200 px-4 py-3">
+      <footer className="bg-slate-950/85 backdrop-blur-xl border-t border-white/[0.08] px-4 py-3">
         <div className="max-w-xl mx-auto flex items-center justify-between gap-3">
           <button
             type="button"
             disabled={currentExerciseIndex === 0}
             onClick={() => setCurrentExerciseIndex((prev) => prev - 1)}
-            className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold text-slate-700 tap-effect flex items-center gap-1"
+            className="px-4 py-2.5 rounded-xl bg-slate-900 border border-white/[0.08] hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed text-xs font-bold text-slate-200 tap-effect flex items-center gap-1"
           >
-            <ChevronLeft className="w-4 h-4" /> Önceki Egzersiz
+            <ChevronLeft className="w-4 h-4" /> {t("prevExercise")}
           </button>
 
           <button
             type="button"
             disabled={currentExerciseIndex === routineExercises.length - 1}
             onClick={() => setCurrentExerciseIndex((prev) => prev + 1)}
-            className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold text-slate-700 tap-effect flex items-center gap-1"
+            className="px-4 py-2.5 rounded-xl bg-slate-900 border border-white/[0.08] hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed text-xs font-bold text-slate-200 tap-effect flex items-center gap-1"
           >
-            Sonraki Egzersiz <ChevronRight className="w-4 h-4" />
+            {t("nextExercise")} <ChevronRight className="w-4 h-4" />
           </button>
         </div>
       </footer>
@@ -551,22 +554,22 @@ export default function WorkoutPlayer({
 
       {/* Finish Workout Modal */}
       {showFinishModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl animate-slide-up border border-slate-100">
-            <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4 mx-auto">
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-slate-900 rounded-3xl p-6 shadow-2xl animate-slide-up border border-white/[0.1]">
+            <div className="w-14 h-14 rounded-2xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center mb-4 mx-auto border border-emerald-500/30">
               <Trophy className="w-7 h-7" />
             </div>
 
-            <h3 className="text-xl font-extrabold text-slate-900 text-center tracking-tight">
-              Harika İş! Antrenmanı Tamamla
+            <h3 className="text-xl font-black text-white text-center tracking-tight">
+              {t("finishWorkoutTitle")}
             </h3>
-            <p className="text-xs text-slate-500 text-center mt-1 mb-6">
-              Toplam {totalSetsCompleted} set başarıyla tamamlandı.
+            <p className="text-xs text-slate-400 text-center mt-1 mb-6">
+              Toplam {totalSetsCompleted} {t("finishWorkoutDesc")}
             </p>
 
             <div className="mb-4">
-              <label className="block text-xs font-bold text-slate-700 mb-2">
-                Genel Zorluk Derecesi (RPE: 1 - 10)
+              <label className="block text-xs font-bold text-slate-300 mb-2">
+                {t("rpeLabel")}
               </label>
               <div className="flex items-center justify-between gap-1">
                 {[5, 6, 7, 8, 9, 10].map((score) => (
@@ -576,8 +579,8 @@ export default function WorkoutPlayer({
                     onClick={() => setRpeScore(score)}
                     className={`flex-1 py-2.5 rounded-xl text-xs font-bold tap-effect transition-all ${
                       rpeScore === score
-                        ? "bg-emerald-600 text-white shadow-sm"
-                        : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                        ? "bg-emerald-500 text-slate-950 font-black shadow-md shadow-emerald-500/30"
+                        : "bg-slate-800 text-slate-300 hover:bg-slate-700"
                     }`}
                   >
                     {score}
@@ -587,15 +590,15 @@ export default function WorkoutPlayer({
             </div>
 
             <div className="mb-6">
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                Antrenman Notu (İsteğe Bağlı)
+              <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                {t("sessionNotesLabel")}
               </label>
               <textarea
                 value={sessionNotes}
                 onChange={(e) => setSessionNotes(e.target.value)}
-                placeholder="Örn: Shoulder press çok güçlü hissettirdi..."
+                placeholder={t("sessionNotesPlaceholder")}
                 rows={3}
-                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-500 text-slate-800"
+                className="w-full px-3.5 py-2.5 text-xs bg-slate-950 border border-white/[0.1] rounded-2xl focus:outline-none focus:border-emerald-400 text-white placeholder-slate-500"
               />
             </div>
 
@@ -603,17 +606,17 @@ export default function WorkoutPlayer({
               <button
                 type="button"
                 onClick={() => setShowFinishModal(false)}
-                className="flex-1 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs tap-effect"
+                className="flex-1 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs tap-effect"
               >
-                Geri Dön
+                {t("cancel")}
               </button>
               <button
                 type="button"
                 disabled={isSaving}
                 onClick={handleFinishWorkout}
-                className="flex-1 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs tap-effect flex items-center justify-center gap-2 shadow-sm"
+                className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-600 hover:from-emerald-300 hover:to-teal-500 text-slate-950 font-black text-xs tap-effect flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/30"
               >
-                {isSaving ? "Kaydediliyor..." : "Kaydet ve Bitir"}
+                {isSaving ? t("saving") : t("saveAndFinish")}
               </button>
             </div>
           </div>
