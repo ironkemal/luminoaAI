@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { WorkoutRoutine, RoutineExercise, Exercise } from "@/types";
 import { createClient } from "@/lib/supabase/client";
+import { getExerciseVisual } from "@/lib/exercise-visuals";
 import ExerciseGuideModal from "@/components/workout/ExerciseGuideModal";
 import {
   CalendarDays,
@@ -100,7 +101,7 @@ export default function RoutineManager({
             Program & Egzersiz Yönetimi
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Dinamik döngü rutinleri, 24.5kg dambıl hedefleri ve görsel form rehberleri
+            Dinamik döngü rutinleri, 24.5kg dambıl hedefleri ve canlı hareketli form rehberleri
           </p>
         </div>
 
@@ -159,6 +160,7 @@ export default function RoutineManager({
             {currentRoutine.routine_exercises.map((re, index) => {
               const isEditing = editingExerciseId === re.id;
               const ex = re.exercise;
+              const visual = ex ? getExerciseVisual(ex.name) : null;
 
               return (
                 <div
@@ -166,8 +168,21 @@ export default function RoutineManager({
                   className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/50 px-2 rounded-xl transition-colors"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 font-bold text-xs flex items-center justify-center flex-shrink-0">
-                      {index + 1}
+                    <div className="w-11 h-11 rounded-xl bg-slate-900 overflow-hidden flex-shrink-0 relative border border-slate-200">
+                      {visual?.gifUrl ? (
+                        <img
+                          src={visual.gifUrl}
+                          alt={ex?.name || ""}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = visual.thumbnailUrl || "";
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-emerald-50 text-emerald-700 font-bold text-xs flex items-center justify-center">
+                          {index + 1}
+                        </div>
+                      )}
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
@@ -179,7 +194,7 @@ export default function RoutineManager({
                           onClick={() => setSelectedGuideExercise(ex || null)}
                           className="px-2 py-0.5 rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[10px] font-bold tap-effect flex items-center gap-1"
                         >
-                          <BookOpen className="w-3 h-3" /> Rehber
+                          <BookOpen className="w-3 h-3" /> GIF Rehberi
                         </button>
                       </div>
                       <p className="text-[11px] text-slate-400">
@@ -261,7 +276,7 @@ export default function RoutineManager({
           <div className="flex items-center gap-2">
             <Dumbbell className="w-4 h-4 text-emerald-600" />
             <h3 className="text-base font-bold text-slate-800">
-              Görsel Egzersiz Kütüphanesi ({allExercises.length})
+              Canlı Hareketli Egzersiz Kütüphanesi ({allExercises.length})
             </h3>
           </div>
 
@@ -284,37 +299,46 @@ export default function RoutineManager({
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
-          {filteredExercises.map((exercise) => (
-            <div
-              key={exercise.id}
-              onClick={() => setSelectedGuideExercise(exercise)}
-              className="p-3.5 rounded-2xl bg-white border border-slate-200 hover:border-emerald-300 hover:shadow-sm transition-all cursor-pointer group flex flex-col justify-between"
-            >
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
-                    {exercise.target_muscle} • {exercise.equipment}
-                  </span>
-                  <BookOpen className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-600" />
-                </div>
-                <h4 className="text-xs font-bold text-slate-900 group-hover:text-emerald-700 transition-colors">
-                  {exercise.name}
-                </h4>
-                {exercise.instructions && (
-                  <p className="text-[11px] text-slate-500 mt-1 line-clamp-2">
-                    {exercise.instructions}
-                  </p>
-                )}
-              </div>
+          {filteredExercises.map((exercise) => {
+            const visual = getExerciseVisual(exercise.name);
 
-              <div className="pt-2 mt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400 font-semibold">
-                <span>{exercise.default_rest_seconds}s Dinlenme</span>
-                <span className="text-emerald-600 flex items-center gap-0.5">
-                  Form Rehberini Aç →
-                </span>
+            return (
+              <div
+                key={exercise.id}
+                onClick={() => setSelectedGuideExercise(exercise)}
+                className="p-3.5 rounded-2xl bg-white border border-slate-200 hover:border-emerald-300 hover:shadow-sm transition-all cursor-pointer group flex flex-col justify-between"
+              >
+                <div>
+                  {/* Miniature Visual Animation Preview */}
+                  <div className="w-full h-32 rounded-xl bg-slate-950 mb-3 overflow-hidden flex items-center justify-center relative">
+                    <img
+                      src={visual.gifUrl}
+                      alt={exercise.name}
+                      className="w-full h-full object-contain p-1 opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = visual.thumbnailUrl || "";
+                      }}
+                    />
+                    <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/60 backdrop-blur-sm text-[9px] font-bold text-white uppercase tracking-wider">
+                      {exercise.target_muscle}
+                    </div>
+                  </div>
+
+                  <h4 className="text-xs font-bold text-slate-900 group-hover:text-emerald-700 transition-colors">
+                    {exercise.name}
+                  </h4>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    {exercise.equipment} • {exercise.default_rest_seconds}s Dinlenme
+                  </p>
+                </div>
+
+                <div className="pt-2 mt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-emerald-600 font-bold">
+                  <span>▶ Canlı GIF İzle</span>
+                  <span>Form Detayları →</span>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
