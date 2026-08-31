@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { AiCoachLog } from "@/types";
+import { useState, useEffect } from "react";
+import { AiCoachLog, ChatSession } from "@/types";
+import { createClient } from "@/lib/supabase/client";
 import { getCurrentUser } from "@/lib/auth-pin";
 import { useLanguage } from "@/lib/i18n";
 import VoiceCoachModal from "@/components/coach/VoiceCoachModal";
 import AiProgramGeneratorModal from "@/components/coach/AiProgramGeneratorModal";
 import AiMemoryTimeline from "@/components/coach/AiMemoryTimeline";
+import ChatHistoryDrawer from "@/components/coach/ChatHistoryDrawer";
 import {
   Bot,
   Sparkles,
@@ -22,8 +24,9 @@ import {
   CalendarDays,
   Brain,
   MessageSquare,
-  PlusCircle,
-  Dumbbell
+  History,
+  Plus,
+  Clock
 } from "lucide-react";
 
 interface AiCoachViewProps {
@@ -42,6 +45,12 @@ interface ChatMessage {
   proposalApplied?: boolean;
 }
 
+const DEFAULT_WELCOME_MESSAGE: ChatMessage = {
+  role: "assistant",
+  content:
+    "Merhaba! Ben Lumino AI Baş Antrenörünüzüm. 100 kg Lean Cut sürecinizi, 24.5 kg dambıl antrenmanlarınızı ve beslenmenizi analiz ediyorum. Bana dilediğinizi yazabilirsiniz. Örneğin 'bana yeni bir program yaz' derseniz sizin için sıfırdan komple bir döngü programı oluşturup veritabanınıza yükleyebilirim!",
+};
+
 export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
   const { t } = useLanguage();
   const [logs, setLogs] = useState<AiCoachLog[]>(initialLogs);
@@ -49,6 +58,11 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
 
   // AI Thinking Mode (Fast 1-2s vs Deep Reasoning)
   const [aiMode, setAiMode] = useState<"fast" | "deep">("fast");
+
+  // Multi-Session Chat State
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [isHistoryDrawerOpen, setIsHistoryDrawerOpen] = useState(false);
 
   // Modals
   const [isVoiceOpen, setIsVoiceOpen] = useState(false);
@@ -58,19 +72,164 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
   const [isApplying, setIsApplying] = useState(false);
   const [appliedSuccessMessage, setAppliedSuccessMessage] = useState<string | null>(null);
 
-  // Chat State
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      role: "assistant",
-      content:
-        "Merhaba! Ben Lumino AI Baş Antrenörünüzüm. 100 kg Lean Cut sürecinizi, 24.5 kg dambıl antrenmanlarınızı ve beslenmenizi analiz ediyorum. Bana dilediğinizi yazabilirsiniz. Örneğin 'bana yeni bir program yaz' derseniz sizin için sıfırdan komple bir döngü programı oluşturup veritabanınıza yükleyebilirim!",
-    },
-  ]);
+  // Active Chat State
+  const [messages, setMessages] = useState<ChatMessage[]>([DEFAULT_WELCOME_MESSAGE]);
   const [inputMessage, setInputMessage] = useState("");
   const [isChatSending, setIsChatSending] = useState(false);
   const [applyingProposalIndex, setApplyingProposalIndex] = useState<number | null>(null);
 
   const latestLog = logs[0];
+
+  // ── Load Sessions on Mount ──
+  useEffect(() => {
+    fetchSessions();
+  }, []);
+
+  const fetchSessions = async () => {
+    const supabase = createClient();
+    const currentUser = getCurrentUser();
+
+    try {
+      let query = supabase
+        .from("chat_sessions")
+        .select("*")
+        .order("updated_at", { ascending: false });
+
+      if (currentUser?.id) {
+        query = query.eq("user_id", currentUser.id);
+      }
+
+      const { data, error } = await query;
+      if (!error && data && data.length > 0) {
+        setSessions(data as ChatSession[]);
+        // Load the most recent session
+        const latest = data[0] as ChatSession;
+        setCurrentSessionId(latest.id);
+        if (latest.messages && latest.messages.length > 0) {
+          setMessages(latest.messages);
+        }
+      } else {
+        // Check local storage fallback
+        const localSaved = localStorage.getItem("lumino_chat_sessions");
+        if (localSaved) {
+          try {
+            const parsed = JSON.parse(localSaved);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setSessions(parsed);
+              setCurrentSessionId(parsed[0].id);
+              setMessages(parsed[0].messages);
+            }
+          } catch (e) {
+            console.warn(e);
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("Fetch chat sessions error:", err);
+    }
+  };
+
+  // Save/Sync Active Session to Supabase and LocalStorage
+  const saveSessionMessages = async (newMessages: ChatMessage[]) => {
+    const supabase = createClient();
+    const currentUser = getCurrentUser();
+
+    // Determine Title from first user message
+    const firstUserMsg = newMessages.find((m) => m.role === "user")?.content || "Yeni Sohbet";
+    const sessionTitle = firstUserMsg.slice(0, 32) + (firstUserMsg.length > 32 ? "..." : "");
+
+    let activeId = currentSessionId;
+    const now = new Date().toISOString();
+
+    if (!activeId) {
+      activeId = "sess_" + Date.now();
+      setCurrentSessionId(activeId);
+    }
+
+    try {
+      const payload = {
+        id: activeId.startsWith("sess_") ? undefined : activeId,
+        user_id: currentUser?.id || null,
+        title: sessionTitle,
+        messages: newMessages,
+        updated_at: now,
+      };
+
+      const { data, error } = await supabase
+        .from("chat_sessions")
+        .upsert(payload, { onConflict: "id" })
+        .select()
+        .single();
+
+      if (!error && data) {
+        activeId = data.id;
+        setCurrentSessionId(data.id);
+      }
+    } catch (err) {
+      console.warn("Save session to Supabase failed, saving local:", err);
+    }
+
+    // Always update local sessions list
+    setSessions((prev) => {
+      const existingIdx = prev.findIndex((s) => s.id === activeId);
+      const updatedSession: ChatSession = {
+        id: activeId!,
+        user_id: currentUser?.id || null,
+        title: sessionTitle,
+        messages: newMessages,
+        created_at: existingIdx >= 0 ? prev[existingIdx].created_at : now,
+        updated_at: now,
+      };
+
+      let newList: ChatSession[];
+      if (existingIdx >= 0) {
+        newList = [updatedSession, ...prev.filter((s) => s.id !== activeId)];
+      } else {
+        newList = [updatedSession, ...prev];
+      }
+
+      try {
+        localStorage.setItem("lumino_chat_sessions", JSON.stringify(newList));
+      } catch (e) {
+        console.warn(e);
+      }
+      return newList;
+    });
+  };
+
+  // Start New Chat Session
+  const handleStartNewSession = () => {
+    setCurrentSessionId(null);
+    setMessages([DEFAULT_WELCOME_MESSAGE]);
+  };
+
+  // Select Previous Session
+  const handleSelectSession = (session: ChatSession) => {
+    setCurrentSessionId(session.id);
+    setMessages(session.messages || [DEFAULT_WELCOME_MESSAGE]);
+  };
+
+  // Delete Session
+  const handleDeleteSession = async (sessionId: string) => {
+    const supabase = createClient();
+    try {
+      await supabase.from("chat_sessions").delete().eq("id", sessionId);
+    } catch (e) {
+      console.warn(e);
+    }
+
+    setSessions((prev) => {
+      const updated = prev.filter((s) => s.id !== sessionId);
+      try {
+        localStorage.setItem("lumino_chat_sessions", JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    if (currentSessionId === sessionId) {
+      handleStartNewSession();
+    }
+  };
 
   const handleRunEvaluation = async () => {
     setIsEvaluating(true);
@@ -135,7 +294,8 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
     if (!customQuery) {
       setInputMessage("");
     }
-    setMessages((prev) => [...prev, { role: "user", content: userText }]);
+    const updatedWithUser: ChatMessage[] = [...messages, { role: "user", content: userText }];
+    setMessages(updatedWithUser);
     setIsChatSending(true);
 
     const currentUser = getCurrentUser();
@@ -157,19 +317,25 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
       const reply = data.reply || "Yanıt üretilemedi.";
       const actionProposal = data.action_proposal || null;
 
-      setMessages((prev) => [
-        ...prev,
+      const finalMessages: ChatMessage[] = [
+        ...updatedWithUser,
         {
           role: "assistant",
           content: reply,
           actionProposal,
         },
-      ]);
+      ];
+
+      setMessages(finalMessages);
+      // Auto-save session to Supabase
+      saveSessionMessages(finalMessages);
       return reply;
     } catch (err) {
       console.error("Chat error:", err);
       const fallback = "Şu anda yanıt üretilemedi, lütfen tekrar deneyin.";
-      setMessages((prev) => [...prev, { role: "assistant", content: fallback }]);
+      const finalMessages: ChatMessage[] = [...updatedWithUser, { role: "assistant", content: fallback }];
+      setMessages(finalMessages);
+      saveSessionMessages(finalMessages);
       return fallback;
     } finally {
       setIsChatSending(false);
@@ -194,16 +360,18 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
 
         const data = await res.json();
         if (data.success) {
-          setMessages((prev) =>
-            prev.map((m, idx) => (idx === msgIndex ? { ...m, proposalApplied: true } : m))
+          const updated = messages.map((m, idx) =>
+            idx === msgIndex ? { ...m, proposalApplied: true } : m
           );
-          setMessages((prev) => [
-            ...prev,
+          const finalMessages: ChatMessage[] = [
+            ...updated,
             {
               role: "assistant",
               content: `✓ ${data.message || "Yeni programınız başarıyla veritabanına yüklendi ve aktif edildi!"}`,
             },
-          ]);
+          ];
+          setMessages(finalMessages);
+          saveSessionMessages(finalMessages);
           handleRunEvaluation();
         } else {
           alert(data.error || "Program yüklenirken hata oluştu.");
@@ -340,10 +508,10 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
         </button>
       </div>
 
-      {/* ── TAB 1: SOHBET & AGENTIC AI ── */}
+      {/* ── TAB 1: SOHBET & AGENTIC AI (WITH SESSION HISTORY) ── */}
       {activeTab === "chat" && (
         <div className="surface-card p-4 md:p-6 flex flex-col h-[600px] animate-fade-in">
-          {/* Chat Header Info */}
+          {/* Chat Header Info with History Clock Button */}
           <div className="flex items-center justify-between pb-3 border-b border-slate-100">
             <div>
               <div className="flex items-center gap-2">
@@ -352,7 +520,7 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
                 </h3>
                 {aiMode === "deep" ? (
                   <span className="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 font-bold text-[10px] border border-indigo-200 flex items-center gap-1">
-                    <Brain className="w-3 h-3" /> Derin Düşünme Modu Aktif
+                    <Brain className="w-3 h-3" /> Derin Düşünme Modu
                   </span>
                 ) : (
                   <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-bold text-[10px] border border-emerald-200 flex items-center gap-1">
@@ -361,16 +529,41 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
                 )}
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
-                Konuşarak doğrudan yeni program hazırlatabilir veya antrenmanınızı revize ettirebilirsiniz.
+                Oturumlarınız otomatik kaydedilir; istediğiniz an eski yazışmalara devam edebilirsiniz.
               </p>
             </div>
 
-            <button
-              onClick={() => setIsVoiceOpen(true)}
-              className="px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold border border-slate-200/80 flex items-center gap-1 tap-effect"
-            >
-              <Mic className="w-3.5 h-3.5 text-emerald-600" /> Sesli Görüşme
-            </button>
+            {/* Right: History Clock Button & New Chat Button */}
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={handleStartNewSession}
+                title="Yeni Sohbet Başlat"
+                className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-bold border border-slate-200/80 flex items-center gap-1 tap-effect"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Yeni</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsHistoryDrawerOpen(true)}
+                title="Geçmiş Sohbet Oturumlarını Aç"
+                className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-200 flex items-center gap-1.5 tap-effect"
+              >
+                <Clock className="w-4 h-4 text-emerald-600" />
+                <span className="font-extrabold">Geçmiş ({sessions.length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsVoiceOpen(true)}
+                className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center gap-1 tap-effect"
+              >
+                <Mic className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="hidden sm:inline">Sesli</span>
+              </button>
+            </div>
           </div>
 
           {/* Messages Container */}
@@ -677,6 +870,17 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
           <AiMemoryTimeline logs={logs} />
         </div>
       )}
+
+      {/* Chat History Sessions Drawer */}
+      <ChatHistoryDrawer
+        isOpen={isHistoryDrawerOpen}
+        onClose={() => setIsHistoryDrawerOpen(false)}
+        sessions={sessions}
+        currentSessionId={currentSessionId}
+        onSelectSession={handleSelectSession}
+        onNewSession={handleStartNewSession}
+        onDeleteSession={handleDeleteSession}
+      />
 
       {/* Voice Coach Modal */}
       <VoiceCoachModal

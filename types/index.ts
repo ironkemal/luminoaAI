@@ -155,3 +155,24 @@ export interface QueueStatus {
   recoveryStatus: "fresh" | "recovering" | "ready";
   recoveryMessage: string;
 }
+
+export interface ChatSession {
+  id: string;
+  user_id?: string | null;
+  title: string;
+  messages: {
+    role: "user" | "assistant";
+    content: string;
+    actionProposal?: {
+      type: "create_program" | "apply_overload";
+      title: string;
+      description?: string;
+      program_data?: any;
+    } | null;
+    proposalApplied?: boolean;
+    created_at?: string;
+  }[];
+  created_at: string;
+  updated_at: string;
+}
+

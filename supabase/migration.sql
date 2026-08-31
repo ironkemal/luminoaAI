@@ -359,3 +359,24 @@ INSERT INTO public.body_metrics (user_id, recorded_at, weight_kg, waist_cm, arm_
 ('00000000-0000-0000-0000-000000000001', CURRENT_DATE - INTERVAL '3 days', 99.8, 100.5, 40.0, 112.5, 'Recomposition başlıyor'),
 ('00000000-0000-0000-0000-000000000001', CURRENT_DATE, 99.6, 100.0, 40.0, 113.0, 'Son tartım')
 ON CONFLICT (id) DO NOTHING;
+
+-- 8. AI Chat Sessions (Kalıcı Sohbet Geçmişi & Oturumlar)
+CREATE TABLE IF NOT EXISTS public.chat_sessions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  messages JSONB NOT NULL DEFAULT '[]'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_chat_sessions_user ON public.chat_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_chat_sessions_updated ON public.chat_sessions(updated_at DESC);
+
+ALTER TABLE public.chat_sessions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow public read chat_sessions" ON public.chat_sessions FOR SELECT USING (true);
+CREATE POLICY "Allow public insert chat_sessions" ON public.chat_sessions FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update chat_sessions" ON public.chat_sessions FOR UPDATE USING (true);
+CREATE POLICY "Allow public delete chat_sessions" ON public.chat_sessions FOR DELETE USING (true);
+
