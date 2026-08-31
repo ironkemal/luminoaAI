@@ -21,6 +21,7 @@ export async function POST(request: NextRequest) {
       programFocus,
       programNotes,
       generatedProgram,
+      userId,
     } = body;
 
     const supabase = await createClient();
@@ -32,10 +33,12 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Program verisi bulunamadı." }, { status: 400 });
       }
 
-      await supabase
-        .from("workout_routines")
-        .update({ is_active: false })
-        .neq("id", "00000000-0000-0000-0000-000000000000");
+      // Deactivate older active routines for this user or generally
+      let query = supabase.from("workout_routines").update({ is_active: false });
+      if (userId) {
+        query = query.eq("user_id", userId);
+      }
+      await query;
 
       let createdRoutinesCount = 0;
       let createdExercisesCount = 0;
@@ -47,6 +50,7 @@ export async function POST(request: NextRequest) {
         const { data: newRoutine, error: rErr } = await supabase
           .from("workout_routines")
           .insert({
+            user_id: userId || null,
             name: r.name,
             sequence_order: r.sequence_order,
             description: r.description || prog.program_title,
@@ -108,6 +112,7 @@ export async function POST(request: NextRequest) {
       }
 
       await supabase.from("ai_coach_logs").insert({
+        user_id: userId || null,
         evaluation_summary: `[YENİ PROGRAM YÜKLENDİ] ${prog.program_title}: ${prog.rationale}`,
         suggested_changes: {
           program_title: prog.program_title,
@@ -125,18 +130,28 @@ export async function POST(request: NextRequest) {
 
     // ── ACTION 2: GENERATE FULL CUSTOM PROGRAM VIA GEMINI ──
     if (action === "generate_full_program") {
-      const { data: metrics } = await supabase
+      let metricsQuery = supabase
         .from("body_metrics")
         .select("*")
         .order("recorded_at", { ascending: false })
         .limit(10);
 
-      const { data: recentSessions } = await supabase
+      let sessionsQuery = supabase
         .from("workout_sessions")
         .select("*, routine:workout_routines(name)")
         .not("completed_at", "is", null)
         .order("completed_at", { ascending: false })
         .limit(6);
+
+      if (userId) {
+        metricsQuery = metricsQuery.eq("user_id", userId);
+        sessionsQuery = sessionsQuery.eq("user_id", userId);
+      }
+
+      const [{ data: metrics }, { data: recentSessions }] = await Promise.all([
+        metricsQuery,
+        sessionsQuery,
+      ]);
 
       const systemPrompt = buildCoachSystemPrompt();
       const prompt = buildFullProgramPrompt(
@@ -164,64 +179,49 @@ export async function POST(request: NextRequest) {
         ];
         programResult = JSON.parse(jsonMatch[1] || rawAiResponse);
       } catch (geminiErr) {
-        console.warn("Gemini failed, trying OpenRouter fallback:", geminiErr);
-        try {
-          const rawAiResponse = await chat(
-            [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: prompt },
-            ],
-            { temperature: 0.5, maxTokens: 1800 }
-          );
-          const jsonMatch = rawAiResponse.match(/```(?:json)?\s*([\s\S]*?)\s*```/) || [
-            null,
-            rawAiResponse,
-          ];
-          programResult = JSON.parse(jsonMatch[1] || rawAiResponse);
-        } catch {
-          programResult = {
-            program_title: "4-Haftalık Recomposition & Güç Fazı",
-            focus: programFocus || "Body Recomposition",
-            rationale: "100 kg vücut kütlenizde kas hafızasını tetiklemek ve 24.5 kg dambıllarla hipertrofiyi maksimize etmek için optimize edilmiştir.",
-            estimated_duration_weeks: 4,
-            routines: [
-              {
-                name: "İtiş A (Ağır Dambıl & Omuz)",
-                sequence_order: 1,
-                description: "Göğüs presi ve omuz gücü",
-                exercises: [
-                  { name: "Dumbbell Floor Press / Bench Press", target_muscle: "Chest", equipment: "Dumbbell", target_sets: 4, target_reps: "8-10", target_weight_kg: 22.5, notes: "Ağır setler" },
-                  { name: "Dumbbell Shoulder Press (Oturarak/Ayakta)", target_muscle: "Shoulders", equipment: "Dumbbell", target_sets: 4, target_reps: "8-12", target_weight_kg: 17.5 },
-                  { name: "Dumbbell Lateral Raise", target_muscle: "Shoulders", equipment: "Dumbbell", target_sets: 4, target_reps: "12-15", target_weight_kg: 7.5 },
-                  { name: "Dumbbell Overhead Triceps Extension", target_muscle: "Arms", equipment: "Dumbbell", target_sets: 3, target_reps: "10-12", target_weight_kg: 17.5 },
-                  { name: "Şınav (Push-Up / Diamond Push-Up)", target_muscle: "Chest", equipment: "Bodyweight", target_sets: 2, target_reps: "15-20", target_weight_kg: 0 }
-                ]
-              },
-              {
-                name: "Çekiş A (Barfiks & Ağır Row)",
-                sequence_order: 2,
-                description: "Sırt kalınlığı ve biceps",
-                exercises: [
-                  { name: "Pull-Up (Barfiks - Geniş/Normal Tutuş)", target_muscle: "Back", equipment: "Pull-up Bar", target_sets: 4, target_reps: "6-8", target_weight_kg: 0 },
-                  { name: "Tek Kol Dumbbell Row", target_muscle: "Back", equipment: "Dumbbell", target_sets: 4, target_reps: "8-10", target_weight_kg: 24.5 },
-                  { name: "Rear Delt Fly (Eğilerek Yan Omuz/Sırt)", target_muscle: "Shoulders", equipment: "Dumbbell", target_sets: 3, target_reps: "15", target_weight_kg: 7.5 },
-                  { name: "Dumbbell Hammer Curl", target_muscle: "Arms", equipment: "Dumbbell", target_sets: 4, target_reps: "10-12", target_weight_kg: 12.5 }
-                ]
-              },
-              {
-                name: "Bacak & Core (Goblet & Ab-Wheel)",
-                sequence_order: 3,
-                description: "Bacak hipertrofisi ve karın tekeri",
-                exercises: [
-                  { name: "Goblet Squat (Dambıl ile)", target_muscle: "Legs", equipment: "Dumbbell", target_sets: 4, target_reps: "10-12", target_weight_kg: 24.5 },
-                  { name: "Romanian Deadlift (Dumbbell RDL)", target_muscle: "Legs", equipment: "Dumbbell", target_sets: 4, target_reps: "10-12", target_weight_kg: 22.5 },
-                  { name: "Bulgarian Split Squat", target_muscle: "Legs", equipment: "Dumbbell", target_sets: 3, target_reps: "8-10", target_weight_kg: 12.5 },
-                  { name: "Ab-Wheel Rollout (Diz Üstü)", target_muscle: "Core", equipment: "Ab-Wheel", target_sets: 4, target_reps: "12-15", target_weight_kg: 0 }
-                ]
-              }
-            ]
-          };
-        }
+        console.warn("Gemini failed, fallback program:", geminiErr);
+        programResult = {
+          program_title: "4-Haftalık Recomposition & Güç Fazı",
+          focus: programFocus || "Body Recomposition",
+          rationale: "100 kg vücut kütlenizde kas hafızasını tetiklemek ve 24.5 kg dambıllarla hipertrofiyi maksimize etmek için optimize edilmiştir.",
+          estimated_duration_weeks: 4,
+          routines: [
+            {
+              name: "İtiş A (Ağır Dambıl & Omuz)",
+              sequence_order: 1,
+              description: "Göğüs presi ve omuz gücü",
+              exercises: [
+                { name: "Dumbbell Floor Press / Bench Press", target_muscle: "Chest", equipment: "Dumbbell", target_sets: 4, target_reps: "8-10", target_weight_kg: 22.5, notes: "Ağır setler" },
+                { name: "Dumbbell Shoulder Press (Oturarak/Ayakta)", target_muscle: "Shoulders", equipment: "Dumbbell", target_sets: 4, target_reps: "8-12", target_weight_kg: 17.5 },
+                { name: "Dumbbell Lateral Raise", target_muscle: "Shoulders", equipment: "Dumbbell", target_sets: 4, target_reps: "12-15", target_weight_kg: 7.5 },
+                { name: "Dumbbell Overhead Triceps Extension", target_muscle: "Arms", equipment: "Dumbbell", target_sets: 3, target_reps: "10-12", target_weight_kg: 17.5 },
+                { name: "Şınav (Push-Up / Diamond Push-Up)", target_muscle: "Chest", equipment: "Bodyweight", target_sets: 2, target_reps: "15-20", target_weight_kg: 0 }
+              ]
+            },
+            {
+              name: "Çekiş A (Barfiks & Ağır Row)",
+              sequence_order: 2,
+              description: "Sırt kalınlığı ve biceps",
+              exercises: [
+                { name: "Pull-Up (Barfiks - Geniş/Normal Tutuş)", target_muscle: "Back", equipment: "Pull-up Bar", target_sets: 4, target_reps: "6-8", target_weight_kg: 0 },
+                { name: "Tek Kol Dumbbell Row", target_muscle: "Back", equipment: "Dumbbell", target_sets: 4, target_reps: "8-10", target_weight_kg: 24.5 },
+                { name: "Rear Delt Fly (Eğilerek Yan Omuz/Sırt)", target_muscle: "Shoulders", equipment: "Dumbbell", target_sets: 3, target_reps: "15", target_weight_kg: 7.5 },
+                { name: "Dumbbell Hammer Curl", target_muscle: "Arms", equipment: "Dumbbell", target_sets: 4, target_reps: "10-12", target_weight_kg: 12.5 }
+              ]
+            },
+            {
+              name: "Bacak & Core (Goblet & Ab-Wheel)",
+              sequence_order: 3,
+              description: "Bacak hipertrofisi ve karın tekeri",
+              exercises: [
+                { name: "Goblet Squat (Dambıl ile)", target_muscle: "Legs", equipment: "Dumbbell", target_sets: 4, target_reps: "10-12", target_weight_kg: 24.5 },
+                { name: "Romanian Deadlift (Dumbbell RDL)", target_muscle: "Legs", equipment: "Dumbbell", target_sets: 4, target_reps: "10-12", target_weight_kg: 22.5 },
+                { name: "Bulgarian Split Squat", target_muscle: "Legs", equipment: "Dumbbell", target_sets: 3, target_reps: "8-10", target_weight_kg: 12.5 },
+                { name: "Ab-Wheel Rollout (Diz Üstü)", target_muscle: "Core", equipment: "Ab-Wheel", target_sets: 4, target_reps: "12-15", target_weight_kg: 0 }
+              ]
+            }
+          ]
+        };
       }
 
       return NextResponse.json({
@@ -289,9 +289,69 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // ── ACTION 4: INTERACTIVE CHAT (GEMINI FLASH) ──
+    // ── ACTION 4: INTERACTIVE AGENTIC CHAT WITH PROGRAM ACTION PROPOSALS ──
     if (action === "chat") {
-      const systemPrompt = buildCoachSystemPrompt();
+      let metricsQuery = supabase.from("body_metrics").select("*").order("recorded_at", { ascending: false }).limit(5);
+      let sessionsQuery = supabase.from("workout_sessions").select("*, routine:workout_routines(name)").not("completed_at", "is", null).order("completed_at", { ascending: false }).limit(5);
+      let routinesQuery = supabase.from("workout_routines").select("*, routine_exercises(*, exercise:exercises(*))").eq("is_active", true);
+
+      if (userId) {
+        metricsQuery = metricsQuery.eq("user_id", userId);
+        sessionsQuery = sessionsQuery.eq("user_id", userId);
+        routinesQuery = routinesQuery.eq("user_id", userId);
+      }
+
+      const [{ data: userMetrics }, { data: userSessions }, { data: userRoutines }] = await Promise.all([
+        metricsQuery,
+        sessionsQuery,
+        routinesQuery,
+      ]);
+
+      const chatSystemPrompt = `
+Sen Lumino Smart PT platformundaki ultra zeki, proaktif Yapay Zeka Baş Antrenörüsün (Head Coach).
+Kullanıcının Profili:
+- Başlangıç Kilo: 100 kg, Hedef: Body Recomposition & Lean Cut, eski sporcu geçmişi / kas hafızası var.
+- Ekipman: Ayarlanabilir Dambıllar (Maksimum 24.5 kg her biri), Ab-Wheel (Karın Tekeri), Barfiks Barı, Vücut Ağırlığı.
+
+Kullanıcının Güncel Durumu:
+- Son Ölçümler: ${JSON.stringify(userMetrics || [])}
+- Son Tamamlanan Antrenmanlar: ${JSON.stringify(userSessions || [])}
+- Aktif Programı: ${JSON.stringify((userRoutines || []).map((r) => ({ name: r.name, count: r.routine_exercises?.length })))}
+
+GÖREVLERİN VE SÜPER YETKİLERİN:
+1. Kullanıcı ile samimi, motive edici, net ve bilimsel bir antrenör diliyle konuş.
+2. Eğer kullanıcı senden "yeni bir program yap", "bana program yaz", "omuzlara odaklanalım", "spliti 3 güne çıkar", "ağırlıkları güncelle" derse veya sohbetin akışında antrenmanı değiştirmek gerektiğine karar verirsen:
+   - Sadece tavsiye vermekle kalma, doğrudan veritabanına yüklenebilir bir 'action_proposal' JSON nesnesi üret!
+3. Yanıtını MUTLAKA aşağıdaki JSON formatında ver:
+{
+  "reply": "Kullanıcıya vereceğin detaylı, motivasyon dolu antrenör açıklaması ve neden bu kararı aldığını belirten metin.",
+  "action_proposal": null // veya eğer yeni bir program / rutin oluşturduysan aşağıdaki formatta nesne:
+  /*
+  {
+    "type": "create_program",
+    "title": "4-Günlük Recomposition & Hipertrofi Programı",
+    "description": "24.5kg dambıl ve barfiks ağırlıklı yeni döngüsel split",
+    "program_data": {
+      "program_title": "...",
+      "focus": "...",
+      "rationale": "...",
+      "routines": [
+        {
+          "name": "İtiş A",
+          "sequence_order": 1,
+          "description": "...",
+          "exercises": [
+            { "name": "Dumbbell Floor Press / Bench Press", "target_muscle": "Chest", "equipment": "Dumbbell", "target_sets": 4, "target_reps": "8-10", "target_weight_kg": 22.5 }
+          ]
+        }
+      ]
+    }
+  }
+  */
+}
+SADECE JSON FORMATINDA DÖNÜŞ YAP.
+`;
+
       const chatList = (chatMessages || []).map((m: any) => ({
         role: m.role as "user" | "assistant",
         content: m.content,
@@ -301,46 +361,59 @@ export async function POST(request: NextRequest) {
         chatList.push({ role: "user", content: question });
       }
 
-      let reply = "";
+      let parsedChatResponse = {
+        reply: "Sizin için antrenman verilerinizi inceledim. 24.5 kg dambıl kapasitenizle gelişiminizi sürdürebilirsiniz.",
+        action_proposal: null as any,
+      };
+
       try {
-        reply = await generateGeminiContent(chatList, systemPrompt, {
-          temperature: 0.6,
-          maxTokens: 1000,
+        const rawAiResponse = await generateGeminiContent(chatList, chatSystemPrompt, {
+          temperature: 0.5,
+          maxTokens: 2048,
         });
+
+        const jsonMatch = rawAiResponse.match(/```(?:json)?\s*([\s\S]*?)\s*```/) || [
+          null,
+          rawAiResponse,
+        ];
+        parsedChatResponse = JSON.parse(jsonMatch[1] || rawAiResponse);
       } catch (geminiErr) {
-        console.warn("Gemini chat fallback to OpenRouter:", geminiErr);
+        console.warn("Gemini chat structured parse failed, trying plain text:", geminiErr);
         try {
-          reply = await chat(
-            [{ role: "system", content: systemPrompt }, ...chatList],
-            { temperature: 0.7, maxTokens: 800 }
-          );
+          const rawText = await generateGeminiContent(chatList, buildCoachSystemPrompt(), {
+            temperature: 0.6,
+            maxTokens: 1000,
+          });
+          parsedChatResponse = { reply: rawText, action_proposal: null };
         } catch {
-          reply = "Kişisel antrenman ve beslenme tavsiyeniz: Mevcut 100 kg vücut kompozisyonunuzda, günde en az 180-200g protein alırken antrenmanlarda 24.5 kg dambıl setlerini tükenişe 1-2 tekrar kala bitirmeye odaklanın.";
+          parsedChatResponse = {
+            reply: "100 kg Lean Cut sürecinde antrenmanlarınız harika ilerliyor. Dambıl ağırlıklarınızı tükenişe 1-2 tekrar kala bitirmeye ve günlük 180-200g protein tüketimine devam edin.",
+            action_proposal: null,
+          };
         }
       }
 
-      return NextResponse.json({ reply });
+      return NextResponse.json({
+        reply: parsedChatResponse.reply,
+        action_proposal: parsedChatResponse.action_proposal || null,
+      });
     }
 
     // ── ACTION 5: RUN PERIODIC EVALUATION (GEMINI FLASH) ──
-    const { data: metrics } = await supabase
-      .from("body_metrics")
-      .select("*")
-      .order("recorded_at", { ascending: false })
-      .limit(10);
+    let metricsQuery = supabase.from("body_metrics").select("*").order("recorded_at", { ascending: false }).limit(10);
+    let sessionsQuery = supabase.from("workout_sessions").select("*, routine:workout_routines(name)").not("completed_at", "is", null).order("completed_at", { ascending: false }).limit(6);
+    let routineExercisesQuery = supabase.from("routine_exercises").select("*, exercise:exercises(*)").order("order_in_routine", { ascending: true }).limit(15);
 
-    const { data: recentSessions } = await supabase
-      .from("workout_sessions")
-      .select("*, routine:workout_routines(name)")
-      .not("completed_at", "is", null)
-      .order("completed_at", { ascending: false })
-      .limit(6);
+    if (userId) {
+      metricsQuery = metricsQuery.eq("user_id", userId);
+      sessionsQuery = sessionsQuery.eq("user_id", userId);
+    }
 
-    const { data: routineExercises } = await supabase
-      .from("routine_exercises")
-      .select("*, exercise:exercises(*)")
-      .order("order_in_routine", { ascending: true })
-      .limit(15);
+    const [{ data: metrics }, { data: recentSessions }, { data: routineExercises }] = await Promise.all([
+      metricsQuery,
+      sessionsQuery,
+      routineExercisesQuery,
+    ]);
 
     const systemPrompt = buildCoachSystemPrompt();
     const userPrompt = buildCoachUserPrompt({
@@ -413,6 +486,7 @@ export async function POST(request: NextRequest) {
     const { data: savedLog } = await supabase
       .from("ai_coach_logs")
       .insert({
+        user_id: userId || null,
         evaluation_summary: evalResult.summary,
         suggested_changes: evalResult.suggested_changes,
         applied: false,

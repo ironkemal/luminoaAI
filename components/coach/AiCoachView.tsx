@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { AiCoachLog } from "@/types";
+import { getCurrentUser } from "@/lib/auth-pin";
+import { useLanguage } from "@/lib/i18n";
 import VoiceCoachModal from "@/components/coach/VoiceCoachModal";
 import AiProgramGeneratorModal from "@/components/coach/AiProgramGeneratorModal";
 import AiMemoryTimeline from "@/components/coach/AiMemoryTimeline";
@@ -19,16 +21,31 @@ import {
   Mic,
   CalendarDays,
   Brain,
-  MessageSquare
+  MessageSquare,
+  PlusCircle,
+  Dumbbell
 } from "lucide-react";
 
 interface AiCoachViewProps {
   initialLogs: AiCoachLog[];
 }
 
+interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+  actionProposal?: {
+    type: "create_program" | "apply_overload";
+    title: string;
+    description?: string;
+    program_data?: any;
+  } | null;
+  proposalApplied?: boolean;
+}
+
 export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
+  const { t } = useLanguage();
   const [logs, setLogs] = useState<AiCoachLog[]>(initialLogs);
-  const [activeTab, setActiveTab] = useState<"analysis" | "memory" | "chat">("analysis");
+  const [activeTab, setActiveTab] = useState<"analysis" | "memory" | "chat">("chat");
 
   // Modals
   const [isVoiceOpen, setIsVoiceOpen] = useState(false);
@@ -39,26 +56,28 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
   const [appliedSuccessMessage, setAppliedSuccessMessage] = useState<string | null>(null);
 
   // Chat State
-  const [messages, setMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([
+  const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: "assistant",
       content:
-        "Merhaba! Ben Lumino Smart PT koçunuz. 100 kg lean cut ve body recomposition hedefleriniz, 24.5 kg dambıl setleri, ab-wheel antrenmanları ve tokluk sağlayan makro beslenme dengesi hakkında dilediğinizi sorabilir veya yukarıdaki mikrofona basarak benimle sesli konuşabilirsiniz.",
+        "Merhaba! Ben Lumino AI Baş Antrenörünüzüm. 100 kg Lean Cut sürecinizi, 24.5 kg dambıl antrenmanlarınızı ve beslenmenizi analiz ediyorum. Bana dilediğinizi yazabilirsiniz. Örneğin 'bana yeni bir program yaz' derseniz sizin için sıfırdan komple bir döngü programı oluşturup veritabanınıza yükleyebilirim!",
     },
   ]);
   const [inputMessage, setInputMessage] = useState("");
   const [isChatSending, setIsChatSending] = useState(false);
+  const [applyingProposalIndex, setApplyingProposalIndex] = useState<number | null>(null);
 
   const latestLog = logs[0];
 
   const handleRunEvaluation = async () => {
     setIsEvaluating(true);
     setAppliedSuccessMessage(null);
+    const currentUser = getCurrentUser();
     try {
       const res = await fetch("/api/ai-coach", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "evaluate" }),
+        body: JSON.stringify({ action: "evaluate", userId: currentUser?.id }),
       });
 
       const data = await res.json();
@@ -77,6 +96,7 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
     if (!latestLog?.suggested_changes) return;
 
     setIsApplying(true);
+    const currentUser = getCurrentUser();
     try {
       const res = await fetch("/api/ai-coach", {
         method: "POST",
@@ -84,6 +104,7 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
         body: JSON.stringify({
           action: "apply_changes",
           suggestedChanges: latestLog.suggested_changes,
+          userId: currentUser?.id,
         }),
       });
 
@@ -112,6 +133,8 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
     setMessages((prev) => [...prev, { role: "user", content: userText }]);
     setIsChatSending(true);
 
+    const currentUser = getCurrentUser();
+
     try {
       const res = await fetch("/api/ai-coach", {
         method: "POST",
@@ -119,13 +142,23 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
         body: JSON.stringify({
           action: "chat",
           question: userText,
-          messages: messages,
+          messages: messages.map((m) => ({ role: m.role, content: m.content })),
+          userId: currentUser?.id,
         }),
       });
 
       const data = await res.json();
       const reply = data.reply || "Yanıt üretilemedi.";
-      setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
+      const actionProposal = data.action_proposal || null;
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: reply,
+          actionProposal,
+        },
+      ]);
       return reply;
     } catch (err) {
       console.error("Chat error:", err);
@@ -137,16 +170,64 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
     }
   };
 
+  const handleApplyChatProposal = async (msgIndex: number, proposal: any) => {
+    setApplyingProposalIndex(msgIndex);
+    const currentUser = getCurrentUser();
+
+    try {
+      if (proposal.type === "create_program" && proposal.program_data) {
+        const res = await fetch("/api/ai-coach", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "apply_full_program",
+            generatedProgram: proposal.program_data,
+            userId: currentUser?.id,
+          }),
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          setMessages((prev) =>
+            prev.map((m, idx) => (idx === msgIndex ? { ...m, proposalApplied: true } : m))
+          );
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: "assistant",
+              content: `🎉 ${data.message || "Yeni programınız başarıyla veritabanına yüklendi ve aktif edildi!"} Artık Antrenman ve Programlar sayfalarınızdan yeni rutininize hemen başlayabilirsiniz.`,
+            },
+          ]);
+          handleRunEvaluation();
+        } else {
+          alert(data.error || "Program yüklenirken hata oluştu.");
+        }
+      }
+    } catch (err) {
+      console.error("Apply proposal error:", err);
+      alert("İşlem gerçekleştirilemedi.");
+    } finally {
+      setApplyingProposalIndex(null);
+    }
+  };
+
+  const quickPrompts = [
+    "💡 Bana 4 günlük yeni bir program yaz",
+    "📊 Son ağırlıklarımı ve hacmimi analiz et",
+    "⚡ Omuzlara daha çok odaklanan bir split hazırla",
+    "🥗 100 kg Lean Cut tokluk ve beslenme tavsiyesi ver",
+  ];
+
   return (
     <div className="space-y-6">
       {/* Top Banner Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl md:text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-            <Bot className="w-6 h-6 text-emerald-600" /> Yapay Zeka Antrenör & Karar Motoru
+            <Bot className="w-6 h-6 text-emerald-600" /> {t("coachTitle")}
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Dinamik program yazma yetkisi, canlı sesli PT ve karar hafıza matrisi
+            {t("coachSubtitle")}
           </p>
         </div>
 
@@ -159,7 +240,7 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
             className="px-3.5 py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs border border-emerald-300 shadow-sm tap-effect flex items-center gap-2"
           >
             <Mic className="w-4 h-4 text-emerald-600 animate-pulse" />
-            Sesli PT ile Konuş
+            {t("tabVoice")}
           </button>
 
           {/* AI Program Generator */}
@@ -169,7 +250,7 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
             className="px-3.5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-sm tap-effect flex items-center gap-2"
           >
             <CalendarDays className="w-4 h-4 text-amber-400" />
-            AI Program Yazdır
+            {t("tabGenerator")}
           </button>
 
           {/* Re-evaluate */}
@@ -188,6 +269,18 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
       {/* Tab Switcher */}
       <div className="flex items-center gap-2 bg-slate-100/80 p-1 rounded-2xl w-fit">
         <button
+          onClick={() => setActiveTab("chat")}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all tap-effect flex items-center gap-2 ${
+            activeTab === "chat"
+              ? "bg-white text-slate-900 shadow-sm"
+              : "text-slate-600 hover:text-slate-900"
+          }`}
+        >
+          <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
+          {t("tabChat")}
+        </button>
+
+        <button
           onClick={() => setActiveTab("analysis")}
           className={`px-4 py-2 rounded-xl text-xs font-bold transition-all tap-effect flex items-center gap-2 ${
             activeTab === "analysis"
@@ -196,7 +289,7 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
           }`}
         >
           <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-          Gelişim Analizi & Hedefler
+          {t("tabAnalysis")}
         </button>
 
         <button
@@ -208,23 +301,164 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
           }`}
         >
           <Brain className="w-3.5 h-3.5 text-slate-700" />
-          AI Hafıza & Karar Geçmişi
-        </button>
-
-        <button
-          onClick={() => setActiveTab("chat")}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all tap-effect flex items-center gap-2 ${
-            activeTab === "chat"
-              ? "bg-white text-slate-900 shadow-sm"
-              : "text-slate-600 hover:text-slate-900"
-          }`}
-        >
-          <MessageSquare className="w-3.5 h-3.5 text-amber-500" />
-          Sohbet & Danışmanlık
+          {t("tabMemory")}
         </button>
       </div>
 
-      {/* ── TAB 1: Gelişim Analizi ── */}
+      {/* ── TAB 1: SOHBET & AGENTIC EYLEMLER (CHAT FIRST) ── */}
+      {activeTab === "chat" && (
+        <div className="surface-card p-5 md:p-6 flex flex-col h-[600px] animate-fade-in">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div className="flex items-center gap-2">
+              <Bot className="w-5 h-5 text-emerald-600" />
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">
+                  AI Antrenör Sohbeti & Canlı Programlama
+                </h3>
+                <p className="text-[10px] text-slate-400">
+                  Metin üzerinden konuşarak yeni program yazdırabilir ve tek tıkla veritabanınıza uygulayabilirsiniz.
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setIsVoiceOpen(true)}
+              className="px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold flex items-center gap-1.5 tap-effect"
+            >
+              <Mic className="w-3.5 h-3.5 text-emerald-600" /> Sesli Mod
+            </button>
+          </div>
+
+          {/* Message Stream */}
+          <div className="flex-1 overflow-y-auto py-4 space-y-4 scrollbar-thin">
+            {messages.map((msg, idx) => (
+              <div
+                key={idx}
+                className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}
+              >
+                <div
+                  className={`max-w-[88%] sm:max-w-[80%] rounded-2xl px-4 py-3 text-xs leading-relaxed ${
+                    msg.role === "user"
+                      ? "bg-emerald-600 text-white rounded-br-none font-medium"
+                      : "bg-slate-100 text-slate-800 rounded-bl-none font-medium"
+                  }`}
+                >
+                  <p className="whitespace-pre-wrap">{msg.content}</p>
+                </div>
+
+                {/* ── ACTION PROPOSAL CARD (EĞER AI YENİ PROGRAM / EYLEM ÖNERDİYSE) ── */}
+                {msg.actionProposal && msg.actionProposal.program_data && (
+                  <div className="mt-2.5 max-w-[88%] sm:max-w-[80%] p-4 bg-gradient-to-br from-emerald-50 to-white rounded-2xl border border-emerald-200 shadow-sm animate-slide-up space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-emerald-600" />
+                      <h4 className="text-xs font-extrabold text-slate-900">
+                        {msg.actionProposal.title || "AI Tarafından Oluşturulan Yeni Program"}
+                      </h4>
+                    </div>
+
+                    {msg.actionProposal.description && (
+                      <p className="text-[11px] text-slate-600 leading-snug">
+                        {msg.actionProposal.description}
+                      </p>
+                    )}
+
+                    {/* Routines Summary */}
+                    {msg.actionProposal.program_data.routines && (
+                      <div className="space-y-1.5 pt-1">
+                        {msg.actionProposal.program_data.routines.map((r: any, rIdx: number) => (
+                          <div
+                            key={rIdx}
+                            className="p-2 bg-white rounded-xl border border-emerald-100 text-[11px] flex items-center justify-between"
+                          >
+                            <span className="font-bold text-slate-800">
+                              {r.sequence_order}. {r.name}
+                            </span>
+                            <span className="text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded-md">
+                              {r.exercises?.length || 0} Egzersiz
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Apply Button */}
+                    <div className="pt-2">
+                      {msg.proposalApplied ? (
+                        <div className="p-2.5 rounded-xl bg-emerald-100 text-emerald-900 font-bold text-xs flex items-center justify-center gap-1.5">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-700" />
+                          Program Veritabanına Yüklendi ve Aktif Edildi
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={applyingProposalIndex === idx}
+                          onClick={() => handleApplyChatProposal(idx, msg.actionProposal)}
+                          className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm tap-effect flex items-center justify-center gap-2 transition-all"
+                        >
+                          <Zap className="w-4 h-4 fill-current" />
+                          {applyingProposalIndex === idx
+                            ? "Veritabanına Yükleniyor..."
+                            : "⚡ Bu Programı Onayla ve Veritabanına Kaydet"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {isChatSending && (
+              <div className="flex justify-start">
+                <div className="bg-slate-100 text-slate-400 rounded-2xl px-4 py-2.5 text-xs rounded-bl-none flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-slate-400 animate-bounce" />
+                  <span className="w-2 h-2 rounded-full bg-slate-400 animate-bounce [animation-delay:0.2s]" />
+                  <span className="w-2 h-2 rounded-full bg-slate-400 animate-bounce [animation-delay:0.4s]" />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Quick Prompts */}
+          <div className="py-2 flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+            {quickPrompts.map((prompt, pIdx) => (
+              <button
+                key={pIdx}
+                type="button"
+                onClick={() => handleSendMessage(prompt)}
+                className="px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-[11px] font-semibold text-slate-700 whitespace-nowrap tap-effect transition-colors flex-shrink-0"
+              >
+                {prompt}
+              </button>
+            ))}
+          </div>
+
+          {/* Input Form */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSendMessage();
+            }}
+            className="pt-2 border-t border-slate-100 flex gap-2"
+          >
+            <input
+              type="text"
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
+              placeholder="Antrenöre yazın: 'Bana yeni bir 4 günlük split hazırla'..."
+              className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-500"
+            />
+            <button
+              type="submit"
+              disabled={!inputMessage.trim() || isChatSending}
+              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold tap-effect flex items-center justify-center"
+            >
+              <Send className="w-4 h-4" />
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* ── TAB 2: GELİŞİM ANALİZİ & PROGRESSIVE OVERLOAD ── */}
       {activeTab === "analysis" && (
         <div className="space-y-6 animate-fade-in">
           {latestLog ? (
@@ -366,84 +600,10 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
         </div>
       )}
 
-      {/* ── TAB 2: AI Hafıza Dosyası (Karar Matrisi) ── */}
+      {/* ── TAB 3: AI HAFIZA DOSYASI ── */}
       {activeTab === "memory" && (
         <div className="animate-fade-in">
           <AiMemoryTimeline logs={logs} />
-        </div>
-      )}
-
-      {/* ── TAB 3: Sohbet & Danışmanlık ── */}
-      {activeTab === "chat" && (
-        <div className="surface-card p-6 flex flex-col h-[520px] animate-fade-in">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-            <div className="flex items-center gap-2">
-              <Bot className="w-5 h-5 text-emerald-600" />
-              <h3 className="text-sm font-bold text-slate-900">
-                AI PT ile Canlı Danışmanlık ve Sohbet
-              </h3>
-            </div>
-
-            <button
-              onClick={() => setIsVoiceOpen(true)}
-              className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-bold flex items-center gap-1.5 tap-effect"
-            >
-              <Mic className="w-3.5 h-3.5" /> Sesli Moda Geç
-            </button>
-          </div>
-
-          {/* Message Stream */}
-          <div className="flex-1 overflow-y-auto py-4 space-y-3.5 scrollbar-thin">
-            {messages.map((msg, idx) => (
-              <div
-                key={idx}
-                className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-              >
-                <div
-                  className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-xs leading-relaxed ${
-                    msg.role === "user"
-                      ? "bg-emerald-600 text-white rounded-br-none"
-                      : "bg-slate-100 text-slate-800 rounded-bl-none font-medium"
-                  }`}
-                >
-                  {msg.content}
-                </div>
-              </div>
-            ))}
-            {isChatSending && (
-              <div className="flex justify-start">
-                <div className="bg-slate-100 text-slate-400 rounded-2xl px-4 py-2.5 text-xs rounded-bl-none flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-slate-400 animate-bounce" />
-                  <span className="w-2 h-2 rounded-full bg-slate-400 animate-bounce [animation-delay:0.2s]" />
-                  <span className="w-2 h-2 rounded-full bg-slate-400 animate-bounce [animation-delay:0.4s]" />
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Input Form */}
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleSendMessage();
-            }}
-            className="pt-3 border-t border-slate-100 flex gap-2"
-          >
-            <input
-              type="text"
-              value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              placeholder="Örn: 24.5 kg dambıl ile squat yaparken nelere dikkat etmeliyim?..."
-              className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-500"
-            />
-            <button
-              type="submit"
-              disabled={!inputMessage.trim() || isChatSending}
-              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold tap-effect flex items-center justify-center"
-            >
-              <Send className="w-4 h-4" />
-            </button>
-          </form>
         </div>
       )}
 
