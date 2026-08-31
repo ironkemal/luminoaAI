@@ -70,10 +70,10 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
     role: "assistant",
     content:
       language === "tr"
-        ? "Selam! Ben Lumino Baş Antrenörün Harun. 💪 Senin için fiziksel ölçülerini, 24.5 kg dambıl antrenmanlarını ve beslenmeni takip ediyorum. Bana dilediğin soruyu sorabilir veya 'Harun bana yeni bir program yaz' diyerek özel splitini hazırlatabilirsin!"
+        ? "Selam kral! Ben Harun Hocan. 💪 Salonda veya evde, ağırlıkların ve hedefin bana emanet. Aklına ne takılırsa sor, canın yeni bir split mi çekti 'Hocam bana bomba gibi bir program yaz' de, anında halledelim. Bugün ne çalışıyoruz?"
         : language === "de"
-        ? "Hallo! Ich bin dein Lumino-Cheftrainer Harun. 💪 Ich verfolge deine Messungen, dein 24.5kg Hanteltraining und deine Ernährung. Frage mich alles oder sage 'Harun schreibe mir einen neuen Plan'!"
-        : "Hey! I'm your Lumino Head Coach Harun. 💪 I track your metrics, 24.5kg dumbbell workouts, and nutrition. Ask me anything or say 'Harun write me a new program'!",
+        ? "Servus Champ! Ich bin dein Trainer Harun. 💪 Dein Training, deine Gewichte und deine Ziele sind bei mir in besten Händen. Frag mich alles oder sag 'Harun, schreib mir einen killer Plan' und wir legen los. Was trainieren wir heute?"
+        : "Hey champion! I'm Coach Harun. 💪 Your workouts, weights, and goals are in good hands with me. Ask me anything or tell me 'Coach, build me a killer routine' and I'll sort it out right away. What are we crushing today?",
   };
 
   // Active Chat State
