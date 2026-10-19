@@ -22,6 +22,7 @@ CREATE TABLE public.app_users (
   username TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
   display_name TEXT,
+  gender TEXT DEFAULT 'male',
   height_cm NUMERIC(4,1) DEFAULT 180.0,
   target_weight_kg NUMERIC(4,1) DEFAULT 85.0,
   created_at TIMESTAMPTZ DEFAULT NOW()
@@ -381,6 +382,7 @@ CREATE POLICY "Allow public update chat_sessions" ON public.chat_sessions FOR UP
 CREATE POLICY "Allow public delete chat_sessions" ON public.chat_sessions FOR DELETE USING (true);
 
 -- 9. Kullanıcı Profili ve Onboarding Kolonları
+ALTER TABLE public.app_users ADD COLUMN IF NOT EXISTS gender TEXT DEFAULT 'male';
 ALTER TABLE public.app_users ADD COLUMN IF NOT EXISTS age INTEGER;
 ALTER TABLE public.app_users ADD COLUMN IF NOT EXISTS current_weight_kg NUMERIC(5,2);
 ALTER TABLE public.app_users ADD COLUMN IF NOT EXISTS fitness_goal TEXT;
@@ -391,6 +393,7 @@ ALTER TABLE public.app_users ADD COLUMN IF NOT EXISTS max_dumbbell_weight_kg NUM
 ALTER TABLE public.app_users ADD COLUMN IF NOT EXISTS injuries_or_limitations TEXT;
 ALTER TABLE public.app_users ADD COLUMN IF NOT EXISTS health_notes TEXT;
 ALTER TABLE public.app_users ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT FALSE;
+
 
 
 

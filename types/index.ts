@@ -19,6 +19,7 @@ export interface AppUser {
   id: string;
   username: string;
   display_name?: string | null;
+  gender?: "male" | "female" | "other" | string;
   height_cm?: number;
   current_weight_kg?: number;
   target_weight_kg?: number;

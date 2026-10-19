@@ -331,34 +331,56 @@ export async function POST(request: NextRequest) {
         ...(clientUserProfile || {}),
       } as any;
 
-      const userName = userProfile?.display_name || userProfile?.username || "Kral";
-      const currentWeight = userProfile?.current_weight_kg || (userMetrics?.[0]?.weight_kg) || 100;
-      const targetWeight = userProfile?.target_weight_kg || 85;
-      const userGoal = userProfile?.fitness_goal || "Body Recomposition & Lean Cut";
+      const userGender = userProfile?.gender || "male";
+      const isFemale = userGender === "female";
+      const defaultHonorific = isFemale ? "Kraliçe" : "Kral";
+      const userName = userProfile?.display_name || userProfile?.username || defaultHonorific;
+      const currentWeight = userProfile?.current_weight_kg || (userMetrics?.[0]?.weight_kg) || (isFemale ? 68 : 100);
+      const targetWeight = userProfile?.target_weight_kg || (isFemale ? 58 : 85);
+      const height = userProfile?.height_cm || (isFemale ? 165 : 180);
+      const age = userProfile?.age || 28;
+      const userGoal = userProfile?.fitness_goal || (isFemale ? "Body Recomposition & Toning" : "Body Recomposition & Lean Cut");
       const userExp = userProfile?.experience_level || "Kas Hafızası / Eski Sporcu";
       const userEquip = (userProfile?.equipment || ["Dumbbell", "Bodyweight", "Ab-Wheel", "Pull-up Bar"]).join(", ");
-      const maxDumbbell = userProfile?.max_dumbbell_weight_kg || 24.5;
+      const maxDumbbell = userProfile?.max_dumbbell_weight_kg || (isFemale ? 15 : 24.5);
       const userInjuries = userProfile?.injuries_or_limitations || "Sakatlık yok";
       const healthNotes = userProfile?.health_notes || "";
+
+      // Mifflin-St Jeor BMR
+      const bmr = isFemale
+        ? Math.round(10 * currentWeight + 6.25 * height - 5 * age - 161)
+        : Math.round(10 * currentWeight + 6.25 * height - 5 * age + 5);
+
+      const genderInstructions = isFemale
+        ? `SPORCU KADIN FİZYOLOJİSİ DİREKTİFLERİ:
+- Kullanıcıya hitap ederken "Kraliçe", "${userName}", "Şampiyon", "Hocam", "Güçlü Kadın", "Aslanım" gibi motive edici ve saygılı hitaplar kullan.
+- Kadın kas yapısı: Alt vücut/glute toparlanma avantajı çok yüksektir, toparlanma süresi daha seridir. Üst vücut pres hareketlerinde dambıl artışları kademeli (1-2.5 kg) olmalıdır.
+- Kalori/BMR: Günlük tahmini BMR ${bmr} kcal. Beslenme tavsiyelerinde kadın metabolizmasını gözet.`
+        : `SPORCU ERKEK FİZYOLOJİSİ DİREKTİFLERİ:
+- Kullanıcıya hitap ederken "${userName}", "Kral", "Şampiyon", "Hocam", "Reis", "Aslanım" gibi samimi ve motive edici hitaplar kullan.
+- Erkek kas yapısı: Üst vücut kuvvet ve hipertrofi odaklıdır, progressive overload ile dambılları zorlayıcı tut.
+- Kalori/BMR: Günlük tahmini BMR ${bmr} kcal.`;
 
       const chatSystemPrompt = `
 Sen "Harun Hoca" (Coach Harun) adında, Lumino PT platformunun Baş Antrenörüsün.
 
 KİŞİLİĞİN VE ÜSLUBUN (EN ÖNEMLİ KURAL):
 1. Sen son derece sıcakkanlı, samimi, enerjik, esprili ve hafif laubali bir SALON / GYM PT HOCASISIN!
-2. Kullanıcıya hitap ederken "${userName}", "Kral", "Şampiyon", "Hocam", "Reis", "Aslanım" gibi samimi ve motive edici hitaplar kullan.
-3. Asla resmi, soğuk veya robotik yapay zeka kalıplarıyla konuşma! Sanki salonda sporcunun sırtına vurup 'Hadi kral son set basıyoruz!' diyen canayakın bir hoca gibi konuş.
-4. "O iş bende hallederiz", "Bas geç acıma", "Yansın omuzlar", "Bak şimdi beni iyi dinle", "Proteini sakın aksatma" gibi samimi gym jargonunu doğalca kullan.
-5. Laubali ve canayakın olsan da bilimsel ilkelerden (progressive overload, toparlanma, doğru form, sakatlık koruması) ASLA taviz verme!
+2. Asla resmi, soğuk veya robotik yapay zeka kalıplarıyla konuşma! Sanki salonda sporcunun sırtına vurup 'Hadi son set basıyoruz!' diyen canayakın bir hoca gibi konuş.
+3. "O iş bende hallederiz", "Bas geç acıma", "Yansın kaslar", "Bak şimdi beni iyi dinle", "Proteini sakın aksatma" gibi samimi gym jargonunu doğalca kullan.
+4. Laubali ve canayakın olsan da bilimsel ilkelerden (biyolojik cinsiyet fizyolojisi, BMR, progressive overload, toparlanma, doğru form, sakatlık koruması) ASLA taviz verme!
 
 Kullanıcın (${userName}) GÜNCEL Profili ve Hedefleri:
-- Yaş: ${userProfile?.age || 28}, Boy: ${userProfile?.height_cm || 180} cm
-- Güncel Kilo: ${currentWeight} kg
+- Biyolojik Cinsiyet: ${isFemale ? "KADIN (Female)" : "ERKEK (Male)"}
+- Yaş: ${age}, Boy: ${height} cm
+- Güncel Kilo: ${currentWeight} kg | BMR: ${bmr} kcal/gün
 - HEDEF KİLO: ${targetWeight} kg (Tüm tavsiyelerini ve kalori/ağırlık hedeflerini bu hedefe göre ver!)
 - Ana Hedef: ${userGoal}
 - Spor Geçmişi / Kas Hafızası: ${userExp}
 - Ekipman Envanteri: ${userEquip} (Maksimum ${maxDumbbell} kg dambıllar).
 - SAKATLIK & SAĞLIK DURUMU: ${userInjuries} ${healthNotes ? `(${healthNotes})` : ""} (Bu bölgeyi zorlayacak hareketlerden kaçın).
+
+${genderInstructions}
 
 Kullanıcının Güncel Antrenman ve Ölçüm Verileri:
 - Son Ölçümler: ${JSON.stringify(userMetrics || [])}
@@ -410,7 +432,7 @@ SADECE JSON FORMATINDA DÖNÜŞ YAP.
       }
 
       let parsedChatResponse = {
-        reply: `Selam kral! ${currentWeight} kg'dan ${targetWeight} kg hedefine doğru sağlam adımlarla ilerliyoruz. 24.5 kg dambıl kapasitenle bugün ne çalışıyoruz?`,
+        reply: `Selam ${isFemale ? "kraliçe" : "kral"}! ${currentWeight} kg'dan ${targetWeight} kg hedefine doğru sağlam adımlarla ilerliyoruz. ${maxDumbbell} kg dambıl kapasitenle bugün ne çalışıyoruz?`,
         action_proposal: null as any,
       };
 
@@ -425,11 +447,15 @@ SADECE JSON FORMATINDA DÖNÜŞ YAP.
           null,
           rawAiResponse,
         ];
-        parsedChatResponse = JSON.parse(jsonMatch[1] || rawAiResponse);
+        const parsed = JSON.parse(jsonMatch[1] || rawAiResponse);
+        parsedChatResponse = {
+          reply: parsed.reply || rawAiResponse,
+          action_proposal: parsed.action_proposal || null,
+        };
       } catch (geminiErr) {
         console.warn("Gemini chat structured parse failed, trying plain text:", geminiErr);
         try {
-          const rawText = await generateGeminiContent(chatList, buildCoachSystemPrompt(userProfile), {
+          const rawText = await generateGeminiContent(chatList, `Harun Hoca olarak ${userName}'e (${isFemale ? "kadın" : "erkek"} sporcu, ${currentWeight}kg, hedef ${targetWeight}kg) samimi, motive edici ve enerjik bir gym antrenörü yanıtı ver.`, {
             temperature: 0.6,
             maxTokens: 1000,
             mode: mode as "fast" | "deep",
@@ -437,7 +463,7 @@ SADECE JSON FORMATINDA DÖNÜŞ YAP.
           parsedChatResponse = { reply: rawText, action_proposal: null };
         } catch {
           parsedChatResponse = {
-            reply: `${currentWeight} kg ${userGoal} sürecinde antrenmanlarınız harika ilerliyor. Hedefimiz olan ${targetWeight} kg için dambıl ağırlıklarınızı tükenişe 1-2 tekrar kala bitirmeye ve günlük protein tüketimine sadık kalmaya devam edelim kral!`,
+            reply: `${currentWeight} kg ${userGoal} sürecinde antrenmanlarınız harika ilerliyor. Hedefimiz olan ${targetWeight} kg için dambıl ağırlıklarınızı tükenişe 1-2 tekrar kala bitirmeye ve günlük protein tüketimine sadık kalmaya devam edelim ${isFemale ? "kraliçe" : "kral"}!`,
             action_proposal: null,
           };
         }

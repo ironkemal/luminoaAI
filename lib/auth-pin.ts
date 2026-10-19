@@ -96,8 +96,10 @@ export async function registerWithInvitationPin(
       id: newUser.id,
       username: newUser.username,
       display_name: newUser.display_name,
+      gender: newUser.gender || "male",
       height_cm: newUser.height_cm,
       target_weight_kg: newUser.target_weight_kg,
+      onboarding_completed: false,
       created_at: newUser.created_at,
     };
 
@@ -145,8 +147,19 @@ export async function loginUser(
       id: user.id,
       username: user.username,
       display_name: user.display_name,
+      gender: user.gender || "male",
       height_cm: user.height_cm,
+      current_weight_kg: user.current_weight_kg,
       target_weight_kg: user.target_weight_kg,
+      age: user.age,
+      fitness_goal: user.fitness_goal,
+      experience_level: user.experience_level,
+      workout_days_per_week: user.workout_days_per_week,
+      equipment: user.equipment,
+      max_dumbbell_weight_kg: user.max_dumbbell_weight_kg,
+      injuries_or_limitations: user.injuries_or_limitations,
+      health_notes: user.health_notes,
+      onboarding_completed: user.onboarding_completed,
       created_at: user.created_at,
     };
 
