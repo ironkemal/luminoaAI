@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { getCurrentUser } from "@/lib/auth-pin";
 import { BodyMetric } from "@/types";
 import MetricsTracker from "@/components/metrics/MetricsTracker";
 
@@ -16,11 +17,18 @@ export default function MetricsPage() {
   const fetchMetrics = async () => {
     setLoading(true);
     const supabase = createClient();
+    const currentUser = getCurrentUser();
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from("body_metrics")
         .select("*")
         .order("recorded_at", { ascending: false });
+
+      if (currentUser?.id) {
+        query = query.eq("user_id", currentUser.id);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       setMetrics((data as BodyMetric[]) || []);
@@ -33,14 +41,23 @@ export default function MetricsPage() {
 
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-12 flex items-center justify-center">
-        <div className="w-8 h-8 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+      <div className="page" aria-busy="true" aria-label="Yükleniyor">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 space-y-2">
+            <div className="skeleton h-7 w-44" />
+            <div className="skeleton h-4 w-60 max-w-full" />
+          </div>
+          <div className="skeleton h-9 w-28 shrink-0" />
+        </div>
+        <div className="skeleton h-[104px]" />
+        <div className="skeleton h-24" />
+        <div className="skeleton h-56" />
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6 md:py-8">
+    <div className="page">
       <MetricsTracker initialMetrics={metrics} />
     </div>
   );

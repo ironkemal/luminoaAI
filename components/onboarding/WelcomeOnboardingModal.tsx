@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { AppUser } from "@/types";
 import { createClient } from "@/lib/supabase/client";
 import { setCurrentUser } from "@/lib/auth-pin";
@@ -8,6 +8,7 @@ import { useLanguage } from "@/lib/i18n";
 import {
   Sparkles,
   ArrowRight,
+  ArrowLeft,
   Check,
   Dumbbell,
   Target,
@@ -36,25 +37,34 @@ export default function WelcomeOnboardingModal({
   const { t } = useLanguage();
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
 
+  // Gender state (male | female | other) - Asked right at the start!
+  const [gender, setGender] = useState<string>(user.gender || "male");
+
   // Form String States for fluid typing & deletion
   const [ageStr, setAgeStr] = useState<string>(user.age ? String(user.age) : "28");
-  const [heightStr, setHeightStr] = useState<string>(user.height_cm ? String(user.height_cm) : "180");
+  const [heightStr, setHeightStr] = useState<string>(
+    user.height_cm ? String(user.height_cm) : (user.gender === "female" ? "165" : "180")
+  );
   const [currentWeightStr, setCurrentWeightStr] = useState<string>(
-    user.current_weight_kg ? String(user.current_weight_kg) : "100.0"
+    user.current_weight_kg ? String(user.current_weight_kg) : (user.gender === "female" ? "68.0" : "100.0")
   );
   const [targetWeightStr, setTargetWeightStr] = useState<string>(
-    user.target_weight_kg ? String(user.target_weight_kg) : "85.0"
+    user.target_weight_kg ? String(user.target_weight_kg) : (user.gender === "female" ? "58.0" : "85.0")
   );
 
   const [experienceLevel, setExperienceLevel] = useState<string>(user.experience_level || "muscle_memory");
-  const [fitnessGoal, setFitnessGoal] = useState<string>(user.fitness_goal || "recomp");
+  const [fitnessGoal, setFitnessGoal] = useState<string>(
+    user.fitness_goal || (user.gender === "female" ? "recomp" : "recomp")
+  );
   const [workoutDays, setWorkoutDays] = useState<number>(user.workout_days_per_week || 4);
 
   const [selectedEquipment, setSelectedEquipment] = useState<string[]>(
     user.equipment || ["Dumbbell", "Bodyweight", "Ab-Wheel", "Pull-up Bar"]
   );
   const [maxDumbbellWeightStr, setMaxDumbbellWeightStr] = useState<string>(
-    user.max_dumbbell_weight_kg ? String(user.max_dumbbell_weight_kg) : "24.5"
+    user.max_dumbbell_weight_kg
+      ? String(user.max_dumbbell_weight_kg)
+      : (user.gender === "female" ? "15" : "24.5")
   );
 
   // Injury & Limitation State
@@ -62,8 +72,40 @@ export default function WelcomeOnboardingModal({
   const [customInjuryNotes, setCustomInjuryNotes] = useState<string>("");
 
   const [isSaving, setIsSaving] = useState(false);
+  const bodyRef = useRef<HTMLDivElement>(null);
+
+  // Lock page scroll while the onboarding flow is open
+  useEffect(() => {
+    if (!isOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [isOpen]);
+
+  // Each step starts at the top
+  useEffect(() => {
+    bodyRef.current?.scrollTo({ top: 0 });
+  }, [step]);
 
   if (!isOpen) return null;
+
+  const handleGenderSelect = (selectedG: string) => {
+    setGender(selectedG);
+    // If switching gender and user currently has the opposite default presets, intelligently switch presets
+    if (selectedG === "female") {
+      if (heightStr === "180") setHeightStr("165");
+      if (currentWeightStr === "100.0" || currentWeightStr === "100") setCurrentWeightStr("68.0");
+      if (targetWeightStr === "85.0" || targetWeightStr === "85") setTargetWeightStr("58.0");
+      if (maxDumbbellWeightStr === "24.5") setMaxDumbbellWeightStr("15");
+    } else if (selectedG === "male") {
+      if (heightStr === "165") setHeightStr("180");
+      if (currentWeightStr === "68.0" || currentWeightStr === "68") setCurrentWeightStr("100.0");
+      if (targetWeightStr === "58.0" || targetWeightStr === "58") setTargetWeightStr("85.0");
+      if (maxDumbbellWeightStr === "15") setMaxDumbbellWeightStr("24.5");
+    }
+  };
 
   const toggleEquipment = (item: string) => {
     if (selectedEquipment.includes(item)) {
@@ -87,10 +129,10 @@ export default function WelcomeOnboardingModal({
   };
 
   const parsedAge = parseInt(ageStr, 10) || 28;
-  const parsedHeight = parseFloat(heightStr) || 180;
-  const parsedCurrentWeight = parseFloat(currentWeightStr) || 100;
-  const parsedTargetWeight = parseFloat(targetWeightStr) || 85;
-  const parsedMaxDumbbell = parseFloat(maxDumbbellWeightStr) || 24.5;
+  const parsedHeight = parseFloat(heightStr) || (gender === "female" ? 165 : 180);
+  const parsedCurrentWeight = parseFloat(currentWeightStr) || (gender === "female" ? 68 : 100);
+  const parsedTargetWeight = parseFloat(targetWeightStr) || (gender === "female" ? 58 : 85);
+  const parsedMaxDumbbell = parseFloat(maxDumbbellWeightStr) || (gender === "female" ? 15 : 24.5);
 
   const compiledLimitations = [
     ...selectedInjuries.filter((i) => i !== "none"),
@@ -108,6 +150,7 @@ export default function WelcomeOnboardingModal({
       const { error: userErr } = await supabase
         .from("app_users")
         .update({
+          gender: gender,
           age: parsedAge,
           height_cm: parsedHeight,
           current_weight_kg: parsedCurrentWeight,
@@ -133,14 +176,15 @@ export default function WelcomeOnboardingModal({
         user_id: user.id,
         recorded_at: today,
         weight_kg: parsedCurrentWeight,
-        waist_cm: 100.0,
-        arm_cm: 40.0,
-        chest_cm: 112.0,
+        waist_cm: gender === "female" ? 75.0 : 100.0,
+        arm_cm: gender === "female" ? 28.0 : 40.0,
+        chest_cm: gender === "female" ? 90.0 : 112.0,
         notes: "Antrenör Harun ile profil kurulum tartımı",
       });
 
       const updatedUser: AppUser = {
         ...user,
+        gender: gender,
         age: parsedAge,
         height_cm: parsedHeight,
         current_weight_kg: parsedCurrentWeight,
@@ -161,6 +205,7 @@ export default function WelcomeOnboardingModal({
       console.error("Onboarding finish error:", err);
       const fallbackUser: AppUser = {
         ...user,
+        gender: gender,
         onboarding_completed: true,
       };
       setCurrentUser(fallbackUser);
@@ -175,524 +220,626 @@ export default function WelcomeOnboardingModal({
     { val: "10", label: "10 kg" },
     { val: "15", label: "15 kg" },
     { val: "20", label: "20 kg" },
-    { val: "24.5", label: "24.5 kg (Standart Ayarlanabilir)" },
+    { val: "24.5", label: "24.5 kg (Ayarlanabilir)" },
     { val: "30", label: "30 kg" },
     { val: "35", label: "35 kg" },
-    { val: "40", label: "40+ kg (Ağır Dambıllar)" },
+    { val: "40", label: "40+ kg (Ağır)" },
   ];
 
   const injuryChips = [
-    { id: "none", label: "🛡️ Sakatlığım Yok (Tam Sağlıklı)" },
-    { id: "Omuz Ağrısı / Impingement", label: "⚡ Omuz Ağrısı (Ağır Overhead Yapamam)" },
-    { id: "Bel Ağrısı / Fıtık", label: "⚡ Bel Ağrısı / Fıtık (Omurga Baskısı İstemem)" },
-    { id: "Diz / Menisküs Hassasiyeti", label: "⚡ Diz / Menisküs Hassasiyeti" },
-    { id: "Bilek / Dirsek Ağrısı", label: "⚡ Bilek / Dirsek Hassasiyeti" },
-    { id: "Masa Başı Postür / Kifoz", label: "⚡ Masa Başı Postür / Kifoz" },
+    { id: "none", label: "Sakatlığım yok", desc: "Tam sağlıklıyım" },
+    { id: "Omuz Ağrısı / Impingement", label: "Omuz ağrısı", desc: "Ağır overhead yapamam" },
+    { id: "Bel Ağrısı / Fıtık", label: "Bel ağrısı / fıtık", desc: "Omurga baskısı istemem" },
+    { id: "Diz / Menisküs Hassasiyeti", label: "Diz / menisküs", desc: "Diz hassasiyeti" },
+    { id: "Bilek / Dirsek Ağrısı", label: "Bilek / dirsek", desc: "Bilek veya dirsek hassasiyeti" },
+    { id: "Masa Başı Postür / Kifoz", label: "Masa başı postür", desc: "Kifoz / kambur duruş" },
   ];
 
+  const genderOptions = [
+    {
+      id: "male",
+      title: "Erkek",
+      badge: "Üst vücut & kuvvet",
+      desc: "Omuz & göğüs kuvveti, hipertrofi dinamikleri.",
+    },
+    {
+      id: "female",
+      title: "Kadın",
+      badge: "Alt vücut & sıkılaşma",
+      desc: "Glute toparlanma avantajı, yağsız sıkılaşma.",
+    },
+  ];
+
+  const experienceOptions = [
+    {
+      id: "muscle_memory",
+      title: "Eski sporcu / kas hafızası var",
+      desc: "Daha önce düzenli ağırlık çalıştım, kas temelim var.",
+      icon: Flame,
+    },
+    {
+      id: "intermediate",
+      title: "Orta seviye",
+      desc: "Temel hareketleri ve formları biliyorum, düzenli çalışmak istiyorum.",
+      icon: Zap,
+    },
+    {
+      id: "beginner",
+      title: "Yeni başlayan",
+      desc: "Sıfırdan başlıyorum, form rehberleri ve yönlendirme istiyorum.",
+      icon: Sparkles,
+    },
+  ];
+
+  const goalOptions = [
+    {
+      id: "recomp",
+      title: "Body Recomposition",
+      badge: "Önerilen",
+      desc: "Kas koru + yağ yak: kilon dengede kalırken bel çevren daralır, kas doluluğun artar.",
+      icon: Scale,
+    },
+    {
+      id: "lean_cut",
+      title: "Lean Cut / Hızlı Definasyon",
+      badge: "Yağ yakımı",
+      desc: "Kalori açığı ve yüksek tempolu döngüyle hızlı yağ kaybı.",
+      icon: Flame,
+    },
+    {
+      id: "hypertrophy",
+      title: "Kas Kazanımı & Hipertrofi",
+      badge: "Hacim & güç",
+      desc: "Dambıllarla progressive overload ve maksimum kas kütlesi.",
+      icon: Dumbbell,
+    },
+  ];
+
+  const equipmentOptions = [
+    { id: "Dumbbell", title: "Dambıllar", desc: "Ayarlanabilir / sabit set — presler, row, goblet squat." },
+    { id: "Bench", title: "Sehpa / Bench", desc: "Incline & flat bench press ve izole hareketler." },
+    { id: "Pull-up Bar", title: "Barfiks barı", desc: "Geniş sırt, kanat ve biceps çekişleri." },
+    { id: "Ab-Wheel", title: "Ab-Wheel (karın tekeri)", desc: "Core ve karın stabilitesi." },
+    { id: "Bands", title: "Direnç lastikleri", desc: "Isınma, omuz ve eklem destek egzersizleri." },
+    { id: "FullGym", title: "Tam donanımlı salon", desc: "Barbell, cable ve tüm salon makineleri." },
+    { id: "Bodyweight", title: "Vücut ağırlığı & mat", desc: "Şınav, plank, floor press ve esneme." },
+  ];
+
+  const stepTitles: Record<1 | 2 | 3 | 4, string> = {
+    1: "Fiziksel ölçüler",
+    2: "Hedef & sağlık",
+    3: "Ekipmanlar",
+    4: "Harun Hoca ile tanış",
+  };
+
+  const userName = user.display_name || user.username;
+
+  /** Selectable row used for radio/checkbox style lists */
+  const optionClass = (active: boolean) =>
+    `w-full p-3.5 rounded-2xl border text-left tap-effect flex items-start gap-3 ${
+      active ? "bg-emerald-50 border-emerald-500 ring-1 ring-emerald-500" : "bg-white border-slate-200 md:hover:bg-slate-50"
+    }`;
+
+  const RadioDot = ({ active }: { active: boolean }) => (
+    <span
+      className={`w-5 h-5 shrink-0 mt-0.5 rounded-full border-2 inline-flex items-center justify-center ${
+        active ? "border-emerald-600 bg-emerald-600 text-white" : "border-slate-300 bg-white"
+      }`}
+      aria-hidden
+    >
+      {active && <Check className="w-3 h-3" strokeWidth={3.5} />}
+    </span>
+  );
+
+  const CheckBox = ({ active }: { active: boolean }) => (
+    <span
+      className={`w-5 h-5 shrink-0 mt-0.5 rounded-md border inline-flex items-center justify-center ${
+        active ? "bg-emerald-600 border-emerald-600 text-white" : "border-slate-300 bg-white"
+      }`}
+      aria-hidden
+    >
+      {active && <Check className="w-3.5 h-3.5" strokeWidth={3} />}
+    </span>
+  );
+
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-md flex items-center justify-center p-4 select-none animate-fade-in">
-      <div className="w-full max-w-lg bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-100 animate-slide-up relative max-h-[92vh] overflow-y-auto">
-        {/* Top Progress Dots */}
-        <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-xs">
+    <div className="fixed inset-0 z-50 flex sm:items-center sm:justify-center sm:p-4 select-none">
+      <div className="hidden sm:block absolute inset-0 bg-slate-950/50 backdrop-blur-[2px] animate-fade-in" aria-hidden />
+
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="onboarding-title"
+        className="relative w-full h-[100dvh] sm:h-auto sm:max-h-[90dvh] sm:max-w-lg bg-white sm:rounded-3xl sm:shadow-2xl flex flex-col animate-fade-in-up"
+      >
+        {/* ── Sticky header + progress ── */}
+        <div className="shrink-0 px-4 sm:px-6 pt-safe border-b border-slate-100">
+          <div className="flex items-center gap-3 pt-3 sm:pt-5">
+            <span className="w-10 h-10 shrink-0 rounded-xl bg-emerald-600 text-white inline-flex items-center justify-center font-bold text-sm">
               H
-            </div>
-            <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                Baş Antrenör Harun • Kurulum
-              </span>
-              <h3 className="text-sm font-extrabold text-slate-900">
-                {step === 1 && "Fiziksel Ölçüleriniz"}
-                {step === 2 && "Hedef ve Sakatlık / Sağlık Durumu"}
-                {step === 3 && "Mevcut Ekipmanlarınız"}
-                {step === 4 && "Antrenör Harun ile Tanışın"}
+            </span>
+            <div className="flex-1 min-w-0">
+              <p className="eyebrow tabular-nums">Kurulum · {step}/4</p>
+              <h3 id="onboarding-title" className="text-base font-extrabold text-slate-900 truncate">
+                {stepTitles[step]}
               </h3>
             </div>
           </div>
-
-          <div className="flex items-center gap-1.5">
+          <div className="grid grid-cols-4 gap-1.5 py-3" aria-hidden>
             {[1, 2, 3, 4].map((s) => (
-              <div
-                key={s}
-                className={`h-2 rounded-full transition-all duration-300 ${
-                  s === step
-                    ? "w-6 bg-emerald-600"
-                    : s < step
-                    ? "w-2 bg-emerald-400"
-                    : "w-2 bg-slate-200"
-                }`}
-              />
+              <span key={s} className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                <span
+                  className="block h-full w-full rounded-full bg-emerald-500 origin-left"
+                  style={{
+                    transform: `scaleX(${s <= step ? 1 : 0})`,
+                    transition: "transform 300ms var(--ease-out)",
+                  }}
+                />
+              </span>
             ))}
           </div>
         </div>
 
-        {/* ── STEP 1: PHYSICAL MEASUREMENTS ── */}
-        {step === 1 && (
-          <div className="space-y-4 animate-fade-in">
-            <div>
-              <h2 className="text-lg font-black text-slate-900 tracking-tight">
-                Hoş Geldiniz, {user.display_name || user.username}! 👋
-              </h2>
-              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                Antrenör Harun&apos;un sizin için en doğru kalori, hacim ve ağırlık periyodizasyonunu çıkarabilmesi için temel bilgilerinizi girin.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 pt-2">
+        {/* ── Scrollable body ── */}
+        <div ref={bodyRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 sm:px-6 py-5">
+          {/* ── STEP 1: PHYSICAL MEASUREMENTS ── */}
+          {step === 1 && (
+            <div key="s1" className="space-y-6 animate-fade-in-up">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Yaş
-                </label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={ageStr}
-                  onChange={(e) => setAgeStr(e.target.value)}
-                  placeholder="28"
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:border-emerald-500"
-                />
+                <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">Hoş geldin, {userName}!</h2>
+                <p className="text-sm text-slate-500 mt-1 leading-relaxed">
+                  Antrenör Harun&apos;un sizin için en doğru kalori, hacim, toparlanma ve ağırlık periyodizasyonunu
+                  çıkarabilmesi için temel bilgilerinizi girin.
+                </p>
               </div>
 
+              {/* Gender selector (biological profile) */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Boy (cm)
-                </label>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={heightStr}
-                  onChange={(e) => setHeightStr(e.target.value)}
-                  placeholder="180"
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:border-emerald-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Güncel Kilo (kg) *
-                </label>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={currentWeightStr}
-                  onChange={(e) => setCurrentWeightStr(e.target.value)}
-                  placeholder="100.0"
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-black text-slate-900 focus:outline-none focus:border-emerald-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Hedef Kilo (kg) *
-                </label>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={targetWeightStr}
-                  onChange={(e) => setTargetWeightStr(e.target.value)}
-                  placeholder="85.0"
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-black text-emerald-700 focus:outline-none focus:border-emerald-500"
-                />
-              </div>
-            </div>
-
-            {/* Experience Level Selector */}
-            <div className="pt-2">
-              <label className="block text-xs font-bold text-slate-700 mb-2">
-                Spor Geçmişiniz & Kas Hafızası
-              </label>
-              <div className="space-y-2">
-                {[
-                  {
-                    id: "muscle_memory",
-                    title: "Eski Sporcu / Kas Hafızası Var 🔥",
-                    desc: "Daha önce düzenli ağırlık çalıştım, kas temelim var.",
-                  },
-                  {
-                    id: "intermediate",
-                    title: "Orta Seviye ⚡",
-                    desc: "Temel hareketleri ve formları biliyorum, düzenli çalışmak istiyorum.",
-                  },
-                  {
-                    id: "beginner",
-                    title: "Yeni Başlayan 🌱",
-                    desc: "Sıfırdan başlıyorum, form rehberleri ve yönlendirme istiyorum.",
-                  },
-                ].map((item) => (
-                  <div
-                    key={item.id}
-                    onClick={() => setExperienceLevel(item.id)}
-                    className={`p-3 rounded-2xl border transition-all cursor-pointer tap-effect flex items-start justify-between ${
-                      experienceLevel === item.id
-                        ? "bg-emerald-50 border-emerald-500 text-slate-900 shadow-sm"
-                        : "bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700"
-                    }`}
-                  >
-                    <div>
-                      <h4 className="text-xs font-bold">{item.title}</h4>
-                      <p className="text-[11px] text-slate-500 mt-0.5">{item.desc}</p>
-                    </div>
-                    {experienceLevel === item.id && (
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="pt-3 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setStep(2)}
-                className="px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-sm tap-effect flex items-center gap-2"
-              >
-                <span>Devam Et</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ── STEP 2: GOALS & INJURIES / LIMITATIONS ── */}
-        {step === 2 && (
-          <div className="space-y-4 animate-fade-in">
-            <div>
-              <h2 className="text-lg font-black text-slate-900 tracking-tight">
-                Hedef ve Sağlık / Sakatlık Durumu
-              </h2>
-              <p className="text-xs text-slate-500 mt-1">
-                Antrenör Harun, sakatlıklarınızı ve hedefinizi hafızasına alarak riskli hareketleri programdan otomatik çıkaracaktır.
-              </p>
-            </div>
-
-            {/* Goal Selector */}
-            <div className="space-y-2 pt-1">
-              {[
-                {
-                  id: "recomp",
-                  title: "Body Recomposition (Önerilen) ⚖️",
-                  badge: "KAS KORU + YAĞ YAK",
-                  desc: "Kilonuz dengeli kalırken bel çevrenizi daraltın, kas doluluğunuzu artırın.",
-                },
-                {
-                  id: "lean_cut",
-                  title: "Lean Cut / Hızlı Definasyon ✂️",
-                  badge: "YAĞ YAKIMI",
-                  desc: "Kalori açığı ve yüksek tempolu döngüyle hızlı yağ kaybı.",
-                },
-                {
-                  id: "hypertrophy",
-                  title: "Kas Kazanımı & Hipertrofi 🦍",
-                  badge: "HACİM VE GÜÇ",
-                  desc: "Dambıllarla progressive overload ve maksimum kas kütlesi.",
-                },
-              ].map((item) => (
-                <div
-                  key={item.id}
-                  onClick={() => setFitnessGoal(item.id)}
-                  className={`p-3.5 rounded-2xl border transition-all cursor-pointer tap-effect flex items-start justify-between ${
-                    fitnessGoal === item.id
-                      ? "bg-emerald-50 border-emerald-500 text-slate-900 shadow-sm"
-                      : "bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700"
-                  }`}
-                >
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h4 className="text-xs font-bold">{item.title}</h4>
-                      <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[9px] font-extrabold">
-                        {item.badge}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-500 mt-1">{item.desc}</p>
-                  </div>
-                  {fitnessGoal === item.id && (
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                  )}
+                <p className="field-label flex items-center gap-1.5">
+                  <User className="w-3.5 h-3.5 text-emerald-600" /> Biyolojik cinsiyet *
+                </p>
+                <div className="grid grid-cols-2 gap-2.5" role="radiogroup" aria-label="Biyolojik cinsiyet">
+                  {genderOptions.map((g) => {
+                    const active = gender === g.id;
+                    return (
+                      <button
+                        key={g.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={active}
+                        onClick={() => handleGenderSelect(g.id)}
+                        className={`${optionClass(active)} !flex-col !gap-1.5 h-full`}
+                      >
+                        <span className="w-full flex items-center justify-between gap-2">
+                          <span className="text-[15px] font-bold text-slate-900">{g.title}</span>
+                          <RadioDot active={active} />
+                        </span>
+                        <span className={active ? "chip-primary" : "chip"}>{g.badge}</span>
+                        <span className="text-xs text-slate-500 leading-snug">{g.desc}</span>
+                      </button>
+                    );
+                  })}
                 </div>
-              ))}
+                <p className="text-xs text-slate-400 mt-2">Fizyolojiye özel BMR ve kas dinamiği için.</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="ob-age" className="field-label">
+                    Yaş
+                  </label>
+                  <input
+                    id="ob-age"
+                    type="text"
+                    inputMode="numeric"
+                    value={ageStr}
+                    onChange={(e) => setAgeStr(e.target.value)}
+                    placeholder="28"
+                    className="input font-semibold tabular-nums"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="ob-height" className="field-label">
+                    Boy (cm)
+                  </label>
+                  <input
+                    id="ob-height"
+                    type="text"
+                    inputMode="decimal"
+                    value={heightStr}
+                    onChange={(e) => setHeightStr(e.target.value)}
+                    placeholder="180"
+                    className="input font-semibold tabular-nums"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="ob-weight" className="field-label">
+                    Güncel kilo (kg) *
+                  </label>
+                  <input
+                    id="ob-weight"
+                    type="text"
+                    inputMode="decimal"
+                    value={currentWeightStr}
+                    onChange={(e) => setCurrentWeightStr(e.target.value)}
+                    placeholder="100.0"
+                    className="input font-bold tabular-nums"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="ob-target" className="field-label">
+                    Hedef kilo (kg) *
+                  </label>
+                  <input
+                    id="ob-target"
+                    type="text"
+                    inputMode="decimal"
+                    value={targetWeightStr}
+                    onChange={(e) => setTargetWeightStr(e.target.value)}
+                    placeholder="85.0"
+                    className="input font-bold tabular-nums text-emerald-700"
+                  />
+                </div>
+              </div>
+
+              {/* Experience Level Selector */}
+              <div>
+                <p className="field-label">Spor geçmişin & kas hafızan</p>
+                <div className="space-y-2" role="radiogroup" aria-label="Spor geçmişi">
+                  {experienceOptions.map((item) => {
+                    const active = experienceLevel === item.id;
+                    const Icon = item.icon;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={active}
+                        onClick={() => setExperienceLevel(item.id)}
+                        className={optionClass(active)}
+                      >
+                        <span
+                          className={`w-9 h-9 shrink-0 rounded-xl inline-flex items-center justify-center ${
+                            active ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-500"
+                          }`}
+                        >
+                          <Icon className="w-[18px] h-[18px]" />
+                        </span>
+                        <span className="flex-1 min-w-0">
+                          <span className="block text-sm font-bold text-slate-900">{item.title}</span>
+                          <span className="block text-xs text-slate-500 mt-0.5 leading-snug">{item.desc}</span>
+                        </span>
+                        <RadioDot active={active} />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
+          )}
 
-            {/* Injuries & Limitations Section */}
-            <div className="pt-2">
-              <label className="block text-xs font-bold text-slate-800 mb-2 flex items-center gap-1.5">
-                <HeartPulse className="w-4 h-4 text-rose-500" />
-                <span>Özel Durum & Sakatlık Kısıtlamaları (Harun Hoca Hafızası)</span>
-              </label>
+          {/* ── STEP 2: GOALS & INJURIES / LIMITATIONS ── */}
+          {step === 2 && (
+            <div key="s2" className="space-y-6 animate-fade-in-up">
+              <div>
+                <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">Hedef ve sağlık durumu</h2>
+                <p className="text-sm text-slate-500 mt-1 leading-relaxed">
+                  Antrenör Harun, sakatlıklarınızı ve hedefinizi hafızasına alarak riskli hareketleri programdan
+                  otomatik çıkaracaktır.
+                </p>
+              </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                {injuryChips.map((chip) => {
-                  const isSel =
-                    chip.id === "none"
-                      ? selectedInjuries.includes("none") || selectedInjuries.length === 0
-                      : selectedInjuries.includes(chip.id);
+              {/* Goal Selector */}
+              <div>
+                <p className="field-label flex items-center gap-1.5">
+                  <Target className="w-3.5 h-3.5 text-emerald-600" /> Ana hedef
+                </p>
+                <div className="space-y-2" role="radiogroup" aria-label="Ana hedef">
+                  {goalOptions.map((item) => {
+                    const active = fitnessGoal === item.id;
+                    const Icon = item.icon;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={active}
+                        onClick={() => setFitnessGoal(item.id)}
+                        className={optionClass(active)}
+                      >
+                        <span
+                          className={`w-9 h-9 shrink-0 rounded-xl inline-flex items-center justify-center ${
+                            active ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-500"
+                          }`}
+                        >
+                          <Icon className="w-[18px] h-[18px]" />
+                        </span>
+                        <span className="flex-1 min-w-0">
+                          <span className="block text-sm font-bold text-slate-900">{item.title}</span>
+                          <span className={`${active ? "chip-primary" : "chip"} mt-1`}>{item.badge}</span>
+                          <span className="block text-xs text-slate-500 mt-1 leading-snug">{item.desc}</span>
+                        </span>
+                        <RadioDot active={active} />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
 
+              {/* Injuries & Limitations Section */}
+              <div>
+                <p className="field-label flex items-center gap-1.5">
+                  <HeartPulse className="w-3.5 h-3.5 text-rose-500" /> Sakatlık & özel durum
+                </p>
+                <p className="text-xs text-slate-500 -mt-0.5 mb-2">Harun Hoca bunları hafızasına alır.</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {injuryChips.map((chip) => {
+                    const isSel =
+                      chip.id === "none"
+                        ? selectedInjuries.includes("none") || selectedInjuries.length === 0
+                        : selectedInjuries.includes(chip.id);
+                    return (
+                      <button
+                        key={chip.id}
+                        type="button"
+                        role="checkbox"
+                        aria-checked={isSel}
+                        onClick={() => toggleInjuryChip(chip.id)}
+                        className={`min-h-[52px] px-3 py-2 rounded-xl border text-left tap-effect flex items-center gap-2.5 ${
+                          isSel
+                            ? chip.id === "none"
+                              ? "bg-emerald-50 border-emerald-500"
+                              : "bg-amber-50 border-amber-400"
+                            : "bg-white border-slate-200 md:hover:bg-slate-50"
+                        }`}
+                      >
+                        {chip.id === "none" ? (
+                          <ShieldAlert
+                            className={`w-4 h-4 shrink-0 ${isSel ? "text-emerald-600" : "text-slate-400"}`}
+                          />
+                        ) : (
+                          <HeartPulse className={`w-4 h-4 shrink-0 ${isSel ? "text-amber-600" : "text-slate-400"}`} />
+                        )}
+                        <span className="flex-1 min-w-0">
+                          <span className="block text-[13px] font-semibold text-slate-900 truncate">{chip.label}</span>
+                          <span className="block text-xs text-slate-500 truncate">{chip.desc}</span>
+                        </span>
+                        <CheckBox active={isSel} />
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <label htmlFor="ob-injury-notes" className="sr-only">
+                  Ekstra detay
+                </label>
+                <input
+                  id="ob-injury-notes"
+                  type="text"
+                  value={customInjuryNotes}
+                  onChange={(e) => setCustomInjuryNotes(e.target.value)}
+                  placeholder="Ekstra detay (örn: Sol omzumda çıtlama var)..."
+                  className="input mt-2"
+                />
+              </div>
+
+              {/* Weekly Workout Days */}
+              <div>
+                <p className="field-label flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-emerald-600" /> Haftada kaç gün?
+                </p>
+                <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Haftalık gün">
+                  {[3, 4, 5].map((days) => {
+                    const active = workoutDays === days;
+                    return (
+                      <button
+                        key={days}
+                        type="button"
+                        role="radio"
+                        aria-checked={active}
+                        onClick={() => setWorkoutDays(days)}
+                        className={`min-h-[60px] rounded-2xl border tap-effect flex flex-col items-center justify-center ${
+                          active
+                            ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
+                            : "bg-white border-slate-200 text-slate-700 md:hover:bg-slate-50"
+                        }`}
+                      >
+                        <span className="text-base font-extrabold tabular-nums">{days} gün</span>
+                        <span className={`text-xs ${active ? "text-emerald-50" : "text-slate-400"}`}>Döngüsel split</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── STEP 3: EQUIPMENT & MAX DUMBBELL WEIGHT ── */}
+          {step === 3 && (
+            <div key="s3" className="space-y-6 animate-fade-in-up">
+              <div>
+                <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">Mevcut ekipmanların</h2>
+                <p className="text-sm text-slate-500 mt-1 leading-relaxed">
+                  Antrenör Harun, egzersizlerinizi ve ağırlık hedeflerinizi sahip olduğunuz ekipmana göre
+                  ayarlayacaktır.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                {equipmentOptions.map((item) => {
+                  const isSelected = selectedEquipment.includes(item.id);
                   return (
                     <button
-                      key={chip.id}
+                      key={item.id}
                       type="button"
-                      onClick={() => toggleInjuryChip(chip.id)}
-                      className={`p-2 rounded-xl text-[11px] font-bold text-left transition-all border tap-effect flex items-center justify-between ${
-                        isSel
-                          ? "bg-rose-50 border-rose-400 text-rose-900 shadow-sm"
-                          : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
-                      }`}
+                      role="checkbox"
+                      aria-checked={isSelected}
+                      onClick={() => toggleEquipment(item.id)}
+                      className={optionClass(isSelected)}
                     >
-                      <span className="truncate">{chip.label}</span>
-                      {isSel && <Check className="w-3 h-3 text-rose-600 flex-shrink-0" />}
+                      <CheckBox active={isSelected} />
+                      <span className="flex-1 min-w-0">
+                        <span className="block text-sm font-bold text-slate-900">{item.title}</span>
+                        <span className="block text-xs text-slate-500 mt-0.5 leading-snug">{item.desc}</span>
+                      </span>
                     </button>
                   );
                 })}
               </div>
 
-              <div className="mt-2">
-                <input
-                  type="text"
-                  value={customInjuryNotes}
-                  onChange={(e) => setCustomInjuryNotes(e.target.value)}
-                  placeholder="Ekstra detay (örn: Sol omzumda çıtlama var, masa başı çalışıyorum)..."
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-500"
-                />
-              </div>
-            </div>
-
-            {/* Weekly Workout Days */}
-            <div className="pt-2">
-              <label className="block text-xs font-bold text-slate-700 mb-2">
-                Haftada Kaç Gün Antrenman Yapabilirsiniz?
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                {[3, 4, 5].map((days) => (
-                  <button
-                    key={days}
-                    type="button"
-                    onClick={() => setWorkoutDays(days)}
-                    className={`py-3 rounded-2xl border text-xs font-extrabold transition-all tap-effect flex flex-col items-center justify-center ${
-                      workoutDays === days
-                        ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
-                        : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
-                    }`}
-                  >
-                    <span>{days} Gün</span>
-                    <span className="text-[10px] font-normal opacity-80 mt-0.5">Döngüsel Split</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="pt-3 flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => setStep(1)}
-                className="px-4 py-2.5 text-xs font-bold text-slate-500 hover:text-slate-800"
-              >
-                Geri
-              </button>
-              <button
-                type="button"
-                onClick={() => setStep(3)}
-                className="px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-sm tap-effect flex items-center gap-2"
-              >
-                <span>Devam Et</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ── STEP 3: EQUIPMENT & MAX DUMBBELL WEIGHT ── */}
-        {step === 3 && (
-          <div className="space-y-4 animate-fade-in">
-            <div>
-              <h2 className="text-lg font-black text-slate-900 tracking-tight">
-                Mevcut Ekipmanlarınız
-              </h2>
-              <p className="text-xs text-slate-500 mt-1">
-                Antrenör Harun, egzersizlerinizi ve ağırlık hedeflerinizi sahip olduğunuz ekipmana göre ayarlayacaktır.
-              </p>
-            </div>
-
-            <div className="space-y-2 pt-1">
-              {[
-                {
-                  id: "Dumbbell",
-                  title: "Dambıllar (Ayarlanabilir / Sabit Set) 🏋️‍♂️",
-                  desc: "Presler, row, goblet squat ve kol hareketleri.",
-                },
-                {
-                  id: "Bench",
-                  title: "Ayarlanabilir Sehpa / Düz Bench 🪑",
-                  desc: "Incline & flat bench press ve izole hareketler.",
-                },
-                {
-                  id: "Pull-up Bar",
-                  title: "Barfiks Barı 🚪",
-                  desc: "Geniş sırt, kanat ve biceps çekişleri.",
-                },
-                {
-                  id: "Ab-Wheel",
-                  title: "Ab-Wheel (Karın Tekeri) ⚙️",
-                  desc: "Core ve karın stabilitesi.",
-                },
-                {
-                  id: "Bands",
-                  title: "Direnç Lastikleri (Resistance Bands) 🤸",
-                  desc: "Isınma, omuz ve eklem destek egzersizleri.",
-                },
-                {
-                  id: "FullGym",
-                  title: "Tam Donanımlı Spor Salonu (Barbell & Cable) 🏢",
-                  desc: "Tüm salon makineleri ve barbell istasyonları.",
-                },
-                {
-                  id: "Bodyweight",
-                  title: "Vücut Ağırlığı & Zemin / Mat 🧘",
-                  desc: "Şınav, plank, floor press ve esneme hareketleri.",
-                },
-              ].map((item) => {
-                const isSelected = selectedEquipment.includes(item.id);
-                return (
-                  <div
-                    key={item.id}
-                    onClick={() => toggleEquipment(item.id)}
-                    className={`p-3.5 rounded-2xl border transition-all cursor-pointer tap-effect flex items-start justify-between ${
-                      isSelected
-                        ? "bg-emerald-50 border-emerald-500 text-slate-900 shadow-sm"
-                        : "bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700"
-                    }`}
-                  >
-                    <div>
-                      <h4 className="text-xs font-bold">{item.title}</h4>
-                      <p className="text-[11px] text-slate-500 mt-0.5">{item.desc}</p>
-                    </div>
-                    <div
-                      className={`w-5 h-5 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                        isSelected ? "bg-emerald-600 text-white" : "border border-slate-300"
-                      }`}
+              {/* Max Dumbbell Weight Dropdown/Input if Dumbbells selected */}
+              {selectedEquipment.includes("Dumbbell") && (
+                <div className="card-muted space-y-2 animate-fade-in-up">
+                  <label htmlFor="ob-dumbbell" className="field-label !mb-0 flex items-center gap-1.5">
+                    <Dumbbell className="w-3.5 h-3.5 text-emerald-600" /> Tek elde maksimum dambıl (kg)
+                  </label>
+                  <div className="grid grid-cols-[1fr_6rem] gap-2">
+                    <select
+                      id="ob-dumbbell"
+                      value={maxDumbbellWeightStr}
+                      onChange={(e) => setMaxDumbbellWeightStr(e.target.value)}
+                      className="input font-semibold min-w-0"
                     >
-                      {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
-                    </div>
+                      {dumbbellOptions.map((opt) => (
+                        <option key={opt.val} value={opt.val}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      aria-label="Özel ağırlık (kg)"
+                      value={maxDumbbellWeightStr}
+                      onChange={(e) => setMaxDumbbellWeightStr(e.target.value)}
+                      placeholder="24.5"
+                      className="input font-bold tabular-nums text-center min-w-0"
+                    />
                   </div>
-                );
-              })}
-            </div>
-
-            {/* Max Dumbbell Weight Dropdown/Input if Dumbbells selected */}
-            {selectedEquipment.includes("Dumbbell") && (
-              <div className="p-4 bg-emerald-50/80 border border-emerald-200 rounded-2xl space-y-2 animate-slide-up">
-                <label className="block text-xs font-black text-emerald-900">
-                  🏋️‍♂️ Tek Elde Maksimum Dambıl Kapasiteniz Kaç kg?
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <select
-                    value={maxDumbbellWeightStr}
-                    onChange={(e) => setMaxDumbbellWeightStr(e.target.value)}
-                    className="px-3 py-2 bg-white border border-emerald-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-500"
-                  >
-                    {dumbbellOptions.map((opt) => (
-                      <option key={opt.val} value={opt.val}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={maxDumbbellWeightStr}
-                    onChange={(e) => setMaxDumbbellWeightStr(e.target.value)}
-                    placeholder="Örn: 24.5"
-                    className="px-3 py-2 bg-white border border-emerald-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-500"
-                  />
-                </div>
-                <p className="text-[10px] text-emerald-700">
-                  Antrenör Harun, program yazarken ağırlıklarınızı asla bu sınırın ({parsedMaxDumbbell} kg) üzerine çıkarmayacaktır.
-                </p>
-              </div>
-            )}
-
-            <div className="pt-3 flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => setStep(2)}
-                className="px-4 py-2.5 text-xs font-bold text-slate-500 hover:text-slate-800"
-              >
-                Geri
-              </button>
-              <button
-                type="button"
-                onClick={() => setStep(4)}
-                className="px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-sm tap-effect flex items-center gap-2"
-              >
-                <span>Antrenör Harun ile Tanış</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ── STEP 4: MEET COACH HARUN & FINISH ── */}
-        {step === 4 && (
-          <div className="space-y-5 animate-fade-in text-center">
-            <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-emerald-600 to-teal-700 text-white flex items-center justify-center mx-auto shadow-xl shadow-emerald-600/30">
-              <Dumbbell className="w-8 h-8" />
-            </div>
-
-            <div>
-              <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 font-extrabold text-[10px] uppercase tracking-wider">
-                Kişisel Baş Antrenörün
-              </span>
-              <h2 className="text-xl font-black text-slate-900 tracking-tight mt-2">
-                Merhaba {user.display_name || user.username}, Ben Antrenörün Harun! 🤝
-              </h2>
-            </div>
-
-            <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl text-left text-xs text-slate-700 leading-relaxed space-y-2">
-              <p>
-                <strong className="text-slate-900">Profilini analiz ettim:</strong> {parsedCurrentWeight} kg başlangıç kilon, {parsedTargetWeight} kg hedef kilon ve {workoutDays} günlük antrenman hedefin için tüm hazırlıkları yaptım.
-              </p>
-              {compiledLimitations && compiledLimitations !== "Sakatlık yok" && (
-                <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-900 font-medium text-xs">
-                  ⚠️ <strong>Sakatlık Kısıtlaması Hafızama Alındı:</strong> {compiledLimitations}. Bu bölgeleri zorlayacak riskli varyasyonlar yerine güvenli hareketler planlayacağım.
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    Antrenör Harun, program yazarken ağırlıklarınızı asla bu sınırın (
+                    <span className="tabular-nums font-semibold text-slate-700">{parsedMaxDumbbell} kg</span>) üzerine
+                    çıkarmayacaktır.
+                  </p>
                 </div>
               )}
-              <p>
-                {selectedEquipment.includes("Dumbbell")
-                  ? `Maksimum ${parsedMaxDumbbell} kg dambıl kapasitene ve mevcut ekipmanlarına göre programını hazırlayacağım.`
-                  : "Mevcut ekipmanlarına göre tamamen kişiselleştirilmiş bir program uygulayacağız."}
-              </p>
             </div>
+          )}
 
-            {/* Quick Profile Summary Badge */}
-            <div className="grid grid-cols-3 gap-2 bg-emerald-50/60 p-3 rounded-2xl border border-emerald-200/70 text-left">
-              <div>
-                <span className="text-[10px] text-slate-400 font-bold block">KİLO / HEDEF</span>
-                <span className="text-xs font-black text-slate-900">{parsedCurrentWeight}kg ➔ {parsedTargetWeight}kg</span>
+          {/* ── STEP 4: MEET COACH HARUN & FINISH ── */}
+          {step === 4 && (
+            <div key="s4" className="space-y-5 animate-fade-in-up">
+              <div className="text-center">
+                <div className="w-16 h-16 rounded-3xl bg-gradient-to-br from-emerald-500 to-emerald-700 text-white flex items-center justify-center mx-auto shadow-lg shadow-emerald-700/20">
+                  <Dumbbell className="w-8 h-8" />
+                </div>
+                <p className="eyebrow text-emerald-600 mt-4">Kişisel baş antrenörün</p>
+                <h2 className="text-xl font-extrabold text-slate-900 tracking-tight mt-1">
+                  Merhaba {userName}, ben Harun!
+                </h2>
               </div>
-              <div>
-                <span className="text-[10px] text-slate-400 font-bold block">HAFTALIK DÖNGÜ</span>
-                <span className="text-xs font-black text-emerald-800">{workoutDays} Gün / Hafta</span>
-              </div>
-              <div>
-                <span className="text-[10px] text-slate-400 font-bold block">EKİPMAN SINIRI</span>
-                <span className="text-xs font-black text-slate-900">{parsedMaxDumbbell} kg Max</span>
+
+              {/* Quick Profile Summary */}
+              <dl className="grid grid-cols-2 gap-px rounded-2xl overflow-hidden bg-slate-200/70 border border-slate-200/70">
+                {[
+                  { label: "Fizyoloji", value: gender === "female" ? "Kadın" : "Erkek" },
+                  { label: "Kilo → hedef", value: `${parsedCurrentWeight} → ${parsedTargetWeight} kg` },
+                  { label: "Haftalık döngü", value: `${workoutDays} gün / hafta` },
+                  { label: "Dambıl sınırı", value: `${parsedMaxDumbbell} kg max` },
+                ].map((s) => (
+                  <div key={s.label} className="bg-white p-3 min-w-0">
+                    <dt className="eyebrow">{s.label}</dt>
+                    <dd className="text-sm font-bold text-slate-900 tabular-nums mt-0.5 truncate">{s.value}</dd>
+                  </div>
+                ))}
+              </dl>
+
+              <div className="space-y-3 text-sm text-slate-700 leading-relaxed">
+                <p>
+                  <strong className="text-slate-900">Fizyolojik profilini analiz ettim:</strong>{" "}
+                  {gender === "female" ? "Kadın" : "Erkek"} metabolizmana özel bazal kalori (BMR), kas toparlanma
+                  dinamikleri, <span className="tabular-nums">{parsedCurrentWeight}</span> kg başlangıç ve{" "}
+                  <span className="tabular-nums">{parsedTargetWeight}</span> kg hedefin için tüm döngüyü hazırladım.
+                </p>
+
+                <div className="flex gap-2.5 p-3 rounded-xl bg-emerald-50 text-emerald-900 text-[13px]">
+                  <Zap className="w-4 h-4 shrink-0 mt-0.5 text-emerald-600" />
+                  {gender === "female" ? (
+                    <p>
+                      <strong>Kadın fizyolojisi optimizasyonu:</strong> Alt vücut & glute toparlanma avantajını
+                      maksimize edip, üst vücutta hassas dambıl artışlarıyla yağsız sıkılaşma sağlayacağız.
+                    </p>
+                  ) : (
+                    <p>
+                      <strong>Erkek fizyolojisi optimizasyonu:</strong> Üst vücut hipertrofisi ve progressive overload
+                      ağırlık artışlarıyla maksimum kuvvet ve V-taper formu hedefleyeceğiz.
+                    </p>
+                  )}
+                </div>
+
+                {compiledLimitations && compiledLimitations !== "Sakatlık yok" && (
+                  <div className="flex gap-2.5 p-3 rounded-xl bg-amber-50 text-amber-900 text-[13px]">
+                    <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
+                    <p className="min-w-0 break-words">
+                      <strong>Sakatlık kısıtlaması hafızama alındı:</strong> {compiledLimitations}. Bu bölgeleri
+                      zorlayacak riskli varyasyonlar yerine güvenli hareketler planlayacağım.
+                    </p>
+                  </div>
+                )}
+
+                <p className="flex gap-2.5">
+                  <Layers className="w-4 h-4 shrink-0 mt-0.5 text-slate-400" />
+                  <span>
+                    {selectedEquipment.includes("Dumbbell")
+                      ? `Maksimum ${parsedMaxDumbbell} kg dambıl kapasitene ve mevcut ekipmanlarına göre programını hazırlayacağım.`
+                      : "Mevcut ekipmanlarına göre tamamen kişiselleştirilmiş bir program uygulayacağız."}
+                  </span>
+                </p>
               </div>
             </div>
+          )}
+        </div>
 
-            <div className="pt-2">
+        {/* ── Sticky footer: Back / Next ── */}
+        <div className="shrink-0 border-t border-slate-100 bg-white px-4 sm:px-6 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:pb-4 sm:rounded-b-3xl">
+          <div className={`grid gap-2 ${step > 1 ? "grid-cols-[auto_1fr]" : "grid-cols-1"}`}>
+            {step > 1 && (
+              <button
+                type="button"
+                onClick={() => setStep((step - 1) as 1 | 2 | 3)}
+                className="btn-secondary btn-lg"
+                aria-label="Geri"
+              >
+                <ArrowLeft />
+                <span className="hidden min-[400px]:inline">Geri</span>
+              </button>
+            )}
+            {step < 4 ? (
+              <button
+                type="button"
+                onClick={() => setStep((step + 1) as 2 | 3 | 4)}
+                className="btn-primary btn-lg"
+              >
+                {step === 3 ? "Harun ile Tanış" : "Devam Et"}
+                <ArrowRight />
+              </button>
+            ) : (
               <button
                 type="button"
                 disabled={isSaving}
                 onClick={handleFinishOnboarding}
-                className="w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm shadow-xl shadow-emerald-600/25 tap-effect flex items-center justify-center gap-2 transition-all"
+                className="btn-primary btn-lg"
               >
-                <Zap className="w-4 h-4 fill-current" />
-                <span>{isSaving ? "Profil Kaydediliyor..." : "Kurulumu Tamamla & Antrenmana Başla"}</span>
+                {isSaving ? (
+                  <span className="spinner !w-4 !h-4 !border-2 border-white border-t-transparent" />
+                ) : (
+                  <CheckCircle2 />
+                )}
+                {isSaving ? "Kaydediliyor..." : "Kurulumu Tamamla"}
               </button>
-            </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

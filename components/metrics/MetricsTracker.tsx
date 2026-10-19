@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { BodyMetric } from "@/types";
 import { analyzeBodyMetrics } from "@/lib/metrics-calculator";
 import { createClient } from "@/lib/supabase/client";
@@ -13,15 +14,23 @@ import {
   TrendingUp,
   Plus,
   Trash2,
-  CheckCircle2,
   Calendar,
-  Flame,
-  Activity
+  X,
+  Check,
 } from "lucide-react";
 
 interface MetricsTrackerProps {
   initialMetrics: BodyMetric[];
 }
+
+const STATUS_LABEL: Record<string, string> = {
+  recomposition: "Recomp",
+  deficit: "Kalori açığı",
+  steady: "Stabil",
+  surplus: "Kalori fazlası",
+};
+
+const formatSigned = (n: number) => (n > 0 ? `+${n}` : `${n}`);
 
 export default function MetricsTracker({ initialMetrics }: MetricsTrackerProps) {
   const [metrics, setMetrics] = useState<BodyMetric[]>(initialMetrics);
@@ -36,6 +45,21 @@ export default function MetricsTracker({ initialMetrics }: MetricsTrackerProps) 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const analysis = analyzeBodyMetrics(metrics);
+
+  // Sheet: lock body scroll + close on Escape
+  useEffect(() => {
+    if (!showAddForm) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowAddForm(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [showAddForm]);
 
   const handleAddMetric = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,284 +112,339 @@ export default function MetricsTracker({ initialMetrics }: MetricsTrackerProps) 
     }
   };
 
+  const formatDate = (d: string) =>
+    new Date(d).toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" });
+
+  // The analysis message starts with an emoji; the card already shows an icon.
+  const recompMessage = analysis?.recompositionMessage.replace(/^\p{Extended_Pictographic}️?\s*/u, "");
+
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
-      {/* Header & Add Button */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl md:text-2xl font-extrabold text-slate-900 tracking-tight">
-            Vücut Kompozisyonu ve Tartım
-          </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Su dalgalanmalarını filtreleyen 7 günlük hareketli ortalama & gelişim takibi
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="page-title">Vücut & Tartım</h1>
+          <p className="page-subtitle">
+            7 günlük hareketli ortalama su dalgalanmalarını filtreler.
           </p>
         </div>
-
         <button
           type="button"
-          onClick={() => setShowAddForm(!showAddForm)}
-          className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm tap-effect flex items-center gap-1.5"
+          onClick={() => setShowAddForm(true)}
+          className="btn-primary btn-sm shrink-0 mt-0.5"
         >
-          <Plus className="w-4 h-4" /> Yeni Ölçüm / Tartım
+          <Plus /> Ölçüm ekle
         </button>
       </div>
 
-      {/* Add Metric Form Drawer / Modal */}
-      {showAddForm && (
-        <form
-          onSubmit={handleAddMetric}
-          className="surface-card p-5 md:p-6 animate-slide-up border-emerald-100 bg-white"
-        >
-          <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
-            <Scale className="w-4 h-4 text-emerald-600" /> Yeni Tartım ve Mezura Girişi
-          </h3>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-            <div>
-              <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                Kilo (kg) *
-              </label>
-              <input
-                type="number"
-                step="0.1"
-                required
-                value={weightKg}
-                onChange={(e) => setWeightKg(e.target.value)}
-                placeholder="99.5"
-                className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:border-emerald-500 focus:outline-none text-slate-800 font-bold"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                Bel (cm - Göbek deliği)
-              </label>
-              <input
-                type="number"
-                step="0.1"
-                value={waistCm}
-                onChange={(e) => setWaistCm(e.target.value)}
-                placeholder="100.0"
-                className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:border-emerald-500 focus:outline-none text-slate-800"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                Kol (cm - Sıkılı)
-              </label>
-              <input
-                type="number"
-                step="0.1"
-                value={armCm}
-                onChange={(e) => setArmCm(e.target.value)}
-                placeholder="40.0"
-                className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:border-emerald-500 focus:outline-none text-slate-800"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                Göğüs (cm)
-              </label>
-              <input
-                type="number"
-                step="0.1"
-                value={chestCm}
-                onChange={(e) => setChestCm(e.target.value)}
-                placeholder="113.0"
-                className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:border-emerald-500 focus:outline-none text-slate-800"
-              />
-            </div>
-          </div>
-
-          <div className="mb-4">
-            <label className="block text-[11px] font-bold text-slate-600 mb-1">
-              Not (İsteğe Bağlı)
-            </label>
-            <input
-              type="text"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Sabah aç karnına tartım yapıldı..."
-              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:border-emerald-500 focus:outline-none text-slate-800"
-            />
-          </div>
-
-          <div className="flex items-center justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setShowAddForm(false)}
-              className="px-3.5 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl tap-effect"
-            >
-              İptal
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl tap-effect shadow-sm"
-            >
-              {isSubmitting ? "Kaydediliyor..." : "Kaydet"}
-            </button>
-          </div>
-        </form>
-      )}
-
-      {/* Recomposition Analysis Highlights */}
+      {/* Key stats — compact 3-column strip */}
       {analysis && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-          {/* Moving Avg Card */}
-          <div className="surface-card p-5">
-            <div className="flex items-center justify-between text-slate-400 mb-1.5">
-              <span className="text-xs font-bold uppercase tracking-wider">7G Hareketli Ort.</span>
-              <Activity className="w-4 h-4 text-emerald-500" />
-            </div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black text-slate-900">
-                {analysis.movingAverage7d}
-              </span>
-              <span className="text-xs font-bold text-slate-500">kg</span>
-            </div>
-            <p className="text-[11px] text-slate-500 mt-1">
-              Son tartım: <span className="font-bold text-slate-700">{analysis.currentWeight} kg</span>
+        <div className="card !p-0 grid grid-cols-3 divide-x divide-slate-100">
+          <div className="min-w-0 p-3 sm:p-5">
+            <p className="eyebrow truncate">7G ort.</p>
+            <p className="mt-1.5 flex items-baseline gap-1">
+              <span className="stat-value text-xl sm:text-2xl">{analysis.movingAverage7d}</span>
+              <span className="text-xs font-semibold text-slate-400">kg</span>
+            </p>
+            <p className="mt-1 text-xs text-slate-500 truncate tabular-nums">
+              Son: <span className="font-semibold text-slate-700">{analysis.currentWeight}</span>
             </p>
           </div>
 
-          {/* Waist Trend Card */}
-          <div className="surface-card p-5">
-            <div className="flex items-center justify-between text-slate-400 mb-1.5">
-              <span className="text-xs font-bold uppercase tracking-wider">Bel Çevresi</span>
-              <Flame className="w-4 h-4 text-amber-500" />
-            </div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black text-slate-900">
-                {analysis.currentWaist ? `${analysis.currentWaist}` : "-"}
+          <div className="min-w-0 p-3 sm:p-5">
+            <p className="eyebrow truncate">Bel</p>
+            <p className="mt-1.5 flex items-baseline gap-1">
+              <span className="stat-value text-xl sm:text-2xl">
+                {analysis.currentWaist ? `${analysis.currentWaist}` : "–"}
               </span>
-              {analysis.currentWaist && <span className="text-xs font-bold text-slate-500">cm</span>}
-            </div>
-            <p className="text-[11px] text-slate-500 mt-1">
-              {analysis.waistDelta !== null ? (
-                <span className={`font-bold ${analysis.waistDelta <= 0 ? "text-emerald-600" : "text-amber-600"}`}>
-                  Başlangıca göre: {analysis.waistDelta > 0 ? `+${analysis.waistDelta}` : analysis.waistDelta} cm
-                </span>
-              ) : (
-                "Mezura takibi için düzenli kaydedin"
-              )}
+              {analysis.currentWaist && <span className="text-xs font-semibold text-slate-400">cm</span>}
             </p>
-          </div>
-
-          {/* Arm / Muscle Card */}
-          <div className="surface-card p-5">
-            <div className="flex items-center justify-between text-slate-400 mb-1.5">
-              <span className="text-xs font-bold uppercase tracking-wider">Kol (Biceps/Triceps)</span>
-              <Sparkles className="w-4 h-4 text-emerald-500" />
-            </div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black text-slate-900">
-                {analysis.currentArm ? `${analysis.currentArm}` : "-"}
-              </span>
-              {analysis.currentArm && <span className="text-xs font-bold text-slate-500">cm</span>}
-            </div>
-            <p className="text-[11px] text-slate-500 mt-1">
-              {analysis.armDelta !== null ? (
-                <span className={`font-bold ${analysis.armDelta >= 0 ? "text-emerald-600" : "text-slate-600"}`}>
-                  Değişim: {analysis.armDelta > 0 ? `+${analysis.armDelta}` : analysis.armDelta} cm
-                </span>
-              ) : (
-                "Kol kas kütlesi takibi"
-              )}
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Recomposition Banner */}
-      {analysis && (
-        <div className="surface-card p-5 bg-gradient-to-r from-emerald-50/70 via-white to-amber-50/50 border-emerald-200/60">
-          <div className="flex items-start gap-3">
-            <div className="p-2 bg-emerald-500 text-white rounded-xl shadow-sm mt-0.5">
-              <Sparkles className="w-5 h-5" />
-            </div>
-            <div>
-              <h4 className="text-sm font-bold text-slate-900">
-                Vücut Kompozisyonu & Lean Cut Durumu
-              </h4>
-              <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-                {analysis.recompositionMessage}
+            {analysis.waistDelta !== null ? (
+              <p
+                className={`mt-1 flex items-center gap-1 text-xs font-semibold tabular-nums ${
+                  analysis.waistDelta <= 0 ? "text-emerald-600" : "text-amber-600"
+                }`}
+                title="Başlangıca göre"
+              >
+                {analysis.waistDelta <= 0 ? (
+                  <TrendingDown className="w-3.5 h-3.5 shrink-0" />
+                ) : (
+                  <TrendingUp className="w-3.5 h-3.5 shrink-0" />
+                )}
+                <span className="truncate">{formatSigned(analysis.waistDelta)} cm</span>
               </p>
-            </div>
+            ) : (
+              <p className="mt-1 text-xs text-slate-400 truncate">Kayıt yok</p>
+            )}
+          </div>
+
+          <div className="min-w-0 p-3 sm:p-5">
+            <p className="eyebrow truncate">Kol</p>
+            <p className="mt-1.5 flex items-baseline gap-1">
+              <span className="stat-value text-xl sm:text-2xl">
+                {analysis.currentArm ? `${analysis.currentArm}` : "–"}
+              </span>
+              {analysis.currentArm && <span className="text-xs font-semibold text-slate-400">cm</span>}
+            </p>
+            {analysis.armDelta !== null ? (
+              <p
+                className={`mt-1 flex items-center gap-1 text-xs font-semibold tabular-nums ${
+                  analysis.armDelta >= 0 ? "text-emerald-600" : "text-slate-500"
+                }`}
+                title="Başlangıca göre"
+              >
+                {analysis.armDelta >= 0 ? (
+                  <TrendingUp className="w-3.5 h-3.5 shrink-0" />
+                ) : (
+                  <TrendingDown className="w-3.5 h-3.5 shrink-0" />
+                )}
+                <span className="truncate">{formatSigned(analysis.armDelta)} cm</span>
+              </p>
+            ) : (
+              <p className="mt-1 text-xs text-slate-400 truncate">Kayıt yok</p>
+            )}
           </div>
         </div>
       )}
 
-      {/* ── PROGRESS PHOTOS GALLERY (PRE VS POST PUMP) ── */}
+      {/* Recomposition status */}
+      {analysis && (
+        <div className="card flex items-start gap-3">
+          <div className="w-9 h-9 shrink-0 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+            <Sparkles className="w-[18px] h-[18px]" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <h2 className="section-title min-w-0 truncate">Lean cut durumu</h2>
+              <span className="chip-primary shrink-0">
+                {STATUS_LABEL[analysis.recompositionStatus] ?? analysis.recompositionStatus}
+              </span>
+            </div>
+            <p className="mt-1 text-sm leading-relaxed text-slate-600">{recompMessage}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Progress photos (pre vs post pump) */}
       <ProgressPhotosGallery currentWeight={analysis?.currentWeight} />
 
-      {/* Visual Data Points / Trend Log Table */}
-      <div className="surface-card p-6">
-        <h3 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-emerald-600" /> Ölçüm Geçmişi
-        </h3>
+      {/* Measurement history */}
+      <div className="card">
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <h2 className="section-title flex items-center gap-2 min-w-0">
+            <Calendar className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span className="truncate">Ölçüm geçmişi</span>
+          </h2>
+          {metrics.length > 0 && (
+            <span className="chip shrink-0 tabular-nums">{metrics.length} kayıt</span>
+          )}
+        </div>
 
         {metrics.length === 0 ? (
-          <div className="text-center py-8 text-slate-400 text-xs">
-            Henüz kayıtlı ölçüm bulunmuyor.
+          <div className="py-8 text-center">
+            <Scale className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+            <p className="text-sm text-slate-500">Henüz kayıtlı ölçüm yok.</p>
+            <button
+              type="button"
+              onClick={() => setShowAddForm(true)}
+              className="btn-secondary btn-sm mt-3"
+            >
+              <Plus /> İlk ölçümü ekle
+            </button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="border-b border-slate-100 text-slate-400 uppercase tracking-wider font-semibold">
-                  <th className="py-2.5 px-3">Tarih</th>
-                  <th className="py-2.5 px-3">Kilo</th>
-                  <th className="py-2.5 px-3">Bel</th>
-                  <th className="py-2.5 px-3">Kol</th>
-                  <th className="py-2.5 px-3">Göğüs</th>
-                  <th className="py-2.5 px-3">Not</th>
-                  <th className="py-2.5 px-3 text-right">İşlem</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                {metrics.map((item) => (
-                  <tr key={item.id} className="hover:bg-slate-50/60 transition-colors">
-                    <td className="py-3 px-3 font-semibold text-slate-900">
-                      {new Date(item.recorded_at).toLocaleDateString("tr-TR", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                      })}
-                    </td>
-                    <td className="py-3 px-3 font-bold text-slate-900">
-                      {item.weight_kg} kg
-                    </td>
-                    <td className="py-3 px-3">
-                      {item.waist_cm ? `${item.waist_cm} cm` : "-"}
-                    </td>
-                    <td className="py-3 px-3">
-                      {item.arm_cm ? `${item.arm_cm} cm` : "-"}
-                    </td>
-                    <td className="py-3 px-3">
-                      {item.chest_cm ? `${item.chest_cm} cm` : "-"}
-                    </td>
-                    <td className="py-3 px-3 text-slate-500 max-w-xs truncate">
-                      {item.notes || "-"}
-                    </td>
-                    <td className="py-3 px-3 text-right">
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteMetric(item.id)}
-                        className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg hover:bg-slate-100 tap-effect"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </td>
+          <>
+            {/* Mobile list */}
+            <ul className="md:hidden divide-y divide-slate-100 -mx-1">
+              {metrics.map((item) => (
+                <li key={item.id} className="flex items-center gap-3 py-3 px-1">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-sm font-semibold text-slate-900 truncate tabular-nums">
+                        {formatDate(item.recorded_at)}
+                      </span>
+                      <span className="shrink-0 text-base font-extrabold text-slate-900 tabular-nums">
+                        {item.weight_kg}
+                        <span className="ml-0.5 text-xs font-semibold text-slate-400">kg</span>
+                      </span>
+                    </div>
+                    <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-slate-500 tabular-nums">
+                      <span>Bel <span className="font-semibold text-slate-700">{item.waist_cm ? `${item.waist_cm}` : "–"}</span></span>
+                      <span>Kol <span className="font-semibold text-slate-700">{item.arm_cm ? `${item.arm_cm}` : "–"}</span></span>
+                      <span>Göğüs <span className="font-semibold text-slate-700">{item.chest_cm ? `${item.chest_cm}` : "–"}</span></span>
+                    </div>
+                    {item.notes && (
+                      <p className="mt-1 text-xs text-slate-400 truncate">{item.notes}</p>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteMetric(item.id)}
+                    aria-label="Ölçümü sil"
+                    className="icon-btn text-slate-400 hover:text-red-600 hover:bg-red-50"
+                  >
+                    <Trash2 className="!w-4 !h-4" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-slate-100 text-xs text-slate-400 font-semibold">
+                    <th className="py-2.5 px-3 font-semibold">Tarih</th>
+                    <th className="py-2.5 px-3 font-semibold">Kilo</th>
+                    <th className="py-2.5 px-3 font-semibold">Bel</th>
+                    <th className="py-2.5 px-3 font-semibold">Kol</th>
+                    <th className="py-2.5 px-3 font-semibold">Göğüs</th>
+                    <th className="py-2.5 px-3 font-semibold">Not</th>
+                    <th className="py-2.5 px-3 text-right font-semibold"><span className="sr-only">İşlem</span></th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-slate-700 tabular-nums">
+                  {metrics.map((item) => (
+                    <tr key={item.id} className="md:hover:bg-slate-50/60 transition-colors">
+                      <td className="py-2.5 px-3 font-semibold text-slate-900 whitespace-nowrap">
+                        {formatDate(item.recorded_at)}
+                      </td>
+                      <td className="py-2.5 px-3 font-bold text-slate-900 whitespace-nowrap">{item.weight_kg} kg</td>
+                      <td className="py-2.5 px-3 whitespace-nowrap">{item.waist_cm ? `${item.waist_cm} cm` : "–"}</td>
+                      <td className="py-2.5 px-3 whitespace-nowrap">{item.arm_cm ? `${item.arm_cm} cm` : "–"}</td>
+                      <td className="py-2.5 px-3 whitespace-nowrap">{item.chest_cm ? `${item.chest_cm} cm` : "–"}</td>
+                      <td className="py-2.5 px-3 text-slate-500 max-w-xs truncate">{item.notes || "–"}</td>
+                      <td className="py-1.5 px-3 text-right">
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteMetric(item.id)}
+                          aria-label="Ölçümü sil"
+                          className="icon-btn text-slate-400 hover:text-red-600 hover:bg-red-50"
+                        >
+                          <Trash2 className="!w-4 !h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
+
+      {/* Add measurement — bottom sheet */}
+      {showAddForm && createPortal(
+        <>
+          <div className="sheet-backdrop" onClick={() => setShowAddForm(false)} aria-hidden="true" />
+          <form
+            onSubmit={handleAddMetric}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="add-metric-title"
+            className="sheet"
+          >
+            <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-3 border-b border-slate-100">
+              <h2 id="add-metric-title" className="section-title flex items-center gap-2 min-w-0">
+                <Scale className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span className="truncate">Yeni ölçüm</span>
+              </h2>
+              <button
+                type="button"
+                onClick={() => setShowAddForm(false)}
+                aria-label="Kapat"
+                className="icon-btn -mr-2"
+              >
+                <X />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+              <div>
+                <label htmlFor="m-weight" className="field-label">Kilo (kg) *</label>
+                <input
+                  id="m-weight"
+                  type="number"
+                  inputMode="decimal"
+                  step="0.1"
+                  required
+                  value={weightKg}
+                  onChange={(e) => setWeightKg(e.target.value)}
+                  placeholder="99.5"
+                  className="input font-bold tabular-nums"
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-2.5">
+                <div className="min-w-0">
+                  <label htmlFor="m-waist" className="field-label truncate">Bel (cm)</label>
+                  <input
+                    id="m-waist"
+                    type="number"
+                    inputMode="decimal"
+                    step="0.1"
+                    value={waistCm}
+                    onChange={(e) => setWaistCm(e.target.value)}
+                    placeholder="100.0"
+                    className="input !px-3 tabular-nums"
+                  />
+                </div>
+                <div className="min-w-0">
+                  <label htmlFor="m-arm" className="field-label truncate">Kol (cm)</label>
+                  <input
+                    id="m-arm"
+                    type="number"
+                    inputMode="decimal"
+                    step="0.1"
+                    value={armCm}
+                    onChange={(e) => setArmCm(e.target.value)}
+                    placeholder="40.0"
+                    className="input !px-3 tabular-nums"
+                  />
+                </div>
+                <div className="min-w-0">
+                  <label htmlFor="m-chest" className="field-label truncate">Göğüs (cm)</label>
+                  <input
+                    id="m-chest"
+                    type="number"
+                    inputMode="decimal"
+                    step="0.1"
+                    value={chestCm}
+                    onChange={(e) => setChestCm(e.target.value)}
+                    placeholder="113.0"
+                    className="input !px-3 tabular-nums"
+                  />
+                </div>
+              </div>
+              <p className="-mt-2 text-xs text-slate-500">
+                Bel: göbek deliği hizasından. Kol: sıkılı halde.
+              </p>
+
+              <div>
+                <label htmlFor="m-notes" className="field-label">Not (isteğe bağlı)</label>
+                <input
+                  id="m-notes"
+                  type="text"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Sabah aç karnına tartım..."
+                  className="input"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 px-5 py-3 border-t border-slate-100">
+              <button type="button" onClick={() => setShowAddForm(false)} className="btn-secondary">
+                İptal
+              </button>
+              <button type="submit" disabled={isSubmitting} className="btn-primary">
+                <Check /> {isSubmitting ? "Kaydediliyor..." : "Kaydet"}
+              </button>
+            </div>
+          </form>
+        </>,
+        document.body
+      )}
     </div>
   );
 }

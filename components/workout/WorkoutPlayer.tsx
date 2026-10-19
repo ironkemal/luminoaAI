@@ -233,51 +233,66 @@ export default function WorkoutPlayer({
   const totalSetsCompleted = Object.values(completedSets).reduce((acc, curr) => acc + curr.length, 0);
   const progressPercent = Math.min(100, Math.round((totalSetsCompleted / (totalSetsTarget || 1)) * 100));
 
+  const targetSets = currentRoutineExercise?.target_sets || 0;
+  const loggedForCurrent = currentExercise ? completedSets[currentExercise.id] || [] : [];
+  const displaySetNumber = Math.min(currentSetNumber, Math.max(targetSets, 1));
+  const isLastExercise = currentExerciseIndex === routineExercises.length - 1;
+  const restProgress = restTotalSeconds > 0 ? restSecondsRemaining / restTotalSeconds : 0;
+  const formatTime = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, "0")}`;
+
+  const stepperBtn =
+    "flex items-center justify-center w-12 h-12 shrink-0 rounded-2xl bg-white border border-slate-200 text-slate-800 tap-effect md:hover:bg-slate-100 active:bg-slate-100";
+  const navBtn =
+    "flex items-center justify-center w-14 h-14 shrink-0 rounded-2xl bg-slate-100 text-slate-700 tap-effect disabled:opacity-40 disabled:pointer-events-none";
+
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-between select-none">
-      {/* Top App Bar */}
-      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 py-3">
-        <div className="max-w-xl mx-auto flex items-center justify-between gap-3">
+    <div className="fixed inset-0 z-30 flex flex-col bg-slate-50 select-none">
+      {/* ── Top bar ── */}
+      <header className="shrink-0 bg-white border-b border-slate-200/80 pt-safe">
+        <div className="max-w-xl mx-auto h-14 px-2 flex items-center gap-2">
           <button
+            type="button"
             onClick={() => {
               if (confirm("Antrenmandan çıkmak istediğinize emin misiniz?")) {
                 router.push("/workout");
               }
             }}
-            className="p-2 rounded-xl text-slate-500 hover:bg-slate-100 tap-effect"
+            className="icon-btn"
+            aria-label="Antrenmandan çık"
           >
-            <X className="w-5 h-5" />
+            <X />
           </button>
 
-          <div className="flex-1 text-center">
-            <h1 className="text-sm font-bold text-slate-800 truncate">
-              {routine.name}
-            </h1>
-            <div className="flex items-center justify-center gap-2 mt-1">
-              <div className="w-32 bg-slate-100 rounded-full h-2 overflow-hidden">
-                <div
-                  className="bg-emerald-500 h-full rounded-full transition-all duration-300"
-                  style={{ width: `${progressPercent}%` }}
-                />
-              </div>
-              <span className="text-[11px] font-bold text-slate-500">
-                %{progressPercent}
-              </span>
-            </div>
+          <div className="min-w-0 flex-1 text-center">
+            <h1 className="text-sm font-bold text-slate-900 truncate">{routine.name}</h1>
+            <p className="text-xs text-slate-500 tabular-nums">
+              Egzersiz {currentExerciseIndex + 1}/{routineExercises.length} · %{progressPercent}
+            </p>
           </div>
 
-          <button
-            onClick={() => setShowFinishModal(true)}
-            className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs border border-emerald-200 tap-effect"
-          >
+          <button type="button" onClick={() => setShowFinishModal(true)} className="btn-secondary btn-sm shrink-0 mr-1">
             Bitir
           </button>
         </div>
+        {/* Overall progress */}
+        <div
+          className="h-1 bg-slate-100"
+          role="progressbar"
+          aria-valuenow={progressPercent}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label="Antrenman ilerlemesi"
+        >
+          <div
+            className="h-full bg-emerald-500 origin-left"
+            style={{ transform: `scaleX(${progressPercent / 100})`, transition: "transform 300ms var(--ease-out)" }}
+          />
+        </div>
       </header>
 
-      {/* Exercise Pill Tabs */}
-      <div className="bg-white border-b border-slate-200/60 overflow-x-auto py-2.5 px-4 scrollbar-none">
-        <div className="flex items-center gap-2 max-w-xl mx-auto">
+      {/* ── Exercise tabs ── */}
+      <nav aria-label="Egzersizler" className="shrink-0 bg-white border-b border-slate-200/60">
+        <div className="max-w-xl mx-auto flex gap-2 overflow-x-auto no-scrollbar px-4 py-2.5">
           {routineExercises.map((re, index) => {
             const isCurrent = index === currentExerciseIndex;
             const completedCount = completedSets[re.exercise_id]?.length || 0;
@@ -286,259 +301,288 @@ export default function WorkoutPlayer({
             return (
               <button
                 key={re.id}
+                type="button"
                 onClick={() => setCurrentExerciseIndex(index)}
-                className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all tap-effect ${
+                aria-current={isCurrent ? "step" : undefined}
+                className={`shrink-0 max-w-[11rem] min-h-[36px] px-3 rounded-xl text-xs font-semibold flex items-center gap-1.5 tap-effect transition-colors ${
                   isCurrent
-                    ? "bg-slate-900 text-white shadow-sm"
+                    ? "bg-slate-900 text-white"
                     : isFinished
-                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    ? "bg-emerald-50 text-emerald-700"
+                    : "bg-slate-100 text-slate-600 md:hover:bg-slate-200"
                 }`}
               >
-                {isFinished && <Check className="w-3.5 h-3.5 text-emerald-600" />}
-                <span>{index + 1}. {re.exercise?.name.slice(0, 14)}...</span>
+                {isFinished ? (
+                  <Check className="w-3.5 h-3.5 shrink-0" strokeWidth={3} />
+                ) : (
+                  <span className="tabular-nums shrink-0 opacity-60">{index + 1}</span>
+                )}
+                <span className="truncate">{re.exercise?.name}</span>
               </button>
             );
           })}
         </div>
-      </div>
+      </nav>
 
-      {/* Main Focus Area */}
-      <main className="flex-1 max-w-xl mx-auto w-full p-4 flex flex-col justify-center animate-fade-in">
-        {/* Rest Timer Bar */}
-        {isResting && (
-          <div className="mb-4 bg-emerald-600 text-white rounded-3xl p-5 shadow-card flex flex-col items-center animate-slide-up relative overflow-hidden">
-            <div className="flex items-center justify-between w-full mb-2 text-xs text-emerald-100">
-              <span className="font-semibold flex items-center gap-1.5">
-                <Timer className="w-4 h-4 animate-spin" /> Dinlenme Sayacı
-              </span>
-              <button
-                onClick={stopRestTimer}
-                className="text-xs underline text-emerald-200 hover:text-white font-medium"
-              >
-                Dinlenmeyi Atla
-              </button>
-            </div>
-
-            <div className="text-4xl sm:text-5xl font-black tracking-tight my-1">
-              {Math.floor(restSecondsRemaining / 60)}:
-              {(restSecondsRemaining % 60).toString().padStart(2, "0")}
-            </div>
-
-            <div className="flex items-center gap-2 mt-3">
-              <button
-                onClick={() => addRestTime(-15)}
-                className="px-3 py-1 bg-emerald-700/60 hover:bg-emerald-700 rounded-lg text-xs font-semibold tap-effect"
-              >
-                -15s
-              </button>
-              <button
-                onClick={() => addRestTime(30)}
-                className="px-3 py-1 bg-emerald-700/60 hover:bg-emerald-700 rounded-lg text-xs font-semibold tap-effect"
-              >
-                +30s
-              </button>
-              <button
-                onClick={stopRestTimer}
-                className="px-4 py-1 bg-white text-emerald-800 rounded-lg text-xs font-bold tap-effect"
-              >
-                Sonraki Sete Geç
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Current Exercise Card */}
-        <div className="surface-card p-5 md:p-7 flex flex-col overflow-hidden">
-          {/* Header & Badges */}
-          <div className="flex items-start justify-between gap-3 mb-3">
-            <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-emerald-600">
-                {currentExercise?.target_muscle} • {currentExercise?.equipment}
-              </span>
-              <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight mt-0.5">
+      {/* ── Main focus area (scrolls) ── */}
+      <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+        <div key={currentExerciseIndex} className="max-w-xl mx-auto w-full px-4 pt-4 pb-6 space-y-4 animate-fade-in">
+          {/* Exercise heading */}
+          <div className="flex items-start gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="eyebrow text-emerald-700 truncate">
+                {currentExercise?.target_muscle} · {currentExercise?.equipment}
+              </p>
+              <h2 className="mt-1 text-[1.375rem] leading-tight font-extrabold text-slate-900 tracking-tight">
                 {currentExercise?.name}
               </h2>
             </div>
-            <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-700 font-bold text-xs">
-              Set {currentSetNumber} / {currentRoutineExercise?.target_sets}
-            </span>
-          </div>
-
-          {/* ── LIVE ANIMATED MOTION GIF CONTAINER ── */}
-          {showAnimation && currentVisual?.gifUrl && (
-            <div className="relative w-full h-44 sm:h-52 bg-slate-950 rounded-2xl mb-4 overflow-hidden flex items-center justify-center border border-slate-200/50 shadow-inner group">
-              <img
-                src={currentVisual.gifUrl}
-                alt={currentExercise?.name}
-                className="w-full h-full object-contain p-2"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = currentVisual.thumbnailUrl || "";
-                }}
-              />
-              <div className="absolute bottom-2 left-2 px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-md text-[10px] font-bold text-white flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                Canlı Form Animasyonu
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowGuideModal(true)}
-                className="absolute bottom-2 right-2 px-2.5 py-1 rounded-lg bg-black/60 hover:bg-black/80 backdrop-blur-md text-[10px] font-bold text-white tap-effect flex items-center gap-1"
-              >
-                <Maximize2 className="w-3 h-3" /> Büyüt
-              </button>
-            </div>
-          )}
-
-          {/* Guide / Animation Toggle Buttons */}
-          <div className="flex items-center justify-between gap-2 mb-4">
             <button
               type="button"
               onClick={() => setShowGuideModal(true)}
-              className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs border border-emerald-200 tap-effect flex items-center gap-1.5"
+              className="btn-secondary btn-sm shrink-0"
+              aria-label="Tüm rehberi aç (ipuçları ve hatalar)"
             >
-              <BookOpen className="w-3.5 h-3.5 text-emerald-600" />
-              Tüm Rehberi Aç (İpuçları & Hatalar)
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setShowAnimation(!showAnimation)}
-              className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold tap-effect flex items-center gap-1"
-            >
-              {showAnimation ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-              {showAnimation ? "Animasyonu Gizle" : "Animasyonu Göster"}
+              <BookOpen /> Rehber
             </button>
           </div>
 
-          {/* Target Values Indicator */}
-          <div className="flex items-center justify-around bg-slate-50 rounded-2xl p-3 mb-5 border border-slate-100">
-            <div className="text-center">
-              <p className="text-[10px] text-slate-400 font-medium">Hedef Ağırlık</p>
-              <p className="text-sm sm:text-base font-bold text-slate-800">
-                {currentRoutineExercise?.target_weight_kg} kg
-              </p>
-            </div>
-            <div className="w-px h-7 bg-slate-200" />
-            <div className="text-center">
-              <p className="text-[10px] text-slate-400 font-medium">Hedef Tekrar</p>
-              <p className="text-sm sm:text-base font-bold text-slate-800">
-                {currentRoutineExercise?.target_reps}
-              </p>
-            </div>
-            <div className="w-px h-7 bg-slate-200" />
-            <div className="text-center">
-              <p className="text-[10px] text-slate-400 font-medium">Dinlenme</p>
-              <p className="text-sm sm:text-base font-bold text-slate-800">
-                {currentExercise?.default_rest_seconds} sn
-              </p>
-            </div>
-          </div>
-
-          {/* Deviation Adjusters */}
-          <div className="grid grid-cols-2 gap-3 mb-5">
-            <div className="bg-slate-50/70 border border-slate-200 rounded-2xl p-3 flex flex-col items-center">
-              <span className="text-xs font-semibold text-slate-500 mb-0.5">
-                Ağırlık (kg)
+          {/* Set progress */}
+          <div>
+            <div className="flex items-baseline justify-between gap-3 mb-1.5">
+              <span className="text-sm font-bold text-slate-900 tabular-nums">
+                Set {displaySetNumber} / {targetSets}
               </span>
-              <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 my-0.5">
-                {activeWeight}
+              <span className="text-xs text-slate-500 tabular-nums">
+                {loggedForCurrent.length} tamamlandı
+              </span>
+            </div>
+            <div className="flex gap-1.5" aria-hidden="true">
+              {Array.from({ length: targetSets }).map((_, i) => (
+                <span
+                  key={i}
+                  className={`h-1.5 flex-1 rounded-full ${
+                    i < loggedForCurrent.length
+                      ? "bg-emerald-500"
+                      : i === loggedForCurrent.length
+                      ? "bg-emerald-200"
+                      : "bg-slate-200"
+                  }`}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Animated form GIF */}
+          {currentVisual?.gifUrl &&
+            (showAnimation ? (
+              <div className="relative w-full h-36 min-[400px]:h-44 sm:h-52 bg-slate-950 rounded-2xl overflow-hidden flex items-center justify-center">
+                <img
+                  src={currentVisual.gifUrl}
+                  alt={currentExercise?.name}
+                  className="w-full h-full object-contain p-2"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = currentVisual.thumbnailUrl || "";
+                  }}
+                />
+                <span className="absolute bottom-2 left-2 px-2 py-1 rounded-lg bg-black/60 backdrop-blur-md text-[11px] font-semibold text-white flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Canlı form
+                </span>
+                <div className="absolute bottom-1.5 right-1.5 flex gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowAnimation(false)}
+                    className="flex items-center justify-center w-10 h-10 rounded-xl bg-black/50 backdrop-blur-md text-white tap-effect"
+                    aria-label="Animasyonu gizle"
+                  >
+                    <EyeOff className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowGuideModal(true)}
+                    className="flex items-center justify-center w-10 h-10 rounded-xl bg-black/50 backdrop-blur-md text-white tap-effect"
+                    aria-label="Büyüt"
+                  >
+                    <Maximize2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-1.5 w-full mt-1.5">
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowAnimation(true)}
+                className="btn-ghost btn-sm -ml-2 text-slate-500"
+              >
+                <Eye /> Animasyonu göster
+              </button>
+            ))}
+
+          {/* Steppers: weight + reps */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="card !p-3 flex flex-col items-center min-w-0">
+              <span className="text-xs font-semibold text-slate-500">Ağırlık (kg)</span>
+              <span className="mt-1.5 text-5xl font-extrabold tracking-tight text-slate-900 tabular-nums leading-none">
+                {activeWeight}
+              </span>
+              <span className="mt-1.5 text-xs text-slate-500 tabular-nums truncate max-w-full">
+                Hedef {currentRoutineExercise?.target_weight_kg} kg
+              </span>
+              <div className="mt-3 flex items-center gap-2 justify-center">
                 <button
                   type="button"
                   onClick={() => setActiveWeight((prev) => Math.max(0, Number((prev - 1.25).toFixed(1))))}
-                  className="flex-1 py-1.5 bg-white border border-slate-200 hover:bg-slate-100 rounded-xl font-bold text-slate-700 tap-effect flex items-center justify-center"
+                  className={stepperBtn}
+                  aria-label="Ağırlığı 1.25 kg azalt"
                 >
-                  <Minus className="w-3.5 h-3.5" />
+                  <Minus className="w-5 h-5" />
                 </button>
                 <button
                   type="button"
                   onClick={() => setActiveWeight((prev) => Math.min(24.5, Number((prev + 1.25).toFixed(1))))}
-                  className="flex-1 py-1.5 bg-white border border-slate-200 hover:bg-slate-100 rounded-xl font-bold text-slate-700 tap-effect flex items-center justify-center"
+                  className={stepperBtn}
+                  aria-label="Ağırlığı 1.25 kg artır"
                 >
-                  <Plus className="w-3.5 h-3.5" />
+                  <Plus className="w-5 h-5" />
                 </button>
               </div>
             </div>
 
-            <div className="bg-slate-50/70 border border-slate-200 rounded-2xl p-3 flex flex-col items-center">
-              <span className="text-xs font-semibold text-slate-500 mb-0.5">
-                Tekrar (Reps)
-              </span>
-              <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 my-0.5">
+            <div className="card !p-3 flex flex-col items-center min-w-0">
+              <span className="text-xs font-semibold text-slate-500">Tekrar</span>
+              <span className="mt-1.5 text-5xl font-extrabold tracking-tight text-slate-900 tabular-nums leading-none">
                 {activeReps}
-              </div>
-              <div className="flex items-center gap-1.5 w-full mt-1.5">
+              </span>
+              <span className="mt-1.5 text-xs text-slate-500 tabular-nums truncate max-w-full">
+                Hedef {currentRoutineExercise?.target_reps}
+              </span>
+              <div className="mt-3 flex items-center gap-2 justify-center">
                 <button
                   type="button"
                   onClick={() => setActiveReps((prev) => Math.max(1, prev - 1))}
-                  className="flex-1 py-1.5 bg-white border border-slate-200 hover:bg-slate-100 rounded-xl font-bold text-slate-700 tap-effect flex items-center justify-center"
+                  className={stepperBtn}
+                  aria-label="Tekrarı azalt"
                 >
-                  <Minus className="w-3.5 h-3.5" />
+                  <Minus className="w-5 h-5" />
                 </button>
                 <button
                   type="button"
                   onClick={() => setActiveReps((prev) => prev + 1)}
-                  className="flex-1 py-1.5 bg-white border border-slate-200 hover:bg-slate-100 rounded-xl font-bold text-slate-700 tap-effect flex items-center justify-center"
+                  className={stepperBtn}
+                  aria-label="Tekrarı artır"
                 >
-                  <Plus className="w-3.5 h-3.5" />
+                  <Plus className="w-5 h-5" />
                 </button>
               </div>
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={handleCompleteSet}
-            className="w-full py-3.5 sm:py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-base sm:text-lg shadow-sm hover:shadow-md tap-effect flex items-center justify-center gap-2.5 transition-all"
-          >
-            <Check className="w-5 h-5 sm:w-6 sm:h-6 stroke-[3]" />
-            Seti Tamamla ve Sayacı Başlat
-          </button>
-        </div>
+          <p className="flex items-center justify-center gap-1.5 text-xs text-slate-500 tabular-nums">
+            <Timer className="w-3.5 h-3.5" /> Dinlenme {currentExercise?.default_rest_seconds} sn
+          </p>
 
-        {/* Previous Completed Sets */}
-        {currentExercise && (completedSets[currentExercise.id]?.length || 0) > 0 && (
-          <div className="mt-3.5 p-4 bg-white rounded-2xl border border-slate-200/80">
-            <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-              Tamamlanan Setler
-            </h4>
-            <div className="flex flex-wrap gap-2">
-              {completedSets[currentExercise.id].map((set) => (
-                <div
-                  key={set.set_number}
-                  className="px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-1.5"
-                >
-                  <Check className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Set {set.set_number}: {set.actual_weight_kg}kg x {set.actual_reps} tekrar</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+          {/* Previous Completed Sets */}
+          {loggedForCurrent.length > 0 && (
+            <section>
+              <h4 className="eyebrow mb-1.5">Tamamlanan setler</h4>
+              <ul className="card !p-0 divide-y divide-slate-100">
+                {loggedForCurrent.map((set) => (
+                  <li key={set.set_number} className="flex items-center gap-3 px-4 py-2.5 text-sm">
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0" strokeWidth={3} />
+                    <span className="font-semibold text-slate-900 tabular-nums">Set {set.set_number}</span>
+                    <span className="ml-auto text-slate-600 tabular-nums">
+                      {set.actual_weight_kg} kg × {set.actual_reps}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </div>
       </main>
 
-      {/* Footer Navigation */}
-      <footer className="bg-white border-t border-slate-200 px-4 py-3">
-        <div className="max-w-xl mx-auto flex items-center justify-between gap-3">
-          <button
-            type="button"
-            disabled={currentExerciseIndex === 0}
-            onClick={() => setCurrentExerciseIndex((prev) => prev - 1)}
-            className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold text-slate-700 tap-effect flex items-center gap-1"
-          >
-            <ChevronLeft className="w-4 h-4" /> Önceki Egzersiz
-          </button>
+      {/* ── Bottom action dock (thumb zone) ── */}
+      <footer className="shrink-0 bg-white border-t border-slate-200/80 shadow-[0_-8px_24px_-12px_rgba(15,26,23,0.12)] pb-safe">
+        <div className="max-w-xl mx-auto px-4 py-3">
+          {isResting && (
+            <div className="mb-3 rounded-2xl bg-emerald-600 text-white p-3.5 animate-fade-in-up" role="timer">
+              <div className="flex items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold text-emerald-100 flex items-center gap-1.5">
+                    <Timer className="w-3.5 h-3.5" /> Dinlenme
+                  </p>
+                  <p className="text-[2.75rem] font-extrabold tracking-tight tabular-nums leading-none mt-1">
+                    {formatTime(restSecondsRemaining)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => addRestTime(-15)}
+                  className="h-11 min-w-[3.5rem] px-2 rounded-xl bg-emerald-700/70 text-sm font-bold tabular-nums tap-effect"
+                  aria-label="Dinlenmeyi 15 saniye azalt"
+                >
+                  −15s
+                </button>
+                <button
+                  type="button"
+                  onClick={() => addRestTime(30)}
+                  className="h-11 min-w-[3.5rem] px-2 rounded-xl bg-emerald-700/70 text-sm font-bold tabular-nums tap-effect"
+                  aria-label="Dinlenmeye 30 saniye ekle"
+                >
+                  +30s
+                </button>
+              </div>
+              <div className="mt-3 h-1.5 rounded-full bg-emerald-800/50 overflow-hidden">
+                <div
+                  className="h-full bg-white rounded-full origin-left"
+                  style={{ transform: `scaleX(${restProgress})`, transition: "transform 1s linear" }}
+                />
+              </div>
+            </div>
+          )}
 
-          <button
-            type="button"
-            disabled={currentExerciseIndex === routineExercises.length - 1}
-            onClick={() => setCurrentExerciseIndex((prev) => prev + 1)}
-            className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold text-slate-700 tap-effect flex items-center gap-1"
-          >
-            Sonraki Egzersiz <ChevronRight className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={currentExerciseIndex === 0}
+              onClick={() => setCurrentExerciseIndex((prev) => prev - 1)}
+              className={navBtn}
+              aria-label="Önceki egzersiz"
+            >
+              <ChevronLeft className="w-6 h-6" />
+            </button>
+
+            {isResting ? (
+              <button
+                type="button"
+                onClick={stopRestTimer}
+                className="btn-dark flex-1 min-w-0 !min-h-[56px] !rounded-2xl !text-base"
+                aria-label="Dinlenmeyi atla, sonraki sete geç"
+              >
+                <span className="truncate">Sonraki sete geç</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleCompleteSet}
+                className="btn-primary flex-1 min-w-0 !min-h-[56px] !rounded-2xl !text-base !font-extrabold"
+                aria-label="Seti tamamla ve sayacı başlat"
+              >
+                <Check className="!w-5 !h-5" strokeWidth={3} />
+                <span className="truncate">Seti tamamla</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              disabled={isLastExercise}
+              onClick={() => setCurrentExerciseIndex((prev) => prev + 1)}
+              className={navBtn}
+              aria-label="Sonraki egzersiz"
+            >
+              <ChevronRight className="w-6 h-6" />
+            </button>
+          </div>
         </div>
       </footer>
 
@@ -549,75 +593,81 @@ export default function WorkoutPlayer({
         onClose={() => setShowGuideModal(false)}
       />
 
-      {/* Finish Workout Modal */}
+      {/* Finish Workout Sheet */}
       {showFinishModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl animate-slide-up border border-slate-100">
-            <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4 mx-auto">
-              <Trophy className="w-7 h-7" />
-            </div>
-
-            <h3 className="text-xl font-extrabold text-slate-900 text-center tracking-tight">
-              Harika İş! Antrenmanı Tamamla
-            </h3>
-            <p className="text-xs text-slate-500 text-center mt-1 mb-6">
-              Toplam {totalSetsCompleted} set başarıyla tamamlandı.
-            </p>
-
-            <div className="mb-4">
-              <label className="block text-xs font-bold text-slate-700 mb-2">
-                Genel Zorluk Derecesi (RPE: 1 - 10)
-              </label>
-              <div className="flex items-center justify-between gap-1">
-                {[5, 6, 7, 8, 9, 10].map((score) => (
-                  <button
-                    key={score}
-                    type="button"
-                    onClick={() => setRpeScore(score)}
-                    className={`flex-1 py-2.5 rounded-xl text-xs font-bold tap-effect transition-all ${
-                      rpeScore === score
-                        ? "bg-emerald-600 text-white shadow-sm"
-                        : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                    }`}
-                  >
-                    {score}
-                  </button>
-                ))}
+        <>
+          <div className="sheet-backdrop" onClick={() => setShowFinishModal(false)} aria-hidden="true" />
+          <div role="dialog" aria-modal="true" aria-labelledby="finish-title" className="sheet">
+            <div className="shrink-0 px-4 pt-2.5 pb-3 border-b border-slate-100">
+              <div className="mx-auto mb-2.5 h-1 w-10 rounded-full bg-slate-200 sm:hidden" aria-hidden="true" />
+              <div className="flex items-center gap-3">
+                <span className="flex items-center justify-center w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 shrink-0">
+                  <Trophy className="w-5 h-5" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <h3 id="finish-title" className="section-title truncate">
+                    Harika iş! Antrenmanı bitir
+                  </h3>
+                  <p className="text-xs text-slate-500 tabular-nums">Toplam {totalSetsCompleted} set tamamlandı</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowFinishModal(false)}
+                  className="icon-btn -mr-1.5"
+                  aria-label="Kapat"
+                >
+                  <X />
+                </button>
               </div>
             </div>
 
-            <div className="mb-6">
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                Antrenman Notu (İsteğe Bağlı)
-              </label>
-              <textarea
-                value={sessionNotes}
-                onChange={(e) => setSessionNotes(e.target.value)}
-                placeholder="Örn: Shoulder press çok güçlü hissettirdi..."
-                rows={3}
-                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-500 text-slate-800"
-              />
+            <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 space-y-5">
+              <div>
+                <span className="field-label">Genel zorluk derecesi (RPE 1–10)</span>
+                <div className="grid grid-cols-6 gap-1.5">
+                  {[5, 6, 7, 8, 9, 10].map((score) => (
+                    <button
+                      key={score}
+                      type="button"
+                      onClick={() => setRpeScore(score)}
+                      aria-pressed={rpeScore === score}
+                      className={`h-12 rounded-xl text-base font-bold tabular-nums tap-effect transition-colors ${
+                        rpeScore === score
+                          ? "bg-emerald-600 text-white"
+                          : "bg-slate-100 text-slate-700 md:hover:bg-slate-200"
+                      }`}
+                    >
+                      {score}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="session-notes" className="field-label">
+                  Antrenman notu (isteğe bağlı)
+                </label>
+                <textarea
+                  id="session-notes"
+                  value={sessionNotes}
+                  onChange={(e) => setSessionNotes(e.target.value)}
+                  placeholder="Örn: Shoulder press çok güçlü hissettirdi..."
+                  rows={3}
+                  className="input py-2.5 resize-none select-text"
+                />
+              </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setShowFinishModal(false)}
-                className="flex-1 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs tap-effect"
-              >
-                Geri Dön
+            <div className="shrink-0 px-4 py-3 border-t border-slate-100 grid grid-cols-2 gap-2">
+              <button type="button" onClick={() => setShowFinishModal(false)} className="btn-secondary btn-lg">
+                Geri dön
               </button>
-              <button
-                type="button"
-                disabled={isSaving}
-                onClick={handleFinishWorkout}
-                className="flex-1 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs tap-effect flex items-center justify-center gap-2 shadow-sm"
-              >
-                {isSaving ? "Kaydediliyor..." : "Kaydet ve Bitir"}
+              <button type="button" disabled={isSaving} onClick={handleFinishWorkout} className="btn-primary btn-lg">
+                {isSaving ? "Kaydediliyor..." : "Kaydet ve bitir"}
               </button>
             </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );

@@ -24,6 +24,8 @@ export const translations = {
     navMetrics: "Ölçüm & Kilo",
     navRoutines: "Programlar",
     navCoach: "Harun Hoca",
+    navHome: "Ana Sayfa",
+    navProfile: "Profil",
 
     // Auth / PinLockScreen
     loginTab: "Giriş Yap",
@@ -123,7 +125,7 @@ export const translations = {
 
     // AI Coach Harun
     coachTitle: "Harun Hoca • Baş Antrenör",
-    coachSubtitle: "Gemini Flash motoru, 24.5kg dambıl analizi ve akıllı periyodizasyon",
+    coachSubtitle: "Seni tanıyan kişisel antrenörün",
     tabAnalysis: "Analiz & Durum",
     tabMemory: "Karar Hafızası",
     tabChat: "Harun Hoca ile Sohbet",
@@ -141,8 +143,8 @@ export const translations = {
     savedSessions: "Geçmiş Oturumlar",
     noSavedSessions: "Kayıtlı oturum bulunmuyor.",
     syncDeviceNotice: "PC & Mobilde otomatik senkronize edilir.",
-    chatInputPlaceholderFast: "Harun Hoca'ya yazın (örn: 'Naber', 'Bugün ne yapalım?')...",
-    chatInputPlaceholderDeep: "Derin Düşünme modunda Harun Hoca'ya yazın (örn: 'Bana 4 haftalık periyodizasyon hazırla')...",
+    chatInputPlaceholderFast: "Harun Hoca'ya yaz…",
+    chatInputPlaceholderDeep: "Detaylı bir soru sor…",
     voiceCall: "Sesli",
     voiceCallFull: "Sesli Görüşme",
     quickPrompt1: "💡 Bana 4 günlük yeni bir program yaz",
@@ -151,8 +153,8 @@ export const translations = {
     quickPrompt4: "🥗 Hedefime uygun beslenme stratejisi",
 
     // Progress Photos
-    photosTitle: "Gelişim Fotoğrafları & Form Karşılaştırma",
-    photosSubtitle: "Antrenman öncesi soğuk vs. antrenman sonrası pump fotoğraflarınızı kaydedin",
+    photosTitle: "Gelişim Fotoğrafları",
+    photosSubtitle: "Antrenman öncesi ve pump karşılaştırması",
     addPhotoBtn: "Fotoğraf Ekle",
     timingAll: "Tüm Fotoğraflar",
     timingPre: "Soğuk (Antrenman Öncesi)",
@@ -168,6 +170,15 @@ export const translations = {
     poseBack: "Sırt / Arka",
     poseOther: "Diğer",
     savePhotoBtn: "Fotoğrafı Kaydet",
+
+    // Gender & Physiology
+    genderLabel: "Biyolojik Cinsiyet / Fizyolojik Profil",
+    genderMale: "Erkek",
+    genderFemale: "Kadın",
+    genderMaleBadge: "ÜST VÜCUT & KUVVET",
+    genderFemaleBadge: "ALT VÜCUT & SIKILAŞMA",
+    genderMaleDesc: "Erkek kas kütlesi dağılımı, testosteron/kuvvet dinamikleri ve üst vücut hipertrofisi",
+    genderFemaleDesc: "Kadın metabolizması, hızlı toparlanma, glute/bacak toparlanma avantajı ve yağsız sıkılaşma",
   },
   en: {
     // Brand & Common
@@ -188,6 +199,8 @@ export const translations = {
     navMetrics: "Metrics & Weight",
     navRoutines: "Programs",
     navCoach: "Coach Harun",
+    navHome: "Home",
+    navProfile: "Profile",
 
     // Auth / PinLockScreen
     loginTab: "Log In",
@@ -287,7 +300,7 @@ export const translations = {
 
     // AI Coach Harun
     coachTitle: "Coach Harun • Head Coach",
-    coachSubtitle: "Powered by Gemini Flash, 24.5kg dumbbell calculus & periodization",
+    coachSubtitle: "The personal trainer who knows you",
     tabAnalysis: "Analysis & Status",
     tabMemory: "Decision Memory",
     tabChat: "Chat with Coach Harun",
@@ -305,8 +318,8 @@ export const translations = {
     savedSessions: "Past Sessions",
     noSavedSessions: "No saved sessions.",
     syncDeviceNotice: "Automatically synced across PC & Mobile.",
-    chatInputPlaceholderFast: "Ask Coach Harun (e.g., 'What's the plan today?')...",
-    chatInputPlaceholderDeep: "Ask Coach Harun with Deep Reasoning (e.g. 'Build a 4-week periodization')...",
+    chatInputPlaceholderFast: "Message Coach Harun…",
+    chatInputPlaceholderDeep: "Ask something in depth…",
     voiceCall: "Voice",
     voiceCallFull: "Voice Call",
     quickPrompt1: "💡 Write me a new 4-day program",
@@ -315,8 +328,8 @@ export const translations = {
     quickPrompt4: "🥗 Nutrition & protein strategy",
 
     // Progress Photos
-    photosTitle: "Progress Photos & Form Comparison",
-    photosSubtitle: "Track pre-workout cold vs. post-workout pump photos",
+    photosTitle: "Progress Photos",
+    photosSubtitle: "Pre-workout vs. pump comparison",
     addPhotoBtn: "Add Photo",
     timingAll: "All Photos",
     timingPre: "Cold (Pre-Workout)",
@@ -332,6 +345,15 @@ export const translations = {
     poseBack: "Back",
     poseOther: "Other",
     savePhotoBtn: "Save Photo",
+
+    // Gender & Physiology
+    genderLabel: "Biological Gender / Physiology Profile",
+    genderMale: "Male",
+    genderFemale: "Female",
+    genderMaleBadge: "UPPER BODY & STRENGTH",
+    genderFemaleBadge: "LOWER BODY & TONING",
+    genderMaleDesc: "Male muscle distribution, strength dynamics, and upper-body hypertrophy",
+    genderFemaleDesc: "Female metabolism, faster recovery, glute/leg volume advantage, and lean toning",
   },
   de: {
     // Brand & Common
@@ -352,6 +374,8 @@ export const translations = {
     navMetrics: "Körper & Gewicht",
     navRoutines: "Programme",
     navCoach: "Trainer Harun",
+    navHome: "Start",
+    navProfile: "Profil",
 
     // Auth / PinLockScreen
     loginTab: "Anmelden",
@@ -451,7 +475,7 @@ export const translations = {
 
     // AI Coach Harun
     coachTitle: "Trainer Harun • Cheftrainer",
-    coachSubtitle: "Gemini Flash-Engine, 24.5kg Hantel-Analyse & Periodisierung",
+    coachSubtitle: "Dein Personal Trainer, der dich kennt",
     tabAnalysis: "Analyse & Status",
     tabMemory: "Entscheidungsspeicher",
     tabChat: "Mit Trainer Harun chatten",
@@ -469,8 +493,8 @@ export const translations = {
     savedSessions: "Vergangene Sitzungen",
     noSavedSessions: "Keine gespeicherten Sitzungen.",
     syncDeviceNotice: "Automatisch auf PC & Handy synchronisiert.",
-    chatInputPlaceholderFast: "Schreibe Trainer Harun (z.B. 'Was steht heute an?')...",
-    chatInputPlaceholderDeep: "Schreibe Trainer Harun im Tiefdenken-Modus (z.B. 'Erstelle 4-Wochen-Plan')...",
+    chatInputPlaceholderFast: "Schreib Trainer Harun…",
+    chatInputPlaceholderDeep: "Stell eine ausführliche Frage…",
     voiceCall: "Sprache",
     voiceCallFull: "Sprachanruf",
     quickPrompt1: "💡 Schreibe mir einen neuen 4-Tage-Plan",
@@ -479,8 +503,8 @@ export const translations = {
     quickPrompt4: "🥗 Ernährungs- & Proteinstrategie",
 
     // Progress Photos
-    photosTitle: "Fortschrittsfotos & Formvergleich",
-    photosSubtitle: "Verfolge Vorher-Kalt- vs. Nachher-Pump-Fotos",
+    photosTitle: "Fortschrittsfotos",
+    photosSubtitle: "Vorher vs. Pump im Vergleich",
     addPhotoBtn: "Foto hinzufügen",
     timingAll: "Alle Fotos",
     timingPre: "Kalt (Vor dem Training)",
@@ -496,6 +520,15 @@ export const translations = {
     poseBack: "Rücken / Hinten",
     poseOther: "Sonstiges",
     savePhotoBtn: "Foto speichern",
+
+    // Gender & Physiology
+    genderLabel: "Biologisches Geschlecht / Physiologie-Profil",
+    genderMale: "Männlich",
+    genderFemale: "Weiblich",
+    genderMaleBadge: "OBERKÖRPER & KRAFT",
+    genderFemaleBadge: "UNTERKÖRPER & STRAFFUNG",
+    genderMaleDesc: "Männliche Muskelverteilung, Kraftdynamik und Oberkörper-Hypertrophie",
+    genderFemaleDesc: "Weiblicher Stoffwechsel, schnellere Regeneration, Glute-/Bein-Vorteil und Straffung",
   },
 };
 

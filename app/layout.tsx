@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { LanguageProvider } from "@/lib/i18n";
@@ -19,12 +19,19 @@ export const metadata: Metadata = {
     "100 kg Body Recomposition & Lean Cut takibi, 24.5 kg dambıl antrenman motoru ve AI PT karar mekanizması.",
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#F6F7F5",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="tr" className={jakarta.variable}>
-      <body className="antialiased bg-slate-50 text-slate-900 min-h-screen">
+      <body className="antialiased text-slate-900 min-h-dvh">
         <LanguageProvider>
           <PinLockScreen>
             <Navbar />

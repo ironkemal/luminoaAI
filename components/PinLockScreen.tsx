@@ -5,7 +5,7 @@ import { getCurrentUser, loginUser, registerWithInvitationPin, isAppUnlocked, se
 import { useLanguage, Language } from "@/lib/i18n";
 import { AppUser } from "@/types";
 import WelcomeOnboardingModal from "@/components/onboarding/WelcomeOnboardingModal";
-import { Dumbbell, UserPlus, LogIn, CheckCircle2, KeyRound, Globe } from "lucide-react";
+import { Dumbbell, UserPlus, LogIn, CheckCircle2, KeyRound } from "lucide-react";
 
 interface PinLockScreenProps {
   children: React.ReactNode;
@@ -95,8 +95,8 @@ export default function PinLockScreen({ children }: PinLockScreenProps) {
 
   if (isMounting) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+      <div className="min-h-[100dvh] flex items-center justify-center bg-[#F6F7F5]">
+        <span className="spinner !w-8 !h-8" aria-label="Yükleniyor" />
       </div>
     );
   }
@@ -120,210 +120,223 @@ export default function PinLockScreen({ children }: PinLockScreenProps) {
     );
   }
 
-  const languages: { code: Language; label: string; flag: string }[] = [
-    { code: "tr", label: "TR", flag: "🇹🇷" },
-    { code: "en", label: "EN", flag: "🇬🇧" },
-    { code: "de", label: "DE", flag: "🇩🇪" },
+  const languages: { code: Language; label: string; name: string }[] = [
+    { code: "tr", label: "TR", name: "Türkçe" },
+    { code: "en", label: "EN", name: "English" },
+    { code: "de", label: "DE", name: "Deutsch" },
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-slate-100/60 to-slate-50 flex flex-col items-center justify-center p-4 select-none relative">
-      {/* Language Switcher Top Right */}
-      <div className="absolute top-4 right-4 flex items-center gap-1 bg-white/90 backdrop-blur-md p-1 rounded-2xl border border-slate-200 shadow-sm text-xs font-bold">
-        {languages.map((l) => (
-          <button
-            key={l.code}
-            type="button"
-            onClick={() => setLanguage(l.code)}
-            className={`px-2.5 py-1 rounded-xl transition-all tap-effect flex items-center gap-1 ${
-              language === l.code
-                ? "bg-slate-900 text-white shadow-sm"
-                : "text-slate-500 hover:text-slate-800"
-            }`}
-          >
-            <span>{l.flag}</span>
-            <span>{l.label}</span>
-          </button>
-        ))}
+    <div className="min-h-[100dvh] bg-[#F6F7F5] flex flex-col px-4 pt-safe pb-safe select-none">
+      {/* Top bar: language switcher (plain text — flag emoji don't render on Windows) */}
+      <div className="flex items-center justify-end h-14 shrink-0">
+        <div role="group" aria-label="Dil / Language" className="flex items-center gap-0.5 p-0.5 rounded-lg bg-slate-200/60">
+          {languages.map((l) => (
+            <button
+              key={l.code}
+              type="button"
+              onClick={() => setLanguage(l.code)}
+              title={l.name}
+              aria-label={l.name}
+              aria-pressed={language === l.code}
+              className={`min-w-[44px] h-9 px-2.5 rounded-md text-xs font-bold tracking-wide tap-effect ${
+                language === l.code ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 md:hover:text-slate-800"
+              }`}
+            >
+              {l.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="w-full max-w-sm bg-white rounded-3xl p-6 md:p-8 shadow-card border border-slate-100 flex flex-col items-center animate-slide-up">
-        {/* Logo */}
-        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 text-white flex items-center justify-center shadow-sm shadow-emerald-500/20 mb-3">
-          <Dumbbell className="w-7 h-7" />
-        </div>
+      <div className="flex-1 flex items-center justify-center pb-8">
+        <div className="w-full max-w-sm animate-slide-up">
+          {/* Brand */}
+          <div className="flex flex-col items-center text-center mb-6">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 text-white flex items-center justify-center shadow-sm shadow-emerald-700/20 mb-4">
+              <Dumbbell className="w-7 h-7" />
+            </div>
+            <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">{t("loginTitle")}</h1>
+            <p className="text-sm text-slate-500 mt-1">{t("loginSubtitle")}</p>
+          </div>
 
-        <h1 className="text-xl font-black text-slate-900 tracking-tight">{t("loginTitle")}</h1>
-        <p className="text-xs text-slate-500 mt-0.5 mb-5 text-center">
-          {t("loginSubtitle")}
-        </p>
+          <div className="card !p-5">
+            {/* Tab Switcher */}
+            <div className="segmented mb-5" role="tablist">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === "login"}
+                data-active={mode === "login"}
+                onClick={() => {
+                  setMode("login");
+                  setLoginError("");
+                }}
+                className="segmented-item min-h-[40px] text-[13px]"
+              >
+                <LogIn className="w-4 h-4" /> {t("loginTab")}
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === "register"}
+                data-active={mode === "register"}
+                onClick={() => {
+                  setMode("register");
+                  setRegError("");
+                }}
+                className="segmented-item min-h-[40px] text-[13px]"
+              >
+                <UserPlus className="w-4 h-4" /> {t("registerTab")}
+              </button>
+            </div>
 
-        {/* Tab Switcher */}
-        <div className="grid grid-cols-2 gap-1 bg-slate-100 p-1 rounded-2xl w-full mb-5 text-xs font-bold">
-          <button
-            type="button"
-            onClick={() => {
-              setMode("login");
-              setLoginError("");
-            }}
-            className={`py-2 rounded-xl transition-all tap-effect flex items-center justify-center gap-1.5 ${
-              mode === "login"
-                ? "bg-white text-slate-900 shadow-sm"
-                : "text-slate-500 hover:text-slate-800"
-            }`}
-          >
-            <LogIn className="w-3.5 h-3.5" /> {t("loginTab")}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setMode("register");
-              setRegError("");
-            }}
-            className={`py-2 rounded-xl transition-all tap-effect flex items-center justify-center gap-1.5 ${
-              mode === "register"
-                ? "bg-white text-slate-900 shadow-sm"
-                : "text-slate-500 hover:text-slate-800"
-            }`}
-          >
-            <UserPlus className="w-3.5 h-3.5" /> {t("registerTab")}
-          </button>
-        </div>
+            {/* ── LOGIN FORM ── */}
+            {mode === "login" && (
+              <form onSubmit={handleLogin} className="space-y-4 animate-fade-in">
+                {loginError && (
+                  <div role="alert" className="p-3 rounded-xl bg-red-50 text-red-700 text-sm font-medium">
+                    {loginError}
+                  </div>
+                )}
 
-        {/* ── LOGIN FORM ── */}
-        {mode === "login" && (
-          <form onSubmit={handleLogin} className="w-full space-y-4 animate-fade-in">
-            {loginError && (
-              <div className="p-3 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold">
-                {loginError}
-              </div>
+                <div>
+                  <label htmlFor="login-username" className="field-label">
+                    {t("usernameLabel")}
+                  </label>
+                  <input
+                    id="login-username"
+                    type="text"
+                    required
+                    autoComplete="username"
+                    autoCapitalize="none"
+                    value={loginUsername}
+                    onChange={(e) => setLoginUsername(e.target.value)}
+                    placeholder={t("usernamePlaceholder")}
+                    className="input"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="login-password" className="field-label">
+                    {t("passwordLabel")}
+                  </label>
+                  <input
+                    id="login-password"
+                    type="password"
+                    required
+                    autoComplete="current-password"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    placeholder={t("passwordPlaceholder")}
+                    className="input"
+                  />
+                </div>
+
+                <button type="submit" disabled={isLoggingIn} className="btn-primary btn-lg btn-block !mt-5">
+                  {isLoggingIn ? (
+                    <span className="spinner !w-4 !h-4 !border-2 border-white border-t-transparent" />
+                  ) : (
+                    <LogIn />
+                  )}
+                  {isLoggingIn ? t("loggingIn") : t("loginButton")}
+                </button>
+
+                <p className="text-xs text-slate-400 text-center leading-relaxed">{t("noAccountHint")}</p>
+              </form>
             )}
 
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                {t("usernameLabel")}
-              </label>
-              <input
-                type="text"
-                required
-                value={loginUsername}
-                onChange={(e) => setLoginUsername(e.target.value)}
-                placeholder={t("usernamePlaceholder")}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-500"
-              />
-            </div>
+            {/* ── REGISTER FORM (PIN PROTECTED) ── */}
+            {mode === "register" && (
+              <form onSubmit={handleRegister} className="space-y-4 animate-fade-in">
+                {regError && (
+                  <div role="alert" className="p-3 rounded-xl bg-red-50 text-red-700 text-sm font-medium">
+                    {regError}
+                  </div>
+                )}
 
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                {t("passwordLabel")}
-              </label>
-              <input
-                type="password"
-                required
-                value={loginPassword}
-                onChange={(e) => setLoginPassword(e.target.value)}
-                placeholder={t("passwordPlaceholder")}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-500"
-              />
-            </div>
+                <div className="p-3 rounded-xl bg-emerald-50 text-[13px] leading-relaxed text-emerald-800 flex items-start gap-2.5">
+                  <KeyRound className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  <span className="min-w-0">{t("registerBadge")}</span>
+                </div>
 
-            <button
-              type="submit"
-              disabled={isLoggingIn}
-              className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-sm tap-effect flex items-center justify-center gap-2 mt-2"
-            >
-              <LogIn className="w-4 h-4" />
-              {isLoggingIn ? t("loggingIn") : t("loginButton")}
-            </button>
+                <div>
+                  <label htmlFor="reg-pin" className="field-label">
+                    {t("invitationPinLabel")}
+                  </label>
+                  <input
+                    id="reg-pin"
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={6}
+                    required
+                    value={regPin}
+                    onChange={(e) => setRegPin(e.target.value)}
+                    placeholder={t("invitationPinPlaceholder")}
+                    className={`input ${regPin ? "tracking-widest font-mono" : ""}`}
+                  />
+                </div>
 
-            <div className="pt-2 text-center">
-              <span className="text-[11px] text-slate-400">
-                {t("noAccountHint")}
-              </span>
-            </div>
-          </form>
-        )}
+                <div>
+                  <label htmlFor="reg-display" className="field-label">
+                    {t("displayNameLabel")}
+                  </label>
+                  <input
+                    id="reg-display"
+                    type="text"
+                    autoComplete="name"
+                    value={regDisplayName}
+                    onChange={(e) => setRegDisplayName(e.target.value)}
+                    placeholder={t("displayNamePlaceholder")}
+                    className="input"
+                  />
+                </div>
 
-        {/* ── REGISTER FORM (PIN PROTECTED) ── */}
-        {mode === "register" && (
-          <form onSubmit={handleRegister} className="w-full space-y-3.5 animate-fade-in">
-            {regError && (
-              <div className="p-3 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold">
-                {regError}
-              </div>
+                <div>
+                  <label htmlFor="reg-username" className="field-label">
+                    {t("usernameLabel")} *
+                  </label>
+                  <input
+                    id="reg-username"
+                    type="text"
+                    required
+                    autoComplete="username"
+                    autoCapitalize="none"
+                    value={regUsername}
+                    onChange={(e) => setRegUsername(e.target.value)}
+                    placeholder={t("usernamePlaceholder")}
+                    className="input"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="reg-password" className="field-label">
+                    {t("passwordLabel")} *
+                  </label>
+                  <input
+                    id="reg-password"
+                    type="password"
+                    required
+                    autoComplete="new-password"
+                    value={regPassword}
+                    onChange={(e) => setRegPassword(e.target.value)}
+                    placeholder={t("passwordPlaceholder")}
+                    className="input"
+                  />
+                </div>
+
+                <button type="submit" disabled={isRegistering} className="btn-primary btn-lg btn-block !mt-5">
+                  {isRegistering ? (
+                    <span className="spinner !w-4 !h-4 !border-2 border-white border-t-transparent" />
+                  ) : (
+                    <CheckCircle2 />
+                  )}
+                  {isRegistering ? t("registering") : t("registerButton")}
+                </button>
+              </form>
             )}
-
-            <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 flex items-start gap-2">
-              <KeyRound className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-              <span>{t("registerBadge")}</span>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                {t("invitationPinLabel")}
-              </label>
-              <input
-                type="password"
-                maxLength={6}
-                required
-                value={regPin}
-                onChange={(e) => setRegPin(e.target.value)}
-                placeholder={t("invitationPinPlaceholder")}
-                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-500 tracking-widest font-mono"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                {t("displayNameLabel")}
-              </label>
-              <input
-                type="text"
-                value={regDisplayName}
-                onChange={(e) => setRegDisplayName(e.target.value)}
-                placeholder={t("displayNamePlaceholder")}
-                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                {t("usernameLabel")} *
-              </label>
-              <input
-                type="text"
-                required
-                value={regUsername}
-                onChange={(e) => setRegUsername(e.target.value)}
-                placeholder={t("usernamePlaceholder")}
-                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                {t("passwordLabel")} *
-              </label>
-              <input
-                type="password"
-                required
-                value={regPassword}
-                onChange={(e) => setRegPassword(e.target.value)}
-                placeholder={t("passwordPlaceholder")}
-                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-500"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={isRegistering}
-              className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-sm tap-effect flex items-center justify-center gap-2 mt-2"
-            >
-              <CheckCircle2 className="w-4 h-4" />
-              {isRegistering ? t("registering") : t("registerButton")}
-            </button>
-          </form>
-        )}
+          </div>
+        </div>
       </div>
     </div>
   );

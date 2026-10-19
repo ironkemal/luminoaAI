@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { getCurrentUser } from "@/lib/auth-pin";
 import { WorkoutRoutine, RoutineExercise, Exercise } from "@/types";
 import RoutineManager from "@/components/routines/RoutineManager";
 
@@ -21,10 +22,11 @@ export default function RoutinesPage() {
   const fetchRoutinesAndExercises = async () => {
     setLoading(true);
     const supabase = createClient();
+    const currentUser = getCurrentUser();
 
     try {
-      // 1. Fetch routines with routine_exercises and exercise details
-      const { data: routinesData, error: rErr } = await supabase
+      // 1. Fetch routines with routine_exercises and exercise details (user-scoped)
+      let routinesQuery = supabase
         .from("workout_routines")
         .select(`
           *,
@@ -34,6 +36,12 @@ export default function RoutinesPage() {
           )
         `)
         .order("sequence_order", { ascending: true });
+
+      if (currentUser?.id) {
+        routinesQuery = routinesQuery.eq("user_id", currentUser.id);
+      }
+
+      const { data: routinesData, error: rErr } = await routinesQuery;
 
       if (rErr) throw rErr;
 
@@ -64,14 +72,23 @@ export default function RoutinesPage() {
 
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-12 flex items-center justify-center">
-        <div className="w-8 h-8 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+      <div className="page" aria-busy="true" aria-label="Yükleniyor">
+        <div className="space-y-2">
+          <div className="skeleton h-3 w-24" />
+          <div className="skeleton h-8 w-44" />
+          <div className="skeleton h-4 w-64 max-w-full" />
+        </div>
+        <div className="flex gap-2 overflow-hidden">
+          <div className="skeleton h-11 w-56 shrink-0" />
+          <div className="skeleton h-11 w-48 shrink-0" />
+        </div>
+        <div className="skeleton h-80 rounded-[1.25rem]" />
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6 md:py-8">
+    <div className="page">
       <RoutineManager routines={routines} allExercises={exercises} />
     </div>
   );

@@ -5,19 +5,7 @@ import { WorkoutRoutine, RoutineExercise, Exercise } from "@/types";
 import { createClient } from "@/lib/supabase/client";
 import { getExerciseVisual } from "@/lib/exercise-visuals";
 import ExerciseGuideModal from "@/components/workout/ExerciseGuideModal";
-import {
-  CalendarDays,
-  Dumbbell,
-  Edit2,
-  Check,
-  Plus,
-  Flame,
-  ArrowRight,
-  Filter,
-  Info,
-  BookOpen,
-  Play
-} from "lucide-react";
+import { Dumbbell, Edit2, Check, X, Play, ChevronRight, Timer } from "lucide-react";
 import Link from "next/link";
 
 interface RoutineManagerProps {
@@ -27,13 +15,39 @@ interface RoutineManagerProps {
   allExercises: Exercise[];
 }
 
-export default function RoutineManager({
-  routines,
-  allExercises,
-}: RoutineManagerProps) {
-  const [activeRoutineTab, setActiveRoutineTab] = useState<string>(
-    routines[0]?.id || ""
+const MUSCLE_FILTERS: { key: string; label: string }[] = [
+  { key: "All", label: "Tümü" },
+  { key: "Chest", label: "Göğüs" },
+  { key: "Back", label: "Sırt" },
+  { key: "Legs", label: "Bacak" },
+  { key: "Shoulders", label: "Omuz" },
+  { key: "Arms", label: "Kol" },
+  { key: "Core", label: "Karın" },
+];
+
+const MUSCLE_LABELS: Record<string, string> = Object.fromEntries(
+  MUSCLE_FILTERS.filter((m) => m.key !== "All").map((m) => [m.key.toLowerCase(), m.label])
+);
+
+const muscleLabel = (m?: string | null) => (m ? MUSCLE_LABELS[m.toLowerCase()] || m : "");
+
+function ExerciseThumb({ exercise, className = "" }: { exercise: Exercise; className?: string }) {
+  const visual = getExerciseVisual(exercise.name);
+  return (
+    <img
+      src={visual.gifUrl}
+      alt={exercise.name}
+      loading="lazy"
+      className={`w-full h-full object-contain ${className}`}
+      onError={(e) => {
+        (e.target as HTMLImageElement).src = visual.thumbnailUrl || "";
+      }}
+    />
   );
+}
+
+export default function RoutineManager({ routines, allExercises }: RoutineManagerProps) {
+  const [activeRoutineTab, setActiveRoutineTab] = useState<string>(routines[0]?.id || "");
   const [editingExerciseId, setEditingExerciseId] = useState<string | null>(null);
   const [selectedGuideExercise, setSelectedGuideExercise] = useState<Exercise | null>(null);
 
@@ -90,257 +104,274 @@ export default function RoutineManager({
   const filteredExercises =
     selectedMuscle === "All"
       ? allExercises
-      : allExercises.filter((e) => e.target_muscle === selectedMuscle);
+      : allExercises.filter((e) => (e.target_muscle || "").toLowerCase() === selectedMuscle.toLowerCase());
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h2 className="text-xl md:text-2xl font-extrabold text-slate-900 tracking-tight">
-            Program & Egzersiz Yönetimi
-          </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Dinamik döngü rutinleri, 24.5kg dambıl hedefleri ve canlı hareketli form rehberleri
-          </p>
+      <header className="page-header">
+        <div className="min-w-0">
+          <p className="eyebrow">Döngüsel program</p>
+          <h1 className="page-title mt-1">Programlar</h1>
+          <p className="page-subtitle">Rutinlerin, hedef ağırlıkların ve hareket rehberleri.</p>
         </div>
+      </header>
 
-        {currentRoutine && (
-          <Link
-            href={`/workout/player?routineId=${currentRoutine.id}`}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl tap-effect shadow-sm flex items-center gap-1.5 self-start sm:self-auto"
+      {/* Routine selector — horizontally scrolling, bleeds to the screen edge */}
+      {routines.length > 0 && (
+        <div className="-mx-4 sm:mx-0">
+          <div
+            role="tablist"
+            aria-label="Rutinler"
+            className="flex gap-2 overflow-x-auto no-scrollbar px-4 sm:px-0 snap-x scroll-px-4"
           >
-            Bu Rutini Başlat <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
-        )}
-      </div>
-
-      {/* Routine Navigation Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-        {routines.map((routine) => (
-          <button
-            key={routine.id}
-            onClick={() => {
-              setActiveRoutineTab(routine.id);
-              setEditingExerciseId(null);
-            }}
-            className={`px-4 py-2.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all tap-effect flex items-center gap-2 ${
-              activeRoutineTab === routine.id
-                ? "bg-slate-900 text-white shadow-sm"
-                : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
-            }`}
-          >
-            <span>{routine.sequence_order}. {routine.name}</span>
-          </button>
-        ))}
-      </div>
-
-      {/* Current Routine Card */}
-      {currentRoutine && (
-        <div className="surface-card p-6">
-          <div className="flex items-start justify-between mb-4 pb-4 border-b border-slate-100">
-            <div>
-              <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider">
-                Döngü Sırası #{currentRoutine.sequence_order}
-              </span>
-              <h3 className="text-lg font-extrabold text-slate-900 mt-0.5">
-                {currentRoutine.name}
-              </h3>
-              <p className="text-xs text-slate-500 mt-1">
-                {currentRoutine.description || "Döngüsel kuvvet ve hipertrofi seansı"}
-              </p>
-            </div>
-            <span className="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1 rounded-xl">
-              {currentRoutine.routine_exercises.length} Egzersiz
-            </span>
-          </div>
-
-          {/* Exercise Table / List */}
-          <div className="divide-y divide-slate-100">
-            {currentRoutine.routine_exercises.map((re, index) => {
-              const isEditing = editingExerciseId === re.id;
-              const ex = re.exercise;
-              const visual = ex ? getExerciseVisual(ex.name) : null;
-
+            {routines.map((routine) => {
+              const active = currentRoutine?.id === routine.id;
               return (
-                <div
-                  key={re.id}
-                  className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/50 px-2 rounded-xl transition-colors"
+                <button
+                  key={routine.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => {
+                    setActiveRoutineTab(routine.id);
+                    setEditingExerciseId(null);
+                  }}
+                  className={`snap-start shrink-0 max-w-[15rem] min-h-[44px] pl-1.5 pr-3.5 rounded-xl text-sm font-semibold flex items-center gap-2 border tap-effect ${
+                    active
+                      ? "bg-slate-900 border-slate-900 text-white shadow-sm"
+                      : "bg-white border-slate-200 text-slate-600 md:hover:bg-slate-50"
+                  }`}
+                  style={{ transitionProperty: "transform, background-color, color" }}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-xl bg-slate-900 overflow-hidden flex-shrink-0 relative border border-slate-200">
-                      {visual?.gifUrl ? (
-                        <img
-                          src={visual.gifUrl}
-                          alt={ex?.name || ""}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = visual.thumbnailUrl || "";
-                          }}
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-emerald-50 text-emerald-700 font-bold text-xs flex items-center justify-center">
-                          {index + 1}
-                        </div>
-                      )}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h4 className="text-sm font-bold text-slate-800">
-                          {ex?.name}
-                        </h4>
-                        <button
-                          type="button"
-                          onClick={() => setSelectedGuideExercise(ex || null)}
-                          className="px-2 py-0.5 rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[10px] font-bold tap-effect flex items-center gap-1"
-                        >
-                          <BookOpen className="w-3 h-3" /> GIF Rehberi
-                        </button>
-                      </div>
-                      <p className="text-[11px] text-slate-400">
-                        {ex?.target_muscle} • {ex?.equipment}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Target Values / Editable Mode */}
-                  {isEditing ? (
-                    <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200">
-                      <div>
-                        <span className="text-[9px] font-bold text-slate-400 block">Ağırlık (kg)</span>
-                        <input
-                          type="number"
-                          step="0.5"
-                          value={editWeight}
-                          onChange={(e) => setEditWeight(parseFloat(e.target.value) || 0)}
-                          className="w-16 px-2 py-1 text-xs bg-white border border-slate-200 rounded font-bold"
-                        />
-                      </div>
-                      <div>
-                        <span className="text-[9px] font-bold text-slate-400 block">Set</span>
-                        <input
-                          type="number"
-                          value={editSets}
-                          onChange={(e) => setEditSets(parseInt(e.target.value, 10) || 1)}
-                          className="w-12 px-2 py-1 text-xs bg-white border border-slate-200 rounded font-bold"
-                        />
-                      </div>
-                      <div>
-                        <span className="text-[9px] font-bold text-slate-400 block">Tekrar</span>
-                        <input
-                          type="text"
-                          value={editReps}
-                          onChange={(e) => setEditReps(e.target.value)}
-                          className="w-16 px-2 py-1 text-xs bg-white border border-slate-200 rounded font-bold"
-                        />
-                      </div>
-                      <button
-                        onClick={() => handleSaveEdit(re.id)}
-                        disabled={isSaving}
-                        className="px-3 py-1.5 bg-emerald-600 text-white rounded text-xs font-bold self-end tap-effect"
-                      >
-                        <Check className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center gap-3 text-xs">
-                        <span className="font-bold text-slate-800 bg-slate-100 px-2.5 py-1 rounded-lg">
-                          {re.target_weight_kg} kg
-                        </span>
-                        <span className="text-slate-600 font-semibold">
-                          {re.target_sets} Set × {re.target_reps}
-                        </span>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => handleStartEdit(re)}
-                        className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 tap-effect"
-                        title="Hedef Değerleri Düzenle"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  )}
-                </div>
+                  <span
+                    className={`w-8 h-8 shrink-0 rounded-lg inline-flex items-center justify-center text-xs font-bold tabular-nums ${
+                      active ? "bg-white/15 text-white" : "bg-slate-100 text-slate-500"
+                    }`}
+                  >
+                    {routine.sequence_order}
+                  </span>
+                  <span className="truncate">{routine.name}</span>
+                </button>
               );
             })}
           </div>
         </div>
       )}
 
-      {/* Exercise Library Directory with Visual Cards */}
-      <div className="surface-card p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-          <div className="flex items-center gap-2">
-            <Dumbbell className="w-4 h-4 text-emerald-600" />
-            <h3 className="text-base font-bold text-slate-800">
-              Canlı Hareketli Egzersiz Kütüphanesi ({allExercises.length})
-            </h3>
+      {/* Current Routine Card */}
+      {currentRoutine && (
+        <section className="card">
+          <div className="pb-4 border-b border-slate-100">
+            <div className="flex items-center gap-2">
+              <span className="eyebrow text-emerald-600 tabular-nums">Sıra #{currentRoutine.sequence_order}</span>
+              <span className="chip tabular-nums">{currentRoutine.routine_exercises.length} egzersiz</span>
+            </div>
+            <h2 className="text-lg font-extrabold text-slate-900 leading-snug mt-1.5">{currentRoutine.name}</h2>
+            <p className="text-sm text-slate-500 mt-1">
+              {currentRoutine.description || "Döngüsel kuvvet ve hipertrofi seansı"}
+            </p>
           </div>
 
-          {/* Filter Pills */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs">
-            {["All", "Chest", "Back", "Legs", "Shoulders", "Arms", "Core"].map((muscle) => (
+          {/* Exercise list */}
+          <ul className="divide-y divide-slate-100">
+            {currentRoutine.routine_exercises.map((re, index) => {
+              const isEditing = editingExerciseId === re.id;
+              const ex = re.exercise;
+
+              return (
+                <li key={re.id} className="py-3">
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedGuideExercise(ex || null)}
+                      aria-label={`${ex?.name || "Egzersiz"} — hareket rehberi`}
+                      className="flex-1 min-w-0 flex items-center gap-3 text-left tap-effect"
+                    >
+                      <span className="relative w-12 h-12 shrink-0 rounded-xl bg-white border border-slate-200 overflow-hidden">
+                        {ex ? (
+                          <ExerciseThumb exercise={ex} />
+                        ) : (
+                          <span className="w-full h-full bg-emerald-50 text-emerald-700 font-bold text-xs flex items-center justify-center">
+                            {index + 1}
+                          </span>
+                        )}
+                        <span className="absolute bottom-0.5 right-0.5 w-4 h-4 rounded-full bg-slate-900/75 text-white inline-flex items-center justify-center">
+                          <Play className="w-2 h-2 fill-current" />
+                        </span>
+                      </span>
+                      <span className="flex-1 min-w-0">
+                        <span className="block text-sm font-bold text-slate-900 leading-snug line-clamp-2">
+                          {ex?.name}
+                        </span>
+                        <span className="mt-1 flex items-center gap-1.5 min-w-0 text-xs text-slate-500">
+                          <span className="font-semibold text-slate-800 tabular-nums whitespace-nowrap">
+                            {re.target_weight_kg} kg
+                          </span>
+                          <span className="text-slate-300" aria-hidden>
+                            ·
+                          </span>
+                          <span className="tabular-nums whitespace-nowrap">
+                            {re.target_sets} × {re.target_reps}
+                          </span>
+                          {ex?.target_muscle && (
+                            <>
+                              <span className="text-slate-300" aria-hidden>
+                                ·
+                              </span>
+                              <span className="truncate">{muscleLabel(ex.target_muscle)}</span>
+                            </>
+                          )}
+                        </span>
+                      </span>
+                    </button>
+
+                    {!isEditing && (
+                      <button
+                        type="button"
+                        onClick={() => handleStartEdit(re)}
+                        className="icon-btn"
+                        aria-label="Hedef değerleri düzenle"
+                        title="Hedef değerleri düzenle"
+                      >
+                        <Edit2 className="!w-4 !h-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Inline editor */}
+                  {isEditing && (
+                    <div className="mt-3 card-muted animate-fade-in-up">
+                      <div className="grid grid-cols-3 gap-2">
+                        <label className="min-w-0">
+                          <span className="field-label">Ağırlık (kg)</span>
+                          <input
+                            type="number"
+                            inputMode="decimal"
+                            step="0.5"
+                            value={editWeight}
+                            onChange={(e) => setEditWeight(parseFloat(e.target.value) || 0)}
+                            className="input px-2.5 font-bold tabular-nums"
+                          />
+                        </label>
+                        <label className="min-w-0">
+                          <span className="field-label">Set</span>
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            value={editSets}
+                            onChange={(e) => setEditSets(parseInt(e.target.value, 10) || 1)}
+                            className="input px-2.5 font-bold tabular-nums"
+                          />
+                        </label>
+                        <label className="min-w-0">
+                          <span className="field-label">Tekrar</span>
+                          <input
+                            type="text"
+                            value={editReps}
+                            onChange={(e) => setEditReps(e.target.value)}
+                            className="input px-2.5 font-bold tabular-nums"
+                          />
+                        </label>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 mt-3">
+                        <button type="button" onClick={() => setEditingExerciseId(null)} className="btn-secondary btn-sm">
+                          <X /> Vazgeç
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSaveEdit(re.id)}
+                          disabled={isSaving}
+                          className="btn-primary btn-sm"
+                        >
+                          {isSaving ? <span className="spinner !w-4 !h-4 !border-2 border-white border-t-transparent" /> : <Check />}
+                          Kaydet
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+
+          <div className="pt-4 border-t border-slate-100">
+            <Link href={`/workout/player?routineId=${currentRoutine.id}`} className="btn-primary btn-block">
+              <Play className="fill-current" /> Rutini Başlat
+            </Link>
+          </div>
+        </section>
+      )}
+
+      {/* Exercise Library */}
+      <section className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Dumbbell className="w-4 h-4 text-emerald-600 shrink-0" />
+          <h2 className="section-title">Egzersiz Kütüphanesi</h2>
+          <span className="chip tabular-nums">{allExercises.length}</span>
+        </div>
+
+        {/* Filter chips */}
+        <div className="-mx-4 sm:mx-0">
+          <div className="flex gap-2 overflow-x-auto no-scrollbar px-4 sm:px-0">
+            {MUSCLE_FILTERS.map((m) => {
+              const active = selectedMuscle === m.key;
+              return (
+                <button
+                  key={m.key}
+                  type="button"
+                  onClick={() => setSelectedMuscle(m.key)}
+                  aria-pressed={active}
+                  className={`shrink-0 h-9 px-3.5 rounded-full text-xs font-semibold border tap-effect ${
+                    active
+                      ? "bg-emerald-600 border-emerald-600 text-white"
+                      : "bg-white border-slate-200 text-slate-600 md:hover:bg-slate-50"
+                  }`}
+                  style={{ transitionProperty: "transform, background-color, color" }}
+                >
+                  {m.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {filteredExercises.length === 0 ? (
+          <div className="card text-center text-sm text-slate-500 py-8">Bu kas grubu için egzersiz yok.</div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+            {filteredExercises.map((exercise) => (
               <button
-                key={muscle}
-                onClick={() => setSelectedMuscle(muscle)}
-                className={`px-3 py-1 rounded-xl font-bold transition-all tap-effect ${
-                  selectedMuscle === muscle
-                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                }`}
+                key={exercise.id}
+                type="button"
+                onClick={() => setSelectedGuideExercise(exercise)}
+                className="surface-card overflow-hidden text-left flex flex-col tap-effect md:hover:border-emerald-300"
               >
-                {muscle === "All" ? "Tümü" : muscle}
+                <span className="relative block aspect-[4/3] bg-white border-b border-slate-100">
+                  <ExerciseThumb exercise={exercise} className="p-1.5" />
+                  <span className="absolute top-1.5 left-1.5 chip bg-slate-900/70 text-white">
+                    {muscleLabel(exercise.target_muscle)}
+                  </span>
+                </span>
+                <span className="flex-1 flex flex-col p-2.5 min-w-0">
+                  <span className="text-[13px] font-bold text-slate-900 leading-snug line-clamp-2">
+                    {exercise.name}
+                  </span>
+                  <span className="mt-auto pt-1.5 flex items-center gap-1 text-xs text-slate-500 min-w-0">
+                    <Timer className="w-3.5 h-3.5 shrink-0 text-slate-400" />
+                    <span className="tabular-nums whitespace-nowrap">{exercise.default_rest_seconds}s</span>
+                    <span className="text-slate-300" aria-hidden>
+                      ·
+                    </span>
+                    <span className="truncate">{exercise.equipment}</span>
+                    <ChevronRight className="w-3.5 h-3.5 shrink-0 ml-auto text-slate-300" />
+                  </span>
+                </span>
               </button>
             ))}
           </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
-          {filteredExercises.map((exercise) => {
-            const visual = getExerciseVisual(exercise.name);
-
-            return (
-              <div
-                key={exercise.id}
-                onClick={() => setSelectedGuideExercise(exercise)}
-                className="p-3.5 rounded-2xl bg-white border border-slate-200 hover:border-emerald-300 hover:shadow-sm transition-all cursor-pointer group flex flex-col justify-between"
-              >
-                <div>
-                  {/* Miniature Visual Animation Preview */}
-                  <div className="w-full h-32 rounded-xl bg-slate-950 mb-3 overflow-hidden flex items-center justify-center relative">
-                    <img
-                      src={visual.gifUrl}
-                      alt={exercise.name}
-                      className="w-full h-full object-contain p-1 opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = visual.thumbnailUrl || "";
-                      }}
-                    />
-                    <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/60 backdrop-blur-sm text-[9px] font-bold text-white uppercase tracking-wider">
-                      {exercise.target_muscle}
-                    </div>
-                  </div>
-
-                  <h4 className="text-xs font-bold text-slate-900 group-hover:text-emerald-700 transition-colors">
-                    {exercise.name}
-                  </h4>
-                  <p className="text-[11px] text-slate-400 mt-0.5">
-                    {exercise.equipment} • {exercise.default_rest_seconds}s Dinlenme
-                  </p>
-                </div>
-
-                <div className="pt-2 mt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-emerald-600 font-bold">
-                  <span>▶ Canlı GIF İzle</span>
-                  <span>Form Detayları →</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+        )}
+      </section>
 
       {/* Guide Modal */}
       <ExerciseGuideModal

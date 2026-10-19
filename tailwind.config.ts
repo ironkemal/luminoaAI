@@ -9,7 +9,7 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        background: "#F8FAFC",
+        background: "#F6F7F5",
         surface: "#FFFFFF",
         primary: {
           50: "#ecfdf5",
@@ -48,13 +48,38 @@ const config: Config = {
           "50%": { transform: "scale(1.03)", opacity: "0.9" },
         },
         "fade-in-up": {
-          "0%": { opacity: "0", transform: "translateY(12px)" },
+          "0%": { opacity: "0", transform: "translateY(8px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        "fade-in": {
+          "0%": { opacity: "0" },
+          "100%": { opacity: "1" },
+        },
+        "fade-out": {
+          "0%": { opacity: "0.9" },
+          "100%": { opacity: "0" },
+        },
+        "drawer-in": {
+          "0%": { transform: "translateX(-100%)" },
+          "100%": { transform: "translateX(0)" },
+        },
+        "sheet-up": {
+          "0%": { transform: "translateY(100%)" },
+          "100%": { transform: "translateY(0)" },
+        },
+        "pop-in": {
+          "0%": { opacity: "0", transform: "translate(-50%, -50%) scale(0.96)" },
+          "100%": { opacity: "1", transform: "translate(-50%, -50%) scale(1)" },
         },
       },
       animation: {
         "timer-pulse": "timer-pulse 1.5s ease-in-out infinite",
-        "fade-in-up": "fade-in-up 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
+        "fade-in-up": "fade-in-up 260ms cubic-bezier(0.23, 1, 0.32, 1) both",
+        "fade-in": "fade-in 200ms ease-out both",
+        "fade-out": "fade-out 300ms ease-out both",
+        "drawer-in": "drawer-in 280ms cubic-bezier(0.32, 0.72, 0, 1) both",
+        "sheet-up": "sheet-up 340ms cubic-bezier(0.32, 0.72, 0, 1) both",
+        "pop-in": "pop-in 220ms cubic-bezier(0.23, 1, 0.32, 1) both",
       },
     },
   },

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { AiCoachLog, ChatSession, AppUser } from "@/types";
 import { createClient } from "@/lib/supabase/client";
 import { getCurrentUser } from "@/lib/auth-pin";
@@ -26,7 +26,7 @@ import {
   MessageSquare,
   History,
   Plus,
-  Clock
+  BarChart3
 } from "lucide-react";
 
 interface AiCoachViewProps {
@@ -139,7 +139,7 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
         .order("updated_at", { ascending: false });
 
       if (currentUser?.id) {
-        query = query.or(`user_id.eq.${currentUser.id},user_id.is.null`);
+        query = query.eq("user_id", currentUser.id);
       }
 
       const { data, error } = await query;
@@ -461,257 +461,221 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
     t("quickPrompt3"),
     t("quickPrompt4"),
   ];
+  const quickPromptIcons = [Sparkles, BarChart3, Zap, Utensils];
+
+  // Strip a leading emoji "word" from translated prompts – the chip shows a lucide icon instead.
+  const stripLeadingEmoji = (text: string) => {
+    const [first, ...rest] = text.split(" ");
+    return rest.length > 0 && !/[A-Za-z0-9À-ɏ]/.test(first) ? rest.join(" ") : text;
+  };
+
+  // Short, human UI copy for the mobile layout (candidates for lib/i18n.tsx)
+  const copy = {
+    tr: {
+      subtitle: "Seni tanıyan kişisel antrenörün",
+      tabChat: "Sohbet",
+      tabAnalysis: "Analiz",
+      tabMemory: "Hafıza",
+      fast: "Hızlı",
+      deep: "Derin",
+      newAnalysis: "Yeni analiz",
+      analyzing: "Analiz ediliyor…",
+      program: "Program yazdır",
+      voice: "Sesli görüşme",
+      history: "Sohbet geçmişi",
+      modeLabel: "Düşünme modu",
+      send: "Gönder",
+    },
+    en: {
+      subtitle: "The personal trainer who knows you",
+      tabChat: "Chat",
+      tabAnalysis: "Analysis",
+      tabMemory: "Memory",
+      fast: "Fast",
+      deep: "Deep",
+      newAnalysis: "New analysis",
+      analyzing: "Analyzing…",
+      program: "Build plan",
+      voice: "Voice call",
+      history: "Chat history",
+      modeLabel: "Thinking mode",
+      send: "Send",
+    },
+    de: {
+      subtitle: "Dein Personal Trainer, der dich kennt",
+      tabChat: "Chat",
+      tabAnalysis: "Analyse",
+      tabMemory: "Gedächtnis",
+      fast: "Schnell",
+      deep: "Tief",
+      newAnalysis: "Neue Analyse",
+      analyzing: "Analysiere…",
+      program: "Plan erstellen",
+      voice: "Sprachanruf",
+      history: "Chatverlauf",
+      modeLabel: "Denkmodus",
+      send: "Senden",
+    },
+  }[language === "en" || language === "de" ? language : "tr"];
+
+  const coachName = t("coachTitle").split("•")[0].trim();
+  const dateLocale = language === "tr" ? "tr-TR" : language === "de" ? "de-DE" : "en-US";
+
+  // Keep the newest message in view
+  const messagesRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = messagesRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }, [messages, isChatSending, activeTab]);
+
+  const tabs = [
+    { id: "chat" as const, label: copy.tabChat, icon: MessageSquare },
+    { id: "analysis" as const, label: copy.tabAnalysis, icon: Sparkles },
+    { id: "memory" as const, label: copy.tabMemory, icon: Brain },
+  ];
+
+  const hasDraft = inputMessage.trim().length > 0;
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl md:text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-sm">
-              <UserCheck className="w-5 h-5" />
-            </div>
-            <span>{t("coachTitle")}</span>
-          </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
-            {t("coachSubtitle")}
-          </p>
+    <div className="space-y-4">
+      {/* Header: identity + chat actions */}
+      <header className="flex items-center gap-3 min-h-[2.75rem]">
+        <div className="relative shrink-0 w-11 h-11 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-sm shadow-emerald-900/10">
+          <UserCheck className="w-5 h-5" />
+          <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-400 ring-2 ring-[#F6F7F5]" aria-hidden />
+        </div>
+        <div className="min-w-0 flex-1">
+          <h1 className="text-lg md:text-xl font-extrabold tracking-tight text-slate-900 leading-tight truncate">
+            {coachName}
+          </h1>
+          <p className="text-xs text-slate-500 truncate">{copy.subtitle}</p>
         </div>
 
-        {/* Action Buttons Toolbar */}
-        <div className="flex flex-wrap items-center gap-2">
-          {/* AI Thinking Mode Toggle Pill */}
-          <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-bold shadow-inner">
+        {activeTab === "chat" && (
+          <div className="flex items-center gap-1 shrink-0">
             <button
               type="button"
-              onClick={() => setAiMode("fast")}
-              title="1-2s"
-              className={`px-2.5 py-1.5 rounded-lg transition-all tap-effect flex items-center gap-1 ${
-                aiMode === "fast"
-                  ? "bg-emerald-600 text-white shadow-sm font-black"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
+              onClick={handleStartNewSession}
+              aria-label={t("startNewChat")}
+              title={t("startNewChat")}
+              className="icon-btn"
             >
-              <Zap className="w-3.5 h-3.5" />
-              <span>{t("fastMode")}</span>
+              <Plus />
             </button>
-
             <button
               type="button"
-              onClick={() => setAiMode("deep")}
-              title="Deep Reasoning"
-              className={`px-2.5 py-1.5 rounded-lg transition-all tap-effect flex items-center gap-1 ${
-                aiMode === "deep"
-                  ? "bg-indigo-600 text-white shadow-sm font-black"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
+              onClick={() => setIsHistoryDrawerOpen(true)}
+              aria-label={`${copy.history} (${sessions.length})`}
+              title={t("chatSessions")}
+              className="icon-btn relative"
             >
-              <Brain className="w-3.5 h-3.5" />
-              <span>{t("deepMode")}</span>
+              <History />
+              {sessions.length > 0 && (
+                <span className="absolute top-0.5 right-0.5 min-w-[1.125rem] h-[1.125rem] px-1 rounded-full bg-emerald-600 text-white text-[11px] font-bold leading-[1.125rem] text-center tabular-nums ring-2 ring-[#F6F7F5]">
+                  {sessions.length}
+                </span>
+              )}
             </button>
           </div>
+        )}
+      </header>
 
-          <button
-            type="button"
-            onClick={() => setIsVoiceOpen(true)}
-            className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-sm tap-effect flex items-center gap-1.5"
-          >
-            <Mic className="w-3.5 h-3.5 text-emerald-400" />
-            {t("tabVoice")}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setIsProgramGenOpen(true)}
-            className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-sm tap-effect flex items-center gap-1.5"
-          >
-            <CalendarDays className="w-3.5 h-3.5" />
-            {t("tabGenerator")}
-          </button>
-
-          <button
-            type="button"
-            disabled={isEvaluating}
-            onClick={handleRunEvaluation}
-            className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold shadow-sm tap-effect flex items-center gap-1.5"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isEvaluating ? "animate-spin" : ""}`} />
-            {isEvaluating ? "..." : t("tabAnalysis")}
-          </button>
-        </div>
+      {/* Tabs */}
+      <div className="segmented" role="tablist">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          const active = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              data-active={active}
+              onClick={() => setActiveTab(tab.id)}
+              className="segmented-item"
+            >
+              <Icon className={`w-3.5 h-3.5 ${active ? "text-emerald-600" : ""}`} />
+              {tab.label}
+            </button>
+          );
+        })}
       </div>
 
-      {/* Tab Switcher */}
-      <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-2xl w-fit">
-        <button
-          onClick={() => setActiveTab("chat")}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all tap-effect flex items-center gap-1.5 ${
-            activeTab === "chat"
-              ? "bg-white text-slate-900 shadow-sm"
-              : "text-slate-600 hover:text-slate-900"
-          }`}
-        >
-          <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
-          {t("tabChat")}
-        </button>
-
-        <button
-          onClick={() => setActiveTab("analysis")}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all tap-effect flex items-center gap-1.5 ${
-            activeTab === "analysis"
-              ? "bg-white text-slate-900 shadow-sm"
-              : "text-slate-600 hover:text-slate-900"
-          }`}
-        >
-          <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-          {t("tabAnalysis")}
-        </button>
-
-        <button
-          onClick={() => setActiveTab("memory")}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all tap-effect flex items-center gap-1.5 ${
-            activeTab === "memory"
-              ? "bg-white text-slate-900 shadow-sm"
-              : "text-slate-600 hover:text-slate-900"
-          }`}
-        >
-          <Brain className="w-3.5 h-3.5 text-indigo-500" />
-          {t("tabMemory")}
-        </button>
-      </div>
-
-      {/* ── TAB 1: SOHBET & AGENTIC AI (WITH SESSION HISTORY) ── */}
+      {/* ── TAB 1: SOHBET ── */}
       {activeTab === "chat" && (
-        <div className="surface-card p-4 md:p-6 flex flex-col h-[600px] animate-fade-in">
-          {/* Chat Header Info with History Clock Button */}
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-bold text-slate-800">
-                  {t("tabChat")}
-                </h3>
-                {aiMode === "deep" ? (
-                  <span className="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 font-bold text-[10px] border border-indigo-200 flex items-center gap-1">
-                    <Brain className="w-3 h-3" /> {t("deepModeActive")}
-                  </span>
-                ) : (
-                  <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-bold text-[10px] border border-emerald-200 flex items-center gap-1">
-                    <Zap className="w-3 h-3" /> {t("fastModeActive")}
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-slate-400 mt-0.5">
-                {t("syncDeviceNotice")}
-              </p>
-            </div>
-
-            {/* Right: History Clock Button & New Chat Button */}
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={handleStartNewSession}
-                title={t("startNewChat")}
-                className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-bold border border-slate-200/80 flex items-center gap-1 tap-effect"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">{t("newChat")}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setIsHistoryDrawerOpen(true)}
-                title={t("chatSessions")}
-                className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-200 flex items-center gap-1.5 tap-effect"
-              >
-                <Clock className="w-4 h-4 text-emerald-600" />
-                <span className="font-extrabold">{t("chatHistory")} ({sessions.length})</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setIsVoiceOpen(true)}
-                className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center gap-1 tap-effect"
-              >
-                <Mic className="w-3.5 h-3.5 text-emerald-400" />
-                <span className="hidden sm:inline">{t("voiceCall")}</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Messages Container */}
-          <div className="flex-1 overflow-y-auto py-4 space-y-4 scrollbar-thin">
+        <section className="surface-card overflow-hidden flex flex-col h-[calc(100dvh-13.875rem-env(safe-area-inset-bottom)-env(safe-area-inset-top))] min-h-[24rem] md:h-[min(680px,calc(100dvh-14rem))] animate-fade-in">
+          {/* Messages */}
+          <div
+            ref={messagesRef}
+            className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 py-4 sm:px-5 space-y-3"
+          >
             {messages.map((msg, idx) => (
               <div
                 key={idx}
                 className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}
               >
                 <div
-                  className={`max-w-[85%] sm:max-w-[75%] rounded-2xl px-4 py-3 text-xs leading-relaxed ${
+                  className={`max-w-[85%] sm:max-w-[75%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed break-words ${
                     msg.role === "user"
-                      ? "bg-emerald-600 text-white font-medium rounded-br-none shadow-sm"
-                      : "bg-slate-100 text-slate-800 rounded-bl-none border border-slate-200/60 font-normal"
+                      ? "bg-emerald-600 text-white rounded-br-md"
+                      : "bg-slate-100 text-slate-800 rounded-bl-md"
                   }`}
                 >
                   <p className="whitespace-pre-wrap">{msg.content}</p>
                 </div>
 
-                {/* Agentic Action Proposal Card */}
+                {/* Agentic Action Proposal */}
                 {msg.actionProposal && msg.actionProposal.program_data && (
-                  <div className="mt-3 max-w-[90%] sm:max-w-[80%] p-4 bg-gradient-to-br from-slate-900 to-slate-950 text-white rounded-2xl shadow-xl border border-emerald-500/30 space-y-3 animate-slide-up">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Sparkles className="w-4 h-4 text-emerald-400" />
-                        <h4 className="text-xs font-extrabold text-white">
-                          {msg.actionProposal.title || "Yeni Antrenman Programı Önerisi"}
-                        </h4>
-                      </div>
-                      <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold text-[10px]">
-                        AI Programlama
-                      </span>
+                  <div className="mt-2 w-full max-w-[92%] sm:max-w-[80%] rounded-2xl border border-emerald-200 bg-white overflow-hidden animate-fade-in-up">
+                    <div className="px-3.5 pt-3 pb-3 bg-emerald-50/70">
+                      <p className="eyebrow text-emerald-700 flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5" /> AI Programlama
+                      </p>
+                      <h4 className="mt-1 text-sm font-bold text-slate-900 leading-snug">
+                        {msg.actionProposal.title || "Yeni Antrenman Programı Önerisi"}
+                      </h4>
+                      {msg.actionProposal.description && (
+                        <p className="mt-1 text-xs text-slate-600 leading-relaxed">
+                          {msg.actionProposal.description}
+                        </p>
+                      )}
                     </div>
 
-                    {msg.actionProposal.description && (
-                      <p className="text-xs text-slate-300 leading-relaxed">
-                        {msg.actionProposal.description}
-                      </p>
-                    )}
-
-                    {/* Routine Preview Cards */}
                     {msg.actionProposal.program_data.routines && (
-                      <div className="space-y-1.5 pt-1">
+                      <ul className="divide-y divide-slate-100">
                         {msg.actionProposal.program_data.routines.map((r: any, rIdx: number) => (
-                          <div
-                            key={rIdx}
-                            className="p-2.5 bg-white/5 rounded-xl border border-white/10 text-xs flex items-center justify-between"
-                          >
-                            <span className="font-bold text-white">
+                          <li key={rIdx} className="flex items-center justify-between gap-3 px-3.5 py-2.5">
+                            <span className="min-w-0 truncate text-sm font-semibold text-slate-800">
                               {r.sequence_order}. {r.name}
                             </span>
-                            <span className="text-slate-400 text-[11px]">
+                            <span className="shrink-0 text-xs text-slate-500 tabular-nums">
                               {r.exercises?.length || 0} Egzersiz
                             </span>
-                          </div>
+                          </li>
                         ))}
-                      </div>
+                      </ul>
                     )}
 
-                    <div className="pt-2">
+                    <div className="p-3 border-t border-slate-100">
                       {msg.proposalApplied ? (
-                        <div className="p-2.5 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 font-bold text-xs flex items-center justify-center gap-2">
-                          <CheckCircle2 className="w-4 h-4" />
-                          Program Başarıyla Veritabanına Yüklendi ve Aktif Edildi
+                        <div className="flex items-center justify-center gap-2 min-h-[44px] rounded-xl bg-emerald-50 text-emerald-700 text-sm font-semibold">
+                          <CheckCircle2 className="w-4 h-4 shrink-0" />
+                          Program yüklendi ve aktif
                         </div>
                       ) : (
                         <button
                           type="button"
                           disabled={applyingProposalIndex === idx}
                           onClick={() => handleApplyChatProposal(idx, msg.actionProposal)}
-                          className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-black text-xs tap-effect shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2"
+                          className="btn-primary btn-block"
                         >
-                          <Zap className="w-4 h-4 fill-current" />
-                          {applyingProposalIndex === idx
-                            ? "Veritabanına Kaydediliyor..."
-                            : "Bu Programı Onayla ve Uygulamama Yükle"}
+                          {applyingProposalIndex === idx ? (
+                            <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                          ) : (
+                            <Check />
+                          )}
+                          {applyingProposalIndex === idx ? "Kaydediliyor…" : "Onayla ve yükle"}
                         </button>
                       )}
                     </div>
@@ -721,12 +685,14 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
             ))}
 
             {isChatSending && (
-              <div className="flex justify-start">
-                <div className="bg-slate-100 border border-slate-200 text-slate-500 rounded-2xl px-4 py-2.5 text-xs flex items-center gap-2">
-                  <span className={`w-2 h-2 rounded-full ${aiMode === "deep" ? "bg-indigo-600" : "bg-emerald-600"} animate-bounce`} />
-                  <span className={`w-2 h-2 rounded-full ${aiMode === "deep" ? "bg-indigo-600" : "bg-emerald-600"} animate-bounce [animation-delay:0.2s]`} />
-                  <span className={`w-2 h-2 rounded-full ${aiMode === "deep" ? "bg-indigo-600" : "bg-emerald-600"} animate-bounce [animation-delay:0.4s]`} />
-                  <span className="text-[11px] font-bold text-slate-600">
+              <div className="flex justify-start" aria-live="polite">
+                <div className="bg-slate-100 text-slate-500 rounded-2xl rounded-bl-md px-3.5 py-2.5 flex items-center gap-2">
+                  <span className="flex items-center gap-1" aria-hidden>
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-bounce" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-bounce [animation-delay:0.2s]" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-bounce [animation-delay:0.4s]" />
+                  </span>
+                  <span className="text-xs font-medium text-slate-600">
                     {aiMode === "deep" ? "Derin akıl yürütme yapılıyor..." : "Harun Hoca yanıtlıyor..."}
                   </span>
                 </div>
@@ -734,133 +700,173 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
             )}
           </div>
 
-          {/* Quick Prompts */}
-          <div className="py-2 flex items-center gap-2 overflow-x-auto scrollbar-none">
-            {quickPrompts.map((prompt, pIdx) => (
+          {/* Composer */}
+          <div className="border-t border-slate-100 bg-white pt-2.5 pb-3 space-y-2.5">
+            {/* Suggestion chips — intentionally a horizontal scroller */}
+            <div className="flex gap-2 overflow-x-auto no-scrollbar px-3 sm:px-4">
               <button
-                key={pIdx}
                 type="button"
-                onClick={() => handleSendMessage(prompt)}
-                className="px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-700 whitespace-nowrap tap-effect transition-colors flex-shrink-0"
+                onClick={() => setIsProgramGenOpen(true)}
+                className="tap-effect shrink-0 inline-flex items-center gap-1.5 min-h-[36px] px-3 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold whitespace-nowrap md:hover:bg-emerald-100"
               >
-                {prompt}
+                <CalendarDays className="w-3.5 h-3.5" />
+                {copy.program}
               </button>
-            ))}
-          </div>
+              {quickPrompts.map((prompt, pIdx) => {
+                const Icon = quickPromptIcons[pIdx] || Sparkles;
+                return (
+                  <button
+                    key={pIdx}
+                    type="button"
+                    disabled={isChatSending}
+                    onClick={() => handleSendMessage(prompt)}
+                    className="tap-effect shrink-0 inline-flex items-center gap-1.5 min-h-[36px] px-3 rounded-full border border-slate-200 bg-white text-xs font-medium text-slate-700 whitespace-nowrap disabled:opacity-50 md:hover:bg-slate-50"
+                  >
+                    <Icon className="w-3.5 h-3.5 text-slate-400" />
+                    {stripLeadingEmoji(prompt)}
+                  </button>
+                );
+              })}
+            </div>
 
-          {/* Input Form */}
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleSendMessage();
-            }}
-            className="pt-2 border-t border-slate-100 flex gap-2"
-          >
-            <div className="relative flex-1">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSendMessage();
+              }}
+              className="flex items-center gap-2 px-3 sm:px-4"
+            >
+              <button
+                type="button"
+                onClick={() => setAiMode(aiMode === "fast" ? "deep" : "fast")}
+                aria-pressed={aiMode === "deep"}
+                aria-label={`${copy.modeLabel}: ${aiMode === "deep" ? t("deepMode") : t("fastMode")}`}
+                title={aiMode === "deep" ? t("deepModeActive") : t("fastModeActive")}
+                className={`tap-effect shrink-0 inline-flex items-center gap-1 h-11 px-2.5 rounded-xl text-xs font-semibold transition-colors ${
+                  aiMode === "deep" ? "bg-slate-900 text-white" : "bg-emerald-50 text-emerald-700"
+                }`}
+              >
+                {aiMode === "deep" ? <Brain className="w-4 h-4" /> : <Zap className="w-4 h-4" />}
+                <span>{aiMode === "deep" ? copy.deep : copy.fast}</span>
+              </button>
+
               <input
                 type="text"
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
+                enterKeyHint="send"
+                aria-label={t("chatInputPlaceholderFast")}
                 placeholder={
                   aiMode === "deep"
                     ? t("chatInputPlaceholderDeep")
                     : t("chatInputPlaceholderFast")
                 }
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-500 pr-24"
+                className="input flex-1 min-w-0 h-11 bg-slate-50 text-ellipsis"
               />
-              <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
+
+              {hasDraft || isChatSending ? (
+                <button
+                  type="submit"
+                  disabled={!hasDraft || isChatSending}
+                  aria-label={copy.send}
+                  className="tap-effect shrink-0 w-11 h-11 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-sm shadow-emerald-900/10 disabled:opacity-50 md:hover:bg-emerald-700"
+                >
+                  <Send className="w-[18px] h-[18px]" />
+                </button>
+              ) : (
                 <button
                   type="button"
-                  onClick={() => setAiMode(aiMode === "fast" ? "deep" : "fast")}
-                  className={`px-2 py-1 rounded-lg text-[10px] font-extrabold flex items-center gap-1 tap-effect transition-all ${
-                    aiMode === "deep"
-                      ? "bg-indigo-100 text-indigo-800 border border-indigo-200"
-                      : "bg-slate-200/80 text-slate-700"
-                  }`}
-                  title="Model modunu değiştir"
+                  onClick={() => setIsVoiceOpen(true)}
+                  aria-label={copy.voice}
+                  title={copy.voice}
+                  className="tap-effect shrink-0 w-11 h-11 rounded-xl bg-slate-900 text-white flex items-center justify-center md:hover:bg-slate-800"
                 >
-                  {aiMode === "deep" ? <Brain className="w-3 h-3 text-indigo-600" /> : <Zap className="w-3 h-3 text-emerald-600" />}
-                  <span>{aiMode === "deep" ? "Derin" : "Hızlı"}</span>
+                  <Mic className="w-[18px] h-[18px]" />
                 </button>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={!inputMessage.trim() || isChatSending}
-              className={`px-5 py-3 ${
-                aiMode === "deep" ? "bg-indigo-600 hover:bg-indigo-700" : "bg-emerald-600 hover:bg-emerald-700"
-              } disabled:opacity-50 text-white rounded-2xl tap-effect flex items-center justify-center shadow-sm`}
-            >
-              <Send className="w-4 h-4" />
-            </button>
-          </form>
-        </div>
+              )}
+            </form>
+          </div>
+        </section>
       )}
 
       {/* ── TAB 2: GELİŞİM ANALİZİ ── */}
       {activeTab === "analysis" && (
         <div className="space-y-4 animate-fade-in">
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              disabled={isEvaluating}
+              onClick={handleRunEvaluation}
+              className="btn-primary px-3"
+            >
+              <RefreshCw className={isEvaluating ? "animate-spin" : ""} />
+              {isEvaluating ? copy.analyzing : copy.newAnalysis}
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsProgramGenOpen(true)}
+              className="btn-secondary px-3"
+            >
+              <CalendarDays />
+              {copy.program}
+            </button>
+          </div>
+
           {latestLog ? (
-            <div className="surface-card p-6 space-y-5">
-              <div className="flex items-start justify-between pb-3 border-b border-slate-100">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-emerald-500 text-white rounded-xl shadow-sm">
-                    <Sparkles className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-slate-800">
-                      Harun Hoca Değerlendirmesi
-                    </h3>
-                    <p className="text-xs text-slate-400">
-                      {new Date(latestLog.created_at).toLocaleDateString(language === "tr" ? "tr-TR" : language === "de" ? "de-DE" : "en-US", {
+            <article className="card space-y-5">
+              <div className="flex items-start gap-3">
+                <div className="shrink-0 w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="section-title">Harun Hoca Değerlendirmesi</h3>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="text-xs text-slate-500 tabular-nums">
+                      {new Date(latestLog.created_at).toLocaleDateString(dateLocale, {
                         day: "numeric",
                         month: "long",
                         year: "numeric",
                         hour: "2-digit",
                         minute: "2-digit",
                       })}
-                    </p>
+                    </span>
+                    {latestLog.applied ? (
+                      <span className="chip-primary">
+                        <CheckCircle2 className="w-3 h-3" /> Devrede
+                      </span>
+                    ) : (
+                      <span className="chip-warn">Onay bekliyor</span>
+                    )}
                   </div>
                 </div>
-
-                {latestLog.applied ? (
-                  <span className="px-3 py-1 bg-emerald-50 text-emerald-700 font-bold text-xs rounded-full border border-emerald-200 flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Devrede
-                  </span>
-                ) : (
-                  <span className="px-3 py-1 bg-amber-50 text-amber-700 font-bold text-xs rounded-full border border-amber-200">
-                    Onay Bekliyor
-                  </span>
-                )}
               </div>
 
               {/* Evaluation Summary */}
-              <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl text-xs text-slate-700 leading-relaxed font-medium">
+              <p className="text-sm text-slate-700 leading-relaxed">
                 {latestLog.evaluation_summary}
-              </div>
+              </p>
 
               {/* Recomp & Nutrition Assessment */}
               {latestLog.suggested_changes?.recomp_assessment && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  <div className="p-4 bg-emerald-50/50 border border-emerald-200/70 rounded-2xl text-xs">
-                    <span className="font-bold text-emerald-900 flex items-center gap-1.5 mb-1">
-                      <Flame className="w-4 h-4 text-emerald-600" /> Recomposition Durumu
-                    </span>
-                    <p className="text-slate-700">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div className="card-muted">
+                    <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-900">
+                      <Flame className="w-4 h-4 shrink-0 text-emerald-600" /> Recomposition durumu
+                    </p>
+                    <p className="mt-1 text-sm text-slate-600 leading-relaxed">
                       {latestLog.suggested_changes.recomp_assessment.explanation}
                     </p>
-                    <p className="text-[11px] text-emerald-700 font-bold mt-2">
+                    <p className="mt-2 text-xs font-semibold text-emerald-700 tabular-nums">
                       Tahmin: {latestLog.suggested_changes.recomp_assessment.estimated_progress}
                     </p>
                   </div>
 
                   {latestLog.suggested_changes?.nutrition_tip && (
-                    <div className="p-4 bg-amber-50/50 border border-amber-200/70 rounded-2xl text-xs">
-                      <span className="font-bold text-amber-900 flex items-center gap-1.5 mb-1">
-                        <Utensils className="w-4 h-4 text-amber-600" /> Beslenme Tavsiyesi
-                      </span>
-                      <p className="text-slate-700">
+                    <div className="card-muted">
+                      <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-900">
+                        <Utensils className="w-4 h-4 shrink-0 text-emerald-600" /> Beslenme tavsiyesi
+                      </p>
+                      <p className="mt-1 text-sm text-slate-600 leading-relaxed">
                         {latestLog.suggested_changes.nutrition_tip}
                       </p>
                     </div>
@@ -872,65 +878,68 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
               {latestLog.suggested_changes?.recommendations &&
                 latestLog.suggested_changes.recommendations.length > 0 && (
                   <div>
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
-                      <Zap className="w-4 h-4 text-emerald-600" /> Önerilen Progressive Overload Revizyonları
+                    <h4 className="section-title flex items-center gap-1.5">
+                      <Zap className="w-4 h-4 shrink-0 text-emerald-600" /> Progressive overload önerileri
                     </h4>
 
-                    <div className="space-y-2">
+                    <ul className="mt-2 divide-y divide-slate-100">
                       {latestLog.suggested_changes.recommendations.map((rec, i) => (
-                        <div
+                        <li
                           key={i}
-                          className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
+                          className="py-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
                         >
-                          <div>
-                            <span className="font-bold text-slate-900">{rec.exercise}</span>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-slate-900">{rec.exercise}</p>
                             {rec.reason && (
-                              <p className="text-[11px] text-slate-500 mt-0.5">{rec.reason}</p>
+                              <p className="text-xs text-slate-500 mt-0.5">{rec.reason}</p>
                             )}
                           </div>
 
-                          <div className="flex items-center gap-2.5">
+                          <div className="flex items-center gap-2 shrink-0 tabular-nums">
                             {rec.old_val && (
-                              <span className="text-slate-400 line-through text-xs">
-                                {rec.old_val}
-                              </span>
+                              <span className="text-sm text-slate-400 line-through">{rec.old_val}</span>
                             )}
                             <ArrowUpRight className="w-4 h-4 text-emerald-600" />
-                            <span className="font-bold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-lg">
+                            <span className="text-sm font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
                               {rec.new_val}
                             </span>
                           </div>
-                        </div>
+                        </li>
                       ))}
-                    </div>
+                    </ul>
 
                     {!latestLog.applied && (
-                      <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-end">
+                      <div className="mt-2 pt-4 border-t border-slate-100 sm:flex sm:justify-end">
                         <button
                           type="button"
                           disabled={isApplying}
                           onClick={handleApplyChanges}
-                          className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm tap-effect flex items-center gap-1.5"
+                          className="btn-primary btn-block sm:w-auto"
                         >
-                          <Check className="w-4 h-4" />
-                          {isApplying ? "Uygulanıyor..." : "Hedefleri Programıma Uygula"}
+                          <Check />
+                          {isApplying ? "Uygulanıyor..." : "Programıma uygula"}
                         </button>
                       </div>
                     )}
 
                     {appliedSuccessMessage && (
-                      <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2 mt-3">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                        {appliedSuccessMessage}
+                      <div className="mt-3 p-3 rounded-xl bg-emerald-50 text-emerald-800 text-sm font-medium flex items-start gap-2">
+                        <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-emerald-600" />
+                        <span className="min-w-0">{appliedSuccessMessage}</span>
                       </div>
                     )}
                   </div>
                 )}
-            </div>
+            </article>
           ) : (
-            <div className="surface-card p-10 text-center text-slate-400 text-xs">
-              <UserCheck className="w-10 h-10 mx-auto mb-2 text-slate-300" />
-              Henüz bir Harun Hoca değerlendirmesi oluşturulmadı. Yukarıdaki &quot;Yeni Analiz Yap&quot; butonuna basabilirsiniz.
+            <div className="card text-center py-10">
+              <div className="mx-auto w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center">
+                <UserCheck className="w-6 h-6" />
+              </div>
+              <p className="mt-3 text-sm font-semibold text-slate-700">Henüz değerlendirme yok</p>
+              <p className="mt-1 text-xs text-slate-500 max-w-xs mx-auto">
+                Harun Hoca&apos;dan ilk analizini almak için yukarıdaki &quot;{copy.newAnalysis}&quot; butonuna bas.
+              </p>
             </div>
           )}
         </div>
@@ -943,6 +952,8 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
         </div>
       )}
 
+      {/* Overlays (display:contents keeps them out of the space-y margin flow) */}
+      <div className="contents">
       {/* Chat History Sessions Drawer */}
       <ChatHistoryDrawer
         isOpen={isHistoryDrawerOpen}
@@ -970,6 +981,7 @@ export default function AiCoachView({ initialLogs }: AiCoachViewProps) {
           handleRunEvaluation();
         }}
       />
+      </div>
     </div>
   );
 }

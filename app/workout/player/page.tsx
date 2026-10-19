@@ -67,23 +67,20 @@ function WorkoutPlayerContainer() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-4">
-        <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4" />
-        <p className="text-sm font-semibold text-slate-700">Antrenman Odak Modu Yükleniyor...</p>
+      <div className="fixed inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-slate-50 p-4">
+        <div className="spinner w-10 h-10" />
+        <p className="text-sm font-semibold text-slate-600">Odak modu yükleniyor...</p>
       </div>
     );
   }
 
   if (error || !routine || routineExercises.length === 0) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-4 text-center">
-        <div className="surface-card p-6 max-w-sm w-full">
-          <p className="text-sm text-red-500 font-bold mb-2">{error || "Bu rutinde egzersiz bulunamadı."}</p>
-          <button
-            onClick={() => router.push("/workout")}
-            className="w-full py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold"
-          >
-            Antrenman Paneline Dön
+      <div className="fixed inset-0 z-30 flex items-center justify-center bg-slate-50 p-4">
+        <div className="card w-full max-w-sm text-center">
+          <p className="text-sm text-red-600 font-semibold mb-4">{error || "Bu rutinde egzersiz bulunamadı."}</p>
+          <button onClick={() => router.push("/workout")} className="btn-dark btn-block">
+            Panele dön
           </button>
         </div>
       </div>
@@ -97,8 +94,8 @@ export default function WorkoutPlayerPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center bg-slate-50">
-          <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+        <div className="fixed inset-0 z-30 flex items-center justify-center bg-slate-50">
+          <div className="spinner w-10 h-10" />
         </div>
       }
     >

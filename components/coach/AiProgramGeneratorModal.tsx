@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FullProgramResult } from "@/lib/ai-pt-coach";
 import { getCurrentUser } from "@/lib/auth-pin";
 import {
@@ -11,8 +11,7 @@ import {
   X,
   Flame,
   Zap,
-  ArrowRight,
-  ShieldAlert,
+  Leaf,
   RotateCw
 } from "lucide-react";
 
@@ -36,22 +35,22 @@ export default function AiProgramGeneratorModal({
   const focusOptions = [
     {
       id: "Body Recomposition & Lean Cut",
-      title: "🔥 Recomposition & Yağ Yakımı",
+      title: "Recomposition & yağ yakımı",
       desc: "Kas kütlesini koruyarak/arttırarak yağ oranını düşürme",
     },
     {
       id: "Omuz & Üst Göğüs Hipertrofisi (V-Taper)",
-      title: "⚡ Omuz & Üst Göğüs (V-Taper)",
+      title: "Omuz & üst göğüs (V-Taper)",
       desc: "Geniş omuz ve estetik üst vücut odaklı hacim spliti",
     },
     {
       id: "Maksimum Güç & Progressive Overload",
-      title: "💥 Güç & Direnç Maksimizasyonu",
+      title: "Güç & direnç",
       desc: "24.5 kg dambıl sınırlarında güç ve sinir sistemi adaptasyonu",
     },
     {
       id: "Deload & Aktif Toparlanma",
-      title: "🧘 Deload & Toparlanma Fazı",
+      title: "Deload & toparlanma",
       desc: "Eklemleri ve merkezi sinir sistemini dinlendiren hafif tempo",
     },
   ];
@@ -115,163 +114,185 @@ export default function AiProgramGeneratorModal({
     }
   };
 
+  // Lock body scroll + close on Escape while open
+  useEffect(() => {
+    if (!isOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-md flex items-center justify-center p-4">
-      <div className="w-full max-w-2xl bg-white rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-100 flex flex-col max-h-[90vh] overflow-hidden animate-slide-up relative">
-        {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
-              <Sparkles className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-lg font-extrabold text-slate-900 tracking-tight">
-                Harun Hoca&apos;ya Özel Program Yazdır
-              </h3>
-              <p className="text-xs text-slate-500">
-                Ölçüm, sakatlık ve ekipman verilerinize göre sıfırdan komple döngüsel split tasarlar
-              </p>
-            </div>
-          </div>
+  const focusIcons = [Flame, Zap, Dumbbell, Leaf];
 
-          <button
-            onClick={onClose}
-            className="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 tap-effect"
-          >
-            <X className="w-5 h-5" />
+  return (
+    <>
+      <div className="sheet-backdrop" onClick={onClose} aria-hidden />
+
+      <div role="dialog" aria-modal="true" aria-labelledby="program-gen-title" className="sheet sm:w-[min(42rem,calc(100vw-2rem))]">
+        {/* Grabber (mobile) */}
+        <div className="sm:hidden flex justify-center pt-2.5" aria-hidden>
+          <span className="w-10 h-1 rounded-full bg-slate-200" />
+        </div>
+
+        {/* Header */}
+        <div className="flex items-start gap-2 px-4 pt-2 pb-3 sm:pt-4 border-b border-slate-100">
+          <div className="min-w-0 flex-1">
+            <h3 id="program-gen-title" className="section-title">
+              {generatedProgram ? "Program önizleme" : "Özel program yazdır"}
+            </h3>
+            <p className="mt-0.5 text-xs text-slate-500 leading-relaxed">
+              Ölçüm, sakatlık ve ekipman verilerinize göre sıfırdan döngüsel split tasarlar
+            </p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Kapat" className="icon-btn -mr-1">
+            <X />
           </button>
         </div>
 
-        {/* Modal Body */}
-        <div className="flex-1 overflow-y-auto py-5 space-y-5 scrollbar-thin">
+        {/* Body */}
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-4">
           {!generatedProgram ? (
-            <>
+            <div className="space-y-5">
               {/* Focus Selection */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                  Programın Ana Hedefi / Fazı:
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {focusOptions.map((opt) => (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => setFocus(opt.id)}
-                      className={`p-3.5 rounded-2xl text-left transition-all border tap-effect ${
-                        focus === opt.id
-                          ? "bg-emerald-50/70 border-emerald-500 text-emerald-900 shadow-sm"
-                          : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
-                      }`}
-                    >
-                      <span className="font-bold text-xs block">{opt.title}</span>
-                      <span className="text-[11px] text-slate-500 mt-1 block">
-                        {opt.desc}
-                      </span>
-                    </button>
-                  ))}
+              <fieldset>
+                <legend className="field-label">Ana hedef / faz</legend>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2" role="radiogroup">
+                  {focusOptions.map((opt, oIdx) => {
+                    const Icon = focusIcons[oIdx] || Sparkles;
+                    const selected = focus === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={selected}
+                        onClick={() => setFocus(opt.id)}
+                        className={`tap-effect flex items-start gap-3 p-3 rounded-2xl text-left border transition-colors ${
+                          selected
+                            ? "bg-emerald-50/70 border-emerald-500"
+                            : "bg-white border-slate-200 md:hover:bg-slate-50"
+                        }`}
+                      >
+                        <span
+                          className={`shrink-0 w-9 h-9 rounded-xl flex items-center justify-center ${
+                            selected ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-500"
+                          }`}
+                        >
+                          <Icon className="w-4 h-4" />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-sm font-semibold text-slate-900">{opt.title}</span>
+                          <span className="block text-xs text-slate-500 mt-0.5 leading-snug">{opt.desc}</span>
+                        </span>
+                        <span
+                          aria-hidden
+                          className={`shrink-0 mt-1 w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                            selected ? "border-emerald-600 bg-emerald-600 text-white" : "border-slate-300"
+                          }`}
+                        >
+                          {selected && <Check className="w-3 h-3" strokeWidth={3} />}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
-              </div>
+              </fieldset>
 
               {/* Personal Notes / Constraints */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Harun Hoca&apos;ya Ek Not veya İstekleriniz:
+                <label htmlFor="program-notes" className="field-label">
+                  Ek not veya istekleriniz
                 </label>
                 <textarea
+                  id="program-notes"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Örn: Sırt gününde pull-up sayımı artırmak istiyorum, dambıl lateral raise setlerini artırabilirsin..."
                   rows={3}
-                  className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-emerald-500 text-slate-800"
+                  className="input py-2.5 leading-relaxed resize-none"
                 />
               </div>
-
-              {/* Generate Action Button */}
-              <button
-                type="button"
-                disabled={isGenerating}
-                onClick={handleGenerate}
-                className="w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-extrabold text-sm shadow-sm tap-effect flex items-center justify-center gap-2 transition-all"
-              >
-                <Sparkles className={`w-4 h-4 ${isGenerating ? "animate-spin" : ""}`} />
-                {isGenerating ? "Harun Hoca Programı Tasarlıyor..." : "Programı Oluştur (Harun Hoca)"}
-              </button>
-            </>
+            </div>
           ) : (
-            /* Program Preview & Confirmation */
+            /* Program Preview */
             <div className="space-y-4 animate-fade-in">
-              <div className="p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-white px-2 py-0.5 rounded-md shadow-xs">
-                  {generatedProgram.focus} • {generatedProgram.estimated_duration_weeks} Hafta
-                </span>
-                <h4 className="text-base font-extrabold text-emerald-950 mt-1.5">
+              <div className="rounded-2xl bg-emerald-50/70 p-4">
+                <p className="eyebrow text-emerald-700 truncate">
+                  {generatedProgram.focus} · <span className="tabular-nums">{generatedProgram.estimated_duration_weeks}</span> hafta
+                </p>
+                <h4 className="mt-1 text-base font-bold text-slate-900 leading-snug">
                   {generatedProgram.program_title}
                 </h4>
-                <p className="text-xs text-emerald-800 mt-1 leading-relaxed">
-                  💡 {generatedProgram.rationale}
-                </p>
+                <p className="mt-1.5 text-sm text-slate-700 leading-relaxed">{generatedProgram.rationale}</p>
               </div>
 
-              {/* Routines Preview */}
-              <div className="space-y-3">
-                {generatedProgram.routines.map((routine, rIdx) => (
-                  <div
-                    key={rIdx}
-                    className="p-4 rounded-2xl bg-slate-50 border border-slate-200"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-extrabold text-xs text-slate-900">
-                        {routine.sequence_order}. {routine.name}
-                      </span>
-                      <span className="text-[10px] font-bold text-slate-500 bg-white px-2 py-0.5 rounded-md border border-slate-200">
-                        {routine.exercises.length} Egzersiz
-                      </span>
-                    </div>
-
-                    <div className="divide-y divide-slate-200/60 text-xs">
-                      {routine.exercises.map((ex, exIdx) => (
-                        <div
-                          key={exIdx}
-                          className="py-1.5 flex items-center justify-between text-slate-700"
-                        >
-                          <span className="font-semibold text-slate-800">
-                            {ex.name}
-                          </span>
-                          <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
-                            {ex.target_weight_kg > 0 ? `${ex.target_weight_kg}kg • ` : ""}{ex.target_sets} × {ex.target_reps}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
+              {generatedProgram.routines.map((routine, rIdx) => (
+                <section key={rIdx}>
+                  <div className="flex items-center justify-between gap-3">
+                    <h5 className="min-w-0 truncate text-sm font-bold text-slate-900">
+                      {routine.sequence_order}. {routine.name}
+                    </h5>
+                    <span className="chip shrink-0 tabular-nums">{routine.exercises.length} Egzersiz</span>
                   </div>
-                ))}
-              </div>
+                  <ul className="mt-1.5 divide-y divide-slate-100 border-y border-slate-100">
+                    {routine.exercises.map((ex, exIdx) => (
+                      <li key={exIdx} className="py-2 flex items-center justify-between gap-3">
+                        <span className="min-w-0 text-sm text-slate-800">{ex.name}</span>
+                        <span className="shrink-0 text-xs font-semibold text-emerald-700 tabular-nums">
+                          {ex.target_weight_kg > 0 ? `${ex.target_weight_kg} kg · ` : ""}
+                          {ex.target_sets} × {ex.target_reps}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ))}
+            </div>
+          )}
+        </div>
 
-              {/* Action Buttons */}
-              <div className="flex items-center gap-3 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setGeneratedProgram(null)}
-                  className="flex-1 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs tap-effect"
-                >
-                  Geri / Yeniden Oluştur
-                </button>
-                <button
-                  type="button"
-                  disabled={isApplying}
-                  onClick={handleApplyToDatabase}
-                  className="flex-1 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs tap-effect flex items-center justify-center gap-2 shadow-sm"
-                >
-                  <Check className="w-4 h-4" />
-                  {isApplying ? "Yükleniyor..." : "Bu Programı Uygulamaya Yükle & Aktif Et"}
-                </button>
-              </div>
+        {/* Sticky footer */}
+        <div className="px-4 pt-3 pb-4 border-t border-slate-100">
+          {!generatedProgram ? (
+            <button
+              type="button"
+              disabled={isGenerating}
+              onClick={handleGenerate}
+              className="btn-primary btn-lg btn-block"
+            >
+              <Sparkles className={isGenerating ? "animate-spin" : ""} />
+              {isGenerating ? "Harun Hoca yazıyor…" : "Programı oluştur"}
+            </button>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setGeneratedProgram(null)}
+                className="btn-secondary px-3"
+              >
+                <RotateCw />
+                Yeniden oluştur
+              </button>
+              <button
+                type="button"
+                disabled={isApplying}
+                onClick={handleApplyToDatabase}
+                className="btn-primary px-3"
+              >
+                <Check />
+                {isApplying ? "Yükleniyor..." : "Programı yükle"}
+              </button>
             </div>
           )}
         </div>
       </div>
-    </div>
+    </>
   );
 }

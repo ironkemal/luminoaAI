@@ -1,17 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChatSession } from "@/types";
 import { useLanguage } from "@/lib/i18n";
 import {
-  History,
   Plus,
   Trash2,
   MessageSquare,
   Clock,
   X,
-  ChevronRight,
-  Sparkles,
   RefreshCw
 } from "lucide-react";
 
@@ -39,6 +36,19 @@ export default function ChatHistoryDrawer({
   const { t, language } = useLanguage();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // Lock body scroll + close on Escape while open
+  useEffect(() => {
+    if (!isOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const handleRefreshClick = async () => {
@@ -49,149 +59,135 @@ export default function ChatHistoryDrawer({
     }
   };
 
+  const dateLocale = language === "tr" ? "tr-TR" : language === "de" ? "de-DE" : "en-US";
+
   return (
-    <div className="fixed inset-0 z-50 flex justify-end animate-fade-in">
-      {/* Backdrop */}
-      <div
-        onClick={onClose}
-        className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
-      />
+    <>
+      <div className="sheet-backdrop" onClick={onClose} aria-hidden />
 
-      {/* Drawer Panel */}
-      <div className="relative w-84 max-w-[85vw] bg-white h-full shadow-2xl flex flex-col justify-between p-5 z-10 animate-slide-right overflow-y-auto border-l border-slate-200">
-        <div className="space-y-4">
-          {/* Header */}
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-200">
-                <History className="w-4 h-4" />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-slate-900">
-                  {t("chatSessions")}
-                </h3>
-                <p className="text-[10px] text-slate-400">
-                  {t("chatSessionsDesc")}
-                </p>
-              </div>
-            </div>
+      <div role="dialog" aria-modal="true" aria-labelledby="chat-history-title" className="sheet sm:max-h-[80dvh]">
+        {/* Grabber (mobile) */}
+        <div className="sm:hidden flex justify-center pt-2.5" aria-hidden>
+          <span className="w-10 h-1 rounded-full bg-slate-200" />
+        </div>
 
-            <div className="flex items-center gap-1">
-              {onRefresh && (
-                <button
-                  type="button"
-                  onClick={handleRefreshClick}
-                  title="Senkronize Et / Yenile"
-                  className="p-1.5 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl tap-effect"
-                >
-                  <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin text-emerald-600" : ""}`} />
-                </button>
-              )}
-              <button
-                onClick={onClose}
-                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl tap-effect"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+        {/* Header */}
+        <div className="flex items-center gap-2 px-4 pt-2 pb-3 sm:pt-4 border-b border-slate-100">
+          <div className="min-w-0 flex-1">
+            <h3 id="chat-history-title" className="section-title truncate">
+              {t("chatSessions")}
+            </h3>
+            <p className="text-xs text-slate-500 truncate">
+              {t("chatSessionsDesc")} · <span className="tabular-nums">{sessions.length}</span>
+            </p>
           </div>
+          {onRefresh && (
+            <button
+              type="button"
+              onClick={handleRefreshClick}
+              aria-label="Senkronize Et / Yenile"
+              title="Senkronize Et / Yenile"
+              className="icon-btn"
+            >
+              <RefreshCw className={isRefreshing ? "animate-spin text-emerald-600" : ""} />
+            </button>
+          )}
+          <button type="button" onClick={onClose} aria-label="Kapat" className="icon-btn">
+            <X />
+          </button>
+        </div>
 
-          {/* New Chat Button */}
+        {/* Sessions List */}
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+          {sessions.length === 0 ? (
+            <div className="px-6 py-12 text-center">
+              <div className="mx-auto w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center">
+                <Clock className="w-6 h-6" />
+              </div>
+              <p className="mt-3 text-sm font-semibold text-slate-700">{t("noSavedSessions")}</p>
+              <p className="mt-1 text-xs text-slate-500">{t("chatSessionsDesc")}</p>
+            </div>
+          ) : (
+            <ul className="divide-y divide-slate-100 px-2 py-1">
+              {sessions.map((sess) => {
+                const isCurrent = sess.id === currentSessionId;
+                const lastMsg = sess.messages?.[sess.messages.length - 1]?.content || "";
+
+                return (
+                  <li key={sess.id} className="group flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onSelectSession(sess);
+                        onClose();
+                      }}
+                      aria-current={isCurrent ? "true" : undefined}
+                      className={`tap-effect flex-1 min-w-0 flex items-start gap-3 text-left px-2 py-3 rounded-xl transition-colors ${
+                        isCurrent ? "bg-emerald-50/70" : "md:hover:bg-slate-50"
+                      }`}
+                    >
+                      <span
+                        className={`shrink-0 mt-0.5 w-9 h-9 rounded-xl flex items-center justify-center ${
+                          isCurrent ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-500"
+                        }`}
+                      >
+                        <MessageSquare className="w-4 h-4" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-semibold text-slate-900 truncate">
+                          {sess.title || t("newChat")}
+                        </span>
+                        {lastMsg && (
+                          <span className="block text-xs text-slate-500 truncate mt-0.5">{lastMsg}</span>
+                        )}
+                        <span className="block text-xs text-slate-400 mt-1 tabular-nums">
+                          {new Date(sess.updated_at || sess.created_at).toLocaleDateString(dateLocale, {
+                            day: "numeric",
+                            month: "short",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}{" "}
+                          · {sess.messages?.length || 0} mesaj
+                        </span>
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (confirm(language === "tr" ? "Bu sohbet oturumunu silmek istediğinize emin misiniz?" : "Delete this session?")) {
+                          onDeleteSession(sess.id);
+                        }
+                      }}
+                      className="icon-btn text-slate-400 hover:text-red-600 hover:bg-red-50 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100"
+                      aria-label={t("delete")}
+                      title={t("delete")}
+                    >
+                      <Trash2 className="!w-4 !h-4" />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-4 pt-3 pb-4 border-t border-slate-100 space-y-2">
           <button
             type="button"
             onClick={() => {
               onNewSession();
               onClose();
             }}
-            className="w-full py-2.5 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm tap-effect flex items-center justify-center gap-2 transition-colors"
+            className="btn-primary btn-block"
           >
-            <Plus className="w-4 h-4" />
-            <span>{t("startNewChat")}</span>
+            <Plus />
+            {t("startNewChat")}
           </button>
-
-          {/* Sessions List */}
-          <div className="space-y-2 pt-1">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1">
-              {t("savedSessions")} ({sessions.length})
-            </p>
-
-            {sessions.length === 0 ? (
-              <div className="p-6 rounded-2xl bg-slate-50 border border-dashed border-slate-200 text-center">
-                <Clock className="w-6 h-6 text-slate-400 mx-auto mb-1.5" />
-                <p className="text-xs font-semibold text-slate-600">
-                  {t("noSavedSessions")}
-                </p>
-                <p className="text-[10px] text-slate-400 mt-0.5">
-                  {t("chatSessionsDesc")}
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-1.5 max-h-[65vh] overflow-y-auto pr-1 scrollbar-thin">
-                {sessions.map((sess) => {
-                  const isCurrent = sess.id === currentSessionId;
-                  const lastMsg = sess.messages?.[sess.messages.length - 1]?.content || "";
-
-                  return (
-                    <div
-                      key={sess.id}
-                      className={`group p-3 rounded-2xl border transition-all tap-effect flex items-center justify-between gap-2 cursor-pointer ${
-                        isCurrent
-                          ? "bg-emerald-50/70 border-emerald-300 text-slate-900 shadow-sm"
-                          : "bg-slate-50/60 border-slate-200/80 hover:bg-slate-100 hover:border-slate-300 text-slate-800"
-                      }`}
-                      onClick={() => {
-                        onSelectSession(sess);
-                        onClose();
-                      }}
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <MessageSquare className={`w-3.5 h-3.5 flex-shrink-0 ${isCurrent ? "text-emerald-600" : "text-slate-400"}`} />
-                          <h4 className="text-xs font-bold truncate">
-                            {sess.title || t("newChat")}
-                          </h4>
-                        </div>
-                        {lastMsg && (
-                          <p className="text-[10px] text-slate-500 truncate mt-0.5">
-                            {lastMsg}
-                          </p>
-                        )}
-                        <p className="text-[9px] text-slate-400 mt-1">
-                          {new Date(sess.updated_at || sess.created_at).toLocaleDateString(language === "tr" ? "tr-TR" : language === "de" ? "de-DE" : "en-US", {
-                            day: "numeric",
-                            month: "short",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })} • {sess.messages?.length || 0}
-                        </p>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (confirm(language === "tr" ? "Bu sohbet oturumunu silmek istediğinize emin misiniz?" : "Delete this session?")) {
-                            onDeleteSession(sess.id);
-                          }
-                        }}
-                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity tap-effect"
-                        title={t("delete")}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="pt-3 border-t border-slate-100 text-[10px] text-slate-400 text-center">
-          {t("syncDeviceNotice")}
+          <p className="text-xs text-slate-400 text-center">{t("syncDeviceNotice")}</p>
         </div>
       </div>
-    </div>
+    </>
   );
 }

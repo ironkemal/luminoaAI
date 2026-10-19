@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { getCurrentUser } from "@/lib/auth-pin";
 import { AiCoachLog } from "@/types";
 import AiCoachView from "@/components/coach/AiCoachView";
 
@@ -16,11 +17,18 @@ export default function CoachPage() {
   const fetchAiLogs = async () => {
     setLoading(true);
     const supabase = createClient();
+    const currentUser = getCurrentUser();
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from("ai_coach_logs")
         .select("*")
         .order("created_at", { ascending: false });
+
+      if (currentUser?.id) {
+        query = query.eq("user_id", currentUser.id);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       setLogs((data as AiCoachLog[]) || []);
@@ -33,14 +41,29 @@ export default function CoachPage() {
 
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-12 flex items-center justify-center">
-        <div className="w-8 h-8 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+      <div className="page pb-0 md:pb-6 space-y-4" aria-busy="true" aria-label="Yükleniyor">
+        <div className="flex items-center gap-3 h-11">
+          <div className="skeleton w-11 h-11 rounded-2xl shrink-0" />
+          <div className="flex-1 space-y-2">
+            <div className="skeleton h-4 w-32" />
+            <div className="skeleton h-3 w-48 max-w-full" />
+          </div>
+        </div>
+        <div className="skeleton h-11 w-full" />
+        <div className="surface-card h-[calc(100dvh-13.875rem-env(safe-area-inset-bottom)-env(safe-area-inset-top))] min-h-[24rem] md:h-[min(680px,calc(100dvh-14rem))] p-4 flex flex-col gap-3">
+          <div className="skeleton h-16 w-4/5" />
+          <div className="skeleton h-10 w-1/2 self-end" />
+          <div className="skeleton h-12 w-3/4" />
+          <div className="mt-auto flex items-center justify-center py-4">
+            <span className="spinner" />
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6 md:py-8">
+    <div className="page pb-0 md:pb-6">
       <AiCoachView initialLogs={logs} />
     </div>
   );

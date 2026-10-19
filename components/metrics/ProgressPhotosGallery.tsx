@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { ProgressPhoto, PhotoTiming, PhotoPose } from "@/types";
 import { createClient } from "@/lib/supabase/client";
 import { getCurrentUser } from "@/lib/auth-pin";
@@ -124,7 +125,7 @@ export default function ProgressPhotosGallery({ currentWeight }: ProgressPhotosG
     }
 
     if (typeof window === "undefined" || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      setCameraError("Tarayıcınız bu bağlantıda (HTTP) canlı vizör akışını desteklemiyor. '📱 Telefon Kamerasını Aç' butonuna basarak cihaz kamerasını doğrudan başlatabilirsiniz.");
+      setCameraError("Tarayıcınız bu bağlantıda (HTTP) canlı vizör akışını desteklemiyor. Aşağıdaki 'Sistem kamerası' butonuyla cihaz kamerasını doğrudan açabilirsiniz.");
       setCameraLoading(false);
       return;
     }
@@ -478,13 +479,52 @@ export default function ProgressPhotosGallery({ currentWeight }: ProgressPhotosG
     }
   };
 
+  // Keep latest closeModal for the keyboard handler
+  const closeModalRef = useRef(closeModal);
+  closeModalRef.current = closeModal;
+
+  // Overlays: lock body scroll + close on Escape
+  const anyOverlayOpen = showUploadModal || !!selectedPhoto;
+  useEffect(() => {
+    if (!anyOverlayOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (selectedPhoto) setSelectedPhoto(null);
+      else closeModalRef.current();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [anyOverlayOpen, selectedPhoto]);
+
   const filteredPhotos =
     filterTiming === "all"
       ? photos
       : photos.filter((p) => p.timing === filterTiming);
 
+  // Short tab labels: drop the parenthetical ("Soğuk (Antrenman Öncesi)" → "Soğuk")
+  const shortLabel = (key: "timingPre" | "timingPost") => t(key).split(" (")[0];
+
+  const poseLabel = (p: PhotoPose | string) =>
+    p === "front" ? "Ön" : p === "side" ? "Yan" : p === "back" ? "Sırt" : "Genel";
+
+  const timingBadge = (tm: PhotoTiming | string) =>
+    tm === "post_workout" ? (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-950/70 text-white text-[11px] font-semibold leading-5 backdrop-blur-sm">
+        <Flame className="w-3 h-3 text-amber-300" /> Pump
+      </span>
+    ) : (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-950/70 text-white text-[11px] font-semibold leading-5 backdrop-blur-sm">
+        <Snowflake className="w-3 h-3 text-sky-300" /> Soğuk
+      </span>
+    );
+
   return (
-    <div id="progress-photos" className="surface-card p-5 md:p-6 space-y-4 animate-fade-in scroll-mt-20">
+    <section id="progress-photos" className="card space-y-4 animate-fade-in scroll-mt-20">
       {/* Hidden Canvas for Frame Capture */}
       <canvas ref={canvasRef} className="hidden" />
 
@@ -507,159 +547,120 @@ export default function ProgressPhotosGallery({ currentWeight }: ProgressPhotosG
       />
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
-        <div>
-          <div className="flex items-center gap-2">
-            <Camera className="w-5 h-5 text-emerald-600" />
-            <h3 className="text-sm md:text-base font-bold text-slate-900">
-              {t("photosTitle")}
-            </h3>
-          </div>
-          <p className="text-xs text-slate-500 mt-0.5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h2 className="section-title flex items-start gap-2">
+            <Camera className="w-[18px] h-[18px] mt-0.5 text-emerald-600 shrink-0" />
+            <span className="min-w-0">{t("photosTitle")}</span>
+          </h2>
+          <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
             {t("photosSubtitle")}
           </p>
         </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-auto">
-          {/* 📸 Kamera */}
-          <button
-            type="button"
-            onClick={handleTriggerNativeCamera}
-            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs shadow-md shadow-emerald-500/20 tap-effect flex items-center gap-2"
-          >
-            <Camera className="w-4 h-4" /> Kamera
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0">
+          <button type="button" onClick={handleTriggerNativeCamera} className="btn-primary">
+            <Camera /> Kamera
           </button>
-
-          {/* 🖼️ Galeri */}
-          <button
-            type="button"
-            onClick={handleTriggerGalleryPicker}
-            className="px-4 py-2.5 rounded-xl bg-white border border-slate-200 hover:border-slate-300 text-slate-700 font-bold text-xs tap-effect flex items-center gap-2 shadow-sm"
-          >
-            <ImageIcon className="w-4 h-4 text-slate-500" /> Galeri
+          <button type="button" onClick={handleTriggerGalleryPicker} className="btn-secondary">
+            <ImageIcon className="text-slate-500" /> Galeri
           </button>
         </div>
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl w-fit text-xs font-bold">
+      <div className="segmented" role="tablist" aria-label="Fotoğraf filtresi">
         <button
           type="button"
+          role="tab"
+          aria-selected={filterTiming === "all"}
+          data-active={filterTiming === "all"}
           onClick={() => setFilterTiming("all")}
-          className={`px-3 py-1.5 rounded-lg transition-all tap-effect ${
-            filterTiming === "all"
-              ? "bg-white text-slate-900 shadow-sm"
-              : "text-slate-500 hover:text-slate-900"
-          }`}
+          className="segmented-item"
         >
-          {t("timingAll")} ({photos.length})
+          {t("timingAll")}
+          <span className="tabular-nums text-slate-400">{photos.length}</span>
         </button>
-
         <button
           type="button"
+          role="tab"
+          aria-selected={filterTiming === "pre_workout"}
+          data-active={filterTiming === "pre_workout"}
           onClick={() => setFilterTiming("pre_workout")}
-          className={`px-3 py-1.5 rounded-lg transition-all tap-effect flex items-center gap-1 ${
-            filterTiming === "pre_workout"
-              ? "bg-cyan-50 text-cyan-800 shadow-sm border border-cyan-200"
-              : "text-slate-500 hover:text-slate-900"
-          }`}
+          className="segmented-item"
+          title={t("timingPre")}
         >
-          <Snowflake className="w-3.5 h-3.5 text-cyan-600" /> {t("timingPre")}
+          <Snowflake className="w-3.5 h-3.5 text-sky-500" /> {shortLabel("timingPre")}
         </button>
-
         <button
           type="button"
+          role="tab"
+          aria-selected={filterTiming === "post_workout"}
+          data-active={filterTiming === "post_workout"}
           onClick={() => setFilterTiming("post_workout")}
-          className={`px-3 py-1.5 rounded-lg transition-all tap-effect flex items-center gap-1 ${
-            filterTiming === "post_workout"
-              ? "bg-amber-50 text-amber-800 shadow-sm border border-amber-200"
-              : "text-slate-500 hover:text-slate-900"
-          }`}
+          className="segmented-item"
+          title={t("timingPost")}
         >
-          <Flame className="w-3.5 h-3.5 text-amber-600" /> {t("timingPost")}
+          <Flame className="w-3.5 h-3.5 text-amber-500" /> {shortLabel("timingPost")}
         </button>
       </div>
 
       {/* Grid */}
       {loading ? (
-        <div className="py-10 flex items-center justify-center">
-          <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+          <div className="skeleton aspect-[3/4]" />
+          <div className="skeleton aspect-[3/4]" />
         </div>
       ) : filteredPhotos.length === 0 ? (
-        <div className="p-8 rounded-2xl bg-slate-50 border border-dashed border-slate-200 text-center">
-          <Camera className="w-10 h-10 text-emerald-600/60 mx-auto mb-3" />
-          <p className="text-xs font-bold text-slate-700">
-            {filterTiming === "all"
-              ? "Henüz gelişim fotoğrafı yüklenmedi."
-              : "Bu filtreye ait fotoğraf bulunamadı."}
-          </p>
-          <p className="text-[11px] text-slate-500 mt-1 max-w-sm mx-auto">
-            Gelişiminizi takip etmek için kameranızla fotoğraf çekin veya galeriden seçin.
-          </p>
-          <div className="mt-4 flex items-center justify-center gap-3">
-            <button
-              type="button"
-              onClick={handleTriggerNativeCamera}
-              className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm tap-effect flex items-center gap-2"
-            >
-              <Camera className="w-4 h-4" /> Kamera
-            </button>
-            <button
-              type="button"
-              onClick={handleTriggerGalleryPicker}
-              className="px-5 py-2.5 rounded-xl bg-white border border-slate-200 hover:border-slate-300 text-slate-700 font-bold text-xs tap-effect flex items-center gap-2 shadow-sm"
-            >
-              <ImageIcon className="w-4 h-4 text-slate-500" /> Galeri
-            </button>
+        <div className="py-8 px-4 rounded-2xl border border-dashed border-slate-200 text-center">
+          <div className="w-11 h-11 mx-auto mb-3 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+            <Camera className="w-5 h-5" />
           </div>
+          <p className="text-sm font-semibold text-slate-700">
+            {filterTiming === "all"
+              ? "Henüz fotoğraf yok"
+              : "Bu filtrede fotoğraf yok"}
+          </p>
+          <p className="text-xs text-slate-500 mt-1 max-w-xs mx-auto">
+            Gelişimini görmek için yukarıdan kamerayla çek veya galeriden seç.
+          </p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3.5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
           {filteredPhotos.map((photo) => (
             <div
               key={photo.id}
-              className="group relative rounded-2xl bg-white border border-slate-200/80 overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
+              className="group relative rounded-2xl bg-white border border-slate-200/80 overflow-hidden flex flex-col"
             >
-              <div
+              <button
+                type="button"
                 onClick={() => setSelectedPhoto(photo)}
-                className="w-full h-44 sm:h-48 overflow-hidden cursor-pointer relative bg-slate-950 flex items-center justify-center"
+                aria-label="Fotoğrafı büyüt"
+                className="relative w-full aspect-[3/4] overflow-hidden bg-slate-950"
               >
                 <img
                   src={photo.photo_url}
-                  alt="Gelişim Fotoğrafı"
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                  alt="Gelişim fotoğrafı"
+                  className="w-full h-full object-cover md:group-hover:scale-[1.03] transition-transform duration-300"
                 />
-
-                {/* Timing Badge */}
-                <div className="absolute top-2 left-2 z-10">
-                  {photo.timing === "post_workout" ? (
-                    <span className="px-2 py-0.5 rounded-md bg-amber-500 text-white font-black text-[9px] flex items-center gap-0.5 shadow-sm">
-                      <Flame className="w-2.5 h-2.5 fill-current" /> PUMP
-                    </span>
-                  ) : (
-                    <span className="px-2 py-0.5 rounded-md bg-cyan-600 text-white font-black text-[9px] flex items-center gap-0.5 shadow-sm">
-                      <Snowflake className="w-2.5 h-2.5" /> SOĞUK
-                    </span>
-                  )}
-                </div>
-
-                <div className="absolute top-2 right-2 z-10">
-                  <span className="px-1.5 py-0.5 rounded-md bg-black/70 text-white font-bold text-[9px] uppercase">
-                    {photo.pose === "front" ? "Ön" : photo.pose === "side" ? "Yan" : photo.pose === "back" ? "Sırt" : "Genel"}
+                <div className="absolute top-2 left-2 right-2 flex items-start justify-between gap-1">
+                  {timingBadge(photo.timing)}
+                  <span className="px-1.5 py-0.5 rounded-md bg-slate-950/70 text-white text-[11px] font-semibold leading-5 backdrop-blur-sm">
+                    {poseLabel(photo.pose)}
                   </span>
                 </div>
-              </div>
+              </button>
 
-              <div className="p-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs">
-                <div>
-                  <div className="font-bold text-slate-800">
+              <div className="flex items-center justify-between gap-1 pl-3 pr-1 py-1">
+                <div className="min-w-0">
+                  <div className="text-xs font-semibold text-slate-800 truncate tabular-nums">
                     {new Date(photo.recorded_at).toLocaleDateString("tr-TR", {
                       day: "numeric",
                       month: "short",
                     })}
                   </div>
                   {photo.weight_kg && (
-                    <div className="text-[10px] text-emerald-700 font-bold">
+                    <div className="text-xs text-emerald-700 font-semibold tabular-nums">
                       {photo.weight_kg} kg
                     </div>
                   )}
@@ -668,9 +669,10 @@ export default function ProgressPhotosGallery({ currentWeight }: ProgressPhotosG
                 <button
                   type="button"
                   onClick={() => handleDeletePhoto(photo.id)}
-                  className="p-1 text-slate-400 hover:text-red-600 rounded-lg hover:bg-slate-200 tap-effect"
+                  aria-label="Fotoğrafı sil"
+                  className="icon-btn text-slate-400 hover:text-red-600 hover:bg-red-50"
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
+                  <Trash2 className="!w-4 !h-4" />
                 </button>
               </div>
             </div>
@@ -678,455 +680,418 @@ export default function ProgressPhotosGallery({ currentWeight }: ProgressPhotosG
         </div>
       )}
 
-      {/* Main Upload / Live Camera Modal */}
-      {showUploadModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-          <div className="w-full max-w-lg bg-white rounded-3xl p-5 sm:p-6 shadow-2xl border border-slate-100 animate-slide-up relative my-auto max-h-[92vh] overflow-y-auto">
-            {/* Close Button */}
-            <button
-              onClick={closeModal}
-              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 tap-effect z-30"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            {/* Modal Title */}
-            <div className="flex items-center gap-2 mb-1">
-              <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
-                <Camera className="w-4 h-4" />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-slate-900">
-                  Gelişim & Pump Fotoğrafı
+      {/* Main Upload / Live Camera Sheet (portaled so it escapes the card's stacking context) */}
+      {showUploadModal && createPortal(
+        <>
+          <div className="sheet-backdrop" onClick={closeModal} aria-hidden="true" />
+          <div className="sheet" role="dialog" aria-modal="true" aria-labelledby="photo-sheet-title">
+            {/* Sticky header */}
+            <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-3 border-b border-slate-100">
+              <div className="min-w-0">
+                <h3 id="photo-sheet-title" className="section-title truncate">
+                  Gelişim fotoğrafı
                 </h3>
-                <p className="text-[11px] text-slate-500">
-                  Kameranızı açarak canlı çekim yapın veya galeriden görsel yükleyin.
+                <p className="text-xs text-slate-500 truncate">
+                  Canlı çek veya galeriden yükle
                 </p>
               </div>
+              <button type="button" onClick={closeModal} aria-label="Kapat" className="icon-btn -mr-2">
+                <X />
+              </button>
             </div>
 
-            {/* Mode Switcher Tabs */}
-            {!previewUrl && (
-              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-2xl my-3 text-xs font-bold">
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleTriggerNativeCamera();
-                  }}
-                  className="flex-1 py-2.5 rounded-xl transition-all tap-effect flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold shadow-sm"
-                >
-                  <Camera className="w-4 h-4" />
-                  Kamera
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCaptureMode("gallery");
-                    stopCameraStream();
-                    handleTriggerGalleryPicker();
-                  }}
-                  className="flex-1 py-2.5 rounded-xl transition-all tap-effect flex items-center justify-center gap-2 bg-white text-slate-700 hover:text-slate-900 font-extrabold shadow-sm"
-                >
-                  <ImageIcon className="w-4 h-4 text-slate-500" />
-                  Galeri
-                </button>
-              </div>
-            )}
-
-            <form onSubmit={handleUpload} className="space-y-4">
-              {/* Media Viewport */}
-              <div className="relative">
-                {/* 1. Captured Preview State */}
-                {previewUrl ? (
-                  <div className="relative w-full h-64 sm:h-72 bg-slate-950 rounded-2xl overflow-hidden flex items-center justify-center border border-slate-800 shadow-inner">
-                    <img
-                      src={previewUrl}
-                      alt="Önizleme"
-                      className="w-full h-full object-contain"
-                    />
-
-                    {/* Badge */}
-                    <div className="absolute top-3 left-3 bg-emerald-600 text-white px-2.5 py-1 rounded-xl text-[10px] font-bold flex items-center gap-1 shadow-md">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> Fotoğraf Hazır
-                    </div>
-
-                    {/* Retake / Change Button */}
+            <form onSubmit={handleUpload} className="flex-1 min-h-0 flex flex-col">
+              <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+                {/* Mode Switcher */}
+                {!previewUrl && (
+                  <div className="segmented">
                     <button
                       type="button"
-                      onClick={handleRetakePhoto}
-                      className="absolute bottom-3 right-3 px-3.5 py-1.5 bg-black/75 hover:bg-black/90 text-white rounded-xl text-xs font-bold backdrop-blur-md shadow-lg tap-effect flex items-center gap-1.5 border border-white/10"
+                      data-active={captureMode === "camera"}
+                      onClick={() => {
+                        handleTriggerNativeCamera();
+                      }}
+                      className="segmented-item"
                     >
-                      <RefreshCw className="w-3.5 h-3.5" /> Tekrar Çek / Değiştir
+                      <Camera className="w-4 h-4" /> Kamera
+                    </button>
+                    <button
+                      type="button"
+                      data-active={captureMode === "gallery"}
+                      onClick={() => {
+                        setCaptureMode("gallery");
+                        stopCameraStream();
+                        handleTriggerGalleryPicker();
+                      }}
+                      className="segmented-item"
+                    >
+                      <ImageIcon className="w-4 h-4" /> Galeri
                     </button>
                   </div>
-                ) : captureMode === "camera" ? (
-                  /* 2. Live Camera Stream Viewport */
-                  <div className="relative w-full h-64 sm:h-80 bg-slate-950 rounded-2xl overflow-hidden flex items-center justify-center border border-slate-800 shadow-inner">
-                    {/* Shutter White Flash Effect */}
-                    {shutterFlash && (
-                      <div className="absolute inset-0 bg-white z-40 pointer-events-none opacity-90 animate-fade-out" />
-                    )}
+                )}
 
-                    {/* Live Video Feed */}
-                    <video
-                      ref={videoRef}
-                      autoPlay
-                      playsInline
-                      muted
-                      className={`w-full h-full object-cover transition-transform ${
-                        cameraFacing === "user" ? "scale-x-[-1]" : ""
-                      }`}
-                    />
+                {/* Media Viewport */}
+                <div className="relative">
+                  {/* 1. Captured Preview State */}
+                  {previewUrl ? (
+                    <div className="relative w-full h-64 sm:h-72 bg-slate-950 rounded-2xl overflow-hidden flex items-center justify-center">
+                      <img
+                        src={previewUrl}
+                        alt="Önizleme"
+                        className="w-full h-full object-contain"
+                      />
 
-                    {/* Loading Spinner */}
-                    {cameraLoading && (
-                      <div className="absolute inset-0 bg-slate-950/80 flex flex-col items-center justify-center z-20">
-                        <div className="w-8 h-8 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin mb-2" />
-                        <p className="text-xs text-slate-300 font-medium">Kamera başlatılıyor...</p>
+                      <div className="absolute top-3 left-3 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-600 text-white text-[11px] font-semibold leading-5">
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Hazır
                       </div>
-                    )}
 
-                    {/* Posture Alignment Grid (3x3 Rule of Thirds) */}
-                    {showGrid && !cameraError && !cameraLoading && (
-                      <div className="absolute inset-0 pointer-events-none grid grid-cols-3 grid-rows-3 z-10">
-                        <div className="border-r border-b border-white/20" />
-                        <div className="border-r border-b border-white/20" />
-                        <div className="border-b border-white/20" />
-                        <div className="border-r border-b border-white/20" />
-                        <div className="border-r border-b border-white/20" />
-                        <div className="border-b border-white/20" />
-                        <div className="border-r border-white/20" />
-                        <div className="border-r border-white/20" />
-                        <div className="" />
-                      </div>
-                    )}
-
-                    {/* Active Countdown Overlay */}
-                    {activeCountdown !== null && (
-                      <div className="absolute inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-30 pointer-events-none">
-                        <div className="text-7xl font-black text-white drop-shadow-2xl animate-ping scale-150">
-                          {activeCountdown}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Camera Control Overlays (Top Bar) */}
-                    {!cameraError && !cameraLoading && (
-                      <div className="absolute top-3 left-3 right-3 flex items-center justify-between z-20">
-                        {/* Countdown Timer Selector */}
-                        <div className="flex items-center gap-1 bg-black/50 backdrop-blur-md p-1 rounded-xl border border-white/10 text-[10px] font-bold text-white">
-                          <button
-                            type="button"
-                            onClick={() => setCountdownDuration(0)}
-                            className={`px-2 py-0.5 rounded-lg transition-colors ${
-                              countdownDuration === 0 ? "bg-emerald-600" : "hover:bg-white/20"
-                            }`}
-                          >
-                            Anlık
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setCountdownDuration(3)}
-                            className={`px-2 py-0.5 rounded-lg transition-colors ${
-                              countdownDuration === 3 ? "bg-emerald-600" : "hover:bg-white/20"
-                            }`}
-                          >
-                            3s
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setCountdownDuration(5)}
-                            className={`px-2 py-0.5 rounded-lg transition-colors ${
-                              countdownDuration === 5 ? "bg-emerald-600" : "hover:bg-white/20"
-                            }`}
-                          >
-                            5s
-                          </button>
-                        </div>
-
-                        {/* Grid & Flip Camera Buttons */}
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => setShowGrid(!showGrid)}
-                            title="Hizalama Kılavuzu"
-                            className={`p-2 rounded-xl backdrop-blur-md border border-white/10 text-white transition-colors tap-effect ${
-                              showGrid ? "bg-emerald-600" : "bg-black/50 hover:bg-black/70"
-                            }`}
-                          >
-                            <Grid3X3 className="w-4 h-4" />
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={toggleCameraFacing}
-                            title="Ön / Arka Kamera Değiştir"
-                            className="p-2 rounded-xl bg-black/50 hover:bg-black/70 backdrop-blur-md border border-white/10 text-white transition-colors tap-effect"
-                          >
-                            <SwitchCamera className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Camera Control Overlays (Bottom Shutter Bar) */}
-                    {!cameraError && !cameraLoading && (
-                      <div className="absolute bottom-3 left-0 right-0 flex items-center justify-center z-20">
-                        <button
-                          type="button"
-                          onClick={handleSnapPhoto}
-                          disabled={activeCountdown !== null}
-                          className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-md p-1 border-2 border-white flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-xl"
-                        >
-                          <div className="w-12 h-12 rounded-full bg-emerald-500 hover:bg-emerald-400 flex items-center justify-center text-white shadow-inner">
-                            <Camera className="w-6 h-6" />
-                          </div>
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Camera Error / Permission Fallback View */}
-                    {cameraError && (
-                      <div className="absolute inset-0 bg-slate-900 p-5 flex flex-col items-center justify-center text-center z-20">
-                        <AlertCircle className="w-10 h-10 text-amber-400 mb-2" />
-                        <h4 className="text-sm font-bold text-white mb-1">
-                          Kameraya Bağlanılamadı
-                        </h4>
-                        <p className="text-xs text-slate-300 max-w-xs mb-4">
-                          {cameraError}
-                        </p>
-                        <div className="flex flex-col sm:flex-row items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => nativeCameraInputRef.current?.click()}
-                            className="w-full sm:w-auto px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm tap-effect flex items-center justify-center gap-1.5"
-                          >
-                            <Camera className="w-4 h-4" /> Cihaz Kamerasını Aç (Sistem)
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => fileInputRef.current?.click()}
-                            className="w-full sm:w-auto px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs tap-effect flex items-center justify-center gap-1.5"
-                          >
-                            <ImageIcon className="w-4 h-4" /> Galeriden Seç
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  /* 3. Gallery / File Upload View */
-                  <div
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-full h-44 sm:h-52 rounded-2xl bg-slate-50 border-2 border-dashed border-slate-200 hover:border-emerald-500 flex flex-col items-center justify-center p-4 cursor-pointer tap-effect transition-all group"
-                  >
-                    <div className="w-12 h-12 rounded-2xl bg-emerald-50 group-hover:bg-emerald-100 text-emerald-600 flex items-center justify-center mb-2 transition-colors">
-                      <UploadCloud className="w-6 h-6" />
-                    </div>
-                    <p className="text-xs font-bold text-slate-800">
-                      Galeriden Fotoğraf Seç veya Sürükle
-                    </p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">
-                      JPG, PNG, WEBP veya HEIC formatları
-                    </p>
-                    <div className="mt-3 flex items-center gap-2">
-                      <span className="px-3 py-1 bg-white rounded-lg border border-slate-200 text-slate-700 font-semibold text-[11px] shadow-2xs">
-                        Dosya Araştır
-                      </span>
                       <button
                         type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          nativeCameraInputRef.current?.click();
-                        }}
-                        className="px-3 py-1 bg-emerald-50 hover:bg-emerald-100 rounded-lg border border-emerald-200 text-emerald-800 font-bold text-[11px] flex items-center gap-1"
+                        onClick={handleRetakePhoto}
+                        className="btn btn-sm absolute bottom-3 right-3 bg-slate-950/75 text-white backdrop-blur-md hover:bg-slate-950/90"
                       >
-                        <Camera className="w-3 h-3 text-emerald-600" /> Kamerayı Aç
+                        <RefreshCw /> Tekrar çek
                       </button>
                     </div>
+                  ) : captureMode === "camera" ? (
+                    /* 2. Live Camera Stream Viewport */
+                    <div className="relative w-full h-72 sm:h-80 bg-slate-950 rounded-2xl overflow-hidden flex items-center justify-center">
+                      {/* Shutter White Flash Effect */}
+                      {shutterFlash && (
+                        <div className="absolute inset-0 bg-white z-40 pointer-events-none opacity-90 animate-fade-out" />
+                      )}
+
+                      {/* Live Video Feed */}
+                      <video
+                        ref={videoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        className={`w-full h-full object-cover ${
+                          cameraFacing === "user" ? "scale-x-[-1]" : ""
+                        }`}
+                      />
+
+                      {/* Loading Spinner */}
+                      {cameraLoading && (
+                        <div className="absolute inset-0 bg-slate-950/80 flex flex-col items-center justify-center gap-2 z-20">
+                          <div className="spinner w-8 h-8" />
+                          <p className="text-xs text-slate-300 font-medium">Kamera başlatılıyor...</p>
+                        </div>
+                      )}
+
+                      {/* Posture Alignment Grid (3x3 Rule of Thirds) */}
+                      {showGrid && !cameraError && !cameraLoading && (
+                        <div className="absolute inset-0 pointer-events-none grid grid-cols-3 grid-rows-3 z-10">
+                          <div className="border-r border-b border-white/20" />
+                          <div className="border-r border-b border-white/20" />
+                          <div className="border-b border-white/20" />
+                          <div className="border-r border-b border-white/20" />
+                          <div className="border-r border-b border-white/20" />
+                          <div className="border-b border-white/20" />
+                          <div className="border-r border-white/20" />
+                          <div className="border-r border-white/20" />
+                          <div className="" />
+                        </div>
+                      )}
+
+                      {/* Active Countdown Overlay */}
+                      {activeCountdown !== null && (
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-30 pointer-events-none">
+                          <div key={activeCountdown} className="text-7xl font-black text-white drop-shadow-2xl tabular-nums animate-fade-in">
+                            {activeCountdown}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Camera Control Overlays (Top Bar) */}
+                      {!cameraError && !cameraLoading && (
+                        <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between gap-2 z-20">
+                          {/* Countdown Timer Selector */}
+                          <div className="flex items-center gap-0.5 bg-black/50 backdrop-blur-md p-1 rounded-xl text-xs font-semibold text-white">
+                            {([0, 3, 5] as const).map((d) => (
+                              <button
+                                key={d}
+                                type="button"
+                                onClick={() => setCountdownDuration(d)}
+                                aria-pressed={countdownDuration === d}
+                                className={`min-h-[32px] px-2.5 rounded-lg tabular-nums transition-colors ${
+                                  countdownDuration === d ? "bg-emerald-600" : "hover:bg-white/20"
+                                }`}
+                              >
+                                {d === 0 ? "Anlık" : `${d}s`}
+                              </button>
+                            ))}
+                          </div>
+
+                          {/* Grid & Flip Camera Buttons */}
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setShowGrid(!showGrid)}
+                              aria-label="Hizalama kılavuzu"
+                              aria-pressed={showGrid}
+                              className={`w-10 h-10 flex items-center justify-center rounded-xl backdrop-blur-md text-white transition-colors tap-effect ${
+                                showGrid ? "bg-emerald-600" : "bg-black/50 hover:bg-black/70"
+                              }`}
+                            >
+                              <Grid3X3 className="w-[18px] h-[18px]" />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={toggleCameraFacing}
+                              aria-label="Ön / arka kamera"
+                              className="w-10 h-10 flex items-center justify-center rounded-xl bg-black/50 hover:bg-black/70 backdrop-blur-md text-white transition-colors tap-effect"
+                            >
+                              <SwitchCamera className="w-[18px] h-[18px]" />
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Camera Control Overlays (Bottom Shutter Bar) */}
+                      {!cameraError && !cameraLoading && (
+                        <div className="absolute bottom-3 left-0 right-0 flex items-center justify-center z-20">
+                          <button
+                            type="button"
+                            onClick={handleSnapPhoto}
+                            disabled={activeCountdown !== null}
+                            aria-label="Fotoğraf çek"
+                            className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-md p-1 border-2 border-white flex items-center justify-center tap-effect disabled:opacity-60 shadow-xl"
+                          >
+                            <div className="w-12 h-12 rounded-full bg-emerald-500 flex items-center justify-center text-white">
+                              <Camera className="w-6 h-6" />
+                            </div>
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Camera Error / Permission Fallback View */}
+                      {cameraError && (
+                        <div className="absolute inset-0 bg-slate-900 p-5 flex flex-col items-center justify-center text-center z-20 overflow-y-auto">
+                          <AlertCircle className="w-9 h-9 text-amber-400 mb-2 shrink-0" />
+                          <h4 className="text-sm font-bold text-white mb-1">
+                            Kameraya bağlanılamadı
+                          </h4>
+                          <p className="text-xs leading-relaxed text-slate-300 max-w-xs mb-4">
+                            {cameraError}
+                          </p>
+                          <div className="grid gap-2 w-full max-w-[16rem] sm:max-w-none sm:flex sm:justify-center">
+                            <button
+                              type="button"
+                              onClick={() => nativeCameraInputRef.current?.click()}
+                              className="btn-primary btn-sm"
+                            >
+                              <Camera /> Sistem kamerası
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => fileInputRef.current?.click()}
+                              className="btn btn-sm bg-white/10 text-white hover:bg-white/20"
+                            >
+                              <ImageIcon /> Galeriden seç
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    /* 3. Gallery / File Upload View */
+                    <div
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-full py-8 px-4 rounded-2xl border-2 border-dashed border-slate-200 md:hover:border-emerald-400 flex flex-col items-center justify-center text-center cursor-pointer transition-colors"
+                    >
+                      <div className="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-2">
+                        <UploadCloud className="w-5 h-5" />
+                      </div>
+                      <p className="text-sm font-semibold text-slate-800">
+                        Galeriden fotoğraf seç
+                      </p>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        JPG, PNG, WEBP veya HEIC
+                      </p>
+                      <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                        <span className="btn-secondary btn-sm">Dosya seç</span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            nativeCameraInputRef.current?.click();
+                          }}
+                          className="btn btn-sm bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                        >
+                          <Camera /> Kamerayı aç
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Timing Selection (Pre vs Post Workout) */}
+                <div>
+                  <span className="field-label">Çekim zamanı *</span>
+                  <div className="grid grid-cols-2 gap-2">
+                    {([
+                      { value: "pre_workout", label: "Soğuk", sub: "Antrenman öncesi", Icon: Snowflake, iconCls: "text-sky-500" },
+                      { value: "post_workout", label: "Pump", sub: "Antrenman sonrası", Icon: Flame, iconCls: "text-amber-500" },
+                    ] as const).map(({ value, label, sub, Icon, iconCls }) => {
+                      const active = timing === value;
+                      return (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => setTiming(value)}
+                          aria-pressed={active}
+                          className={`min-h-[52px] px-3 py-2 rounded-xl border text-left tap-effect transition-colors ${
+                            active
+                              ? "bg-emerald-50 border-emerald-500 ring-1 ring-emerald-500"
+                              : "bg-white border-slate-200 md:hover:bg-slate-50"
+                          }`}
+                        >
+                          <span className={`flex items-center gap-1.5 text-sm font-semibold ${active ? "text-emerald-900" : "text-slate-800"}`}>
+                            <Icon className={`w-4 h-4 shrink-0 ${iconCls}`} /> {label}
+                          </span>
+                          <span className="block text-xs text-slate-500 mt-0.5 truncate">{sub}</span>
+                        </button>
+                      );
+                    })}
                   </div>
-                )}
-              </div>
-
-              {/* Timing Selection (Pre vs Post Workout) */}
-              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-1.5">
-                <label className="block text-xs font-bold text-slate-800">
-                  Çekim Durumu *
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setTiming("pre_workout")}
-                    className={`p-2.5 rounded-xl border text-xs font-bold transition-all tap-effect flex flex-col items-start ${
-                      timing === "pre_workout"
-                        ? "bg-cyan-50 border-cyan-500 text-cyan-900 shadow-xs"
-                        : "bg-white border-slate-200 text-slate-600 hover:bg-slate-100"
-                    }`}
-                  >
-                    <div className="flex items-center gap-1 font-bold text-xs">
-                      <Snowflake className="w-3.5 h-3.5 text-cyan-600" />
-                      Soğuk (Pre-Workout)
-                    </div>
-                    <span className="text-[10px] text-slate-500 font-normal mt-0.5">
-                      Antrenman öncesi, dinlenmiş
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setTiming("post_workout")}
-                    className={`p-2.5 rounded-xl border text-xs font-bold transition-all tap-effect flex flex-col items-start ${
-                      timing === "post_workout"
-                        ? "bg-amber-50 border-amber-500 text-amber-900 shadow-xs"
-                        : "bg-white border-slate-200 text-slate-600 hover:bg-slate-100"
-                    }`}
-                  >
-                    <div className="flex items-center gap-1 font-bold text-xs">
-                      <Flame className="w-3.5 h-3.5 text-amber-600" />
-                      Pump (Post-Workout)
-                    </div>
-                    <span className="text-[10px] text-slate-500 font-normal mt-0.5">
-                      Antrenman hemen sonrası
-                    </span>
-                  </button>
                 </div>
-              </div>
 
-              {/* Pose & Weight & Date */}
-              <div className="grid grid-cols-3 gap-2.5">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                    Poz / Açı
-                  </label>
-                  <select
-                    value={pose}
-                    onChange={(e) => setPose(e.target.value as PhotoPose)}
-                    className="w-full px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-500"
-                  >
-                    <option value="front">Ön (Front)</option>
-                    <option value="side">Yan (Side)</option>
-                    <option value="back">Sırt (Back)</option>
-                    <option value="other">Genel / Diğer</option>
-                  </select>
+                {/* Pose & Weight & Date */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                  <div className="min-w-0">
+                    <label htmlFor="ph-pose" className="field-label">Poz</label>
+                    <select
+                      id="ph-pose"
+                      value={pose}
+                      onChange={(e) => setPose(e.target.value as PhotoPose)}
+                      className="input !px-3 font-semibold"
+                    >
+                      <option value="front">Ön (Front)</option>
+                      <option value="side">Yan (Side)</option>
+                      <option value="back">Sırt (Back)</option>
+                      <option value="other">Genel / Diğer</option>
+                    </select>
+                  </div>
+
+                  <div className="min-w-0">
+                    <label htmlFor="ph-weight" className="field-label">Kilo (kg)</label>
+                    <input
+                      id="ph-weight"
+                      type="number"
+                      inputMode="decimal"
+                      step="0.1"
+                      value={weightKg}
+                      onChange={(e) => setWeightKg(e.target.value)}
+                      placeholder="99.5"
+                      className="input !px-3 font-semibold tabular-nums"
+                    />
+                  </div>
+
+                  <div className="min-w-0 col-span-2 sm:col-span-1">
+                    <label htmlFor="ph-date" className="field-label">Tarih</label>
+                    <input
+                      id="ph-date"
+                      type="date"
+                      value={recordedDate}
+                      onChange={(e) => setRecordedDate(e.target.value)}
+                      className="input !px-3 font-semibold tabular-nums"
+                    />
+                  </div>
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                    Kilo (kg)
-                  </label>
+                  <label htmlFor="ph-notes" className="field-label">Not (isteğe bağlı)</label>
                   <input
-                    type="number"
-                    step="0.1"
-                    value={weightKg}
-                    onChange={(e) => setWeightKg(e.target.value)}
-                    placeholder="99.5"
-                    className="w-full px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-500"
-                  >
-                  </input>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                    Tarih
-                  </label>
-                  <input
-                    type="date"
-                    value={recordedDate}
-                    onChange={(e) => setRecordedDate(e.target.value)}
-                    className="w-full px-2 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-500"
+                    id="ph-notes"
+                    type="text"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Göğüs & kol pump, iyi ışık..."
+                    className="input"
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                  Not (İsteğe Bağlı)
-                </label>
-                <input
-                  type="text"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Göğüs & kol pump, iyi aydınlatma..."
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-500"
-                />
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 tap-effect"
-                >
+              {/* Sticky footer */}
+              <div className="grid grid-cols-2 gap-2 px-5 py-3 border-t border-slate-100">
+                <button type="button" onClick={closeModal} className="btn-secondary">
                   {t("cancel")}
                 </button>
                 <button
                   type="submit"
                   disabled={isUploading || (!selectedFile && !previewUrl)}
-                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs shadow-sm tap-effect flex items-center gap-1.5"
+                  className="btn-primary"
                 >
-                  <Check className="w-4 h-4" />
-                  {isUploading ? "Kaydediliyor..." : "Fotoğrafı Kaydet"}
+                  <Check />
+                  {isUploading ? "Kaydediliyor..." : "Kaydet"}
                 </button>
               </div>
             </form>
           </div>
-        </div>
+        </>,
+        document.body
       )}
 
-      {/* Lightbox Modal */}
-      {selectedPhoto && (
-        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
-          <button
-            onClick={() => setSelectedPhoto(null)}
-            className="absolute top-4 right-4 z-20 p-2.5 bg-white/10 hover:bg-white/20 text-white rounded-full tap-effect"
-          >
-            <X className="w-6 h-6" />
-          </button>
+      {/* Lightbox */}
+      {selectedPhoto && createPortal(
+        <div
+          className="fixed inset-0 z-50 bg-slate-950/95 flex flex-col animate-fade-in"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Fotoğraf detayı"
+          onClick={() => setSelectedPhoto(null)}
+        >
+          <div className="pt-safe flex justify-end px-3 py-3 shrink-0">
+            <button
+              type="button"
+              onClick={() => setSelectedPhoto(null)}
+              aria-label="Kapat"
+              className="icon-btn text-white bg-white/10 hover:bg-white/20 hover:text-white"
+            >
+              <X />
+            </button>
+          </div>
 
-          <div className="max-w-2xl w-full flex flex-col items-center">
-            <div className="max-h-[75vh] w-full flex items-center justify-center mb-3">
-              <img
-                src={selectedPhoto.photo_url}
-                alt="Gelişim Detayı"
-                className="max-h-[75vh] max-w-full object-contain rounded-2xl shadow-2xl"
-              />
-            </div>
+          <div className="flex-1 min-h-0 flex items-center justify-center px-4">
+            <img
+              src={selectedPhoto.photo_url}
+              alt="Gelişim detayı"
+              onClick={(e) => e.stopPropagation()}
+              className="max-h-full max-w-full object-contain rounded-2xl"
+            />
+          </div>
 
-            <div className="w-full p-4 bg-white rounded-2xl shadow-xl flex items-center justify-between text-xs">
-              <div className="flex items-center gap-2.5">
+          <div className="shrink-0 p-4 pb-safe" onClick={(e) => e.stopPropagation()}>
+            <div className="mx-auto max-w-2xl mb-4 p-3.5 bg-white rounded-2xl">
+              <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-sm">
                 {selectedPhoto.timing === "post_workout" ? (
-                  <span className="px-2.5 py-1 rounded-lg bg-amber-500 text-white font-black text-[10px]">
-                    PUMP
-                  </span>
+                  <span className="chip-warn"><Flame className="w-3 h-3" /> Pump</span>
                 ) : (
-                  <span className="px-2.5 py-1 rounded-lg bg-cyan-600 text-white font-black text-[10px]">
-                    SOĞUK
-                  </span>
+                  <span className="chip"><Snowflake className="w-3 h-3 text-sky-500" /> Soğuk</span>
                 )}
-
-                <span className="font-bold text-slate-800">
+                <span className="chip">{poseLabel(selectedPhoto.pose)}</span>
+                <span className="font-semibold text-slate-800 tabular-nums">
                   {new Date(selectedPhoto.recorded_at).toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" })}
                 </span>
-
                 {selectedPhoto.weight_kg && (
-                  <span className="font-extrabold text-emerald-700">
+                  <span className="font-bold text-emerald-700 tabular-nums">
                     {selectedPhoto.weight_kg} kg
                   </span>
                 )}
               </div>
-
               {selectedPhoto.notes && (
-                <span className="text-slate-500 italic text-[11px] truncate max-w-xs">
+                <p className="mt-1.5 text-xs text-slate-500 line-clamp-2">
                   &ldquo;{selectedPhoto.notes}&rdquo;
-                </span>
+                </p>
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
-    </div>
+    </section>
   );
 }
-

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Mic, MicOff, Volume2, VolumeX, X, UserCheck, Sparkles, Send } from "lucide-react";
+import { Mic, MicOff, Volume2, VolumeX, X, UserCheck, Send } from "lucide-react";
 
 interface VoiceCoachModalProps {
   isOpen: boolean;
@@ -124,142 +124,163 @@ export default function VoiceCoachModal({
     }
   };
 
+  const handleClose = () => {
+    stopListening();
+    stopSpeaking();
+    onClose();
+  };
+
+  // Lock body scroll + close on Escape while open
+  useEffect(() => {
+    if (!isOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") handleClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-md flex items-center justify-center p-4">
-      <div className="w-full max-w-lg bg-white rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-100 flex flex-col items-center animate-slide-up relative">
-        {/* Close button */}
-        <button
-          onClick={() => {
-            stopListening();
-            stopSpeaking();
-            onClose();
-          }}
-          className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 tap-effect"
-        >
-          <X className="w-5 h-5" />
-        </button>
+  const status = isListening
+    ? { label: "Sizi dinliyor… konuşun", cls: "bg-red-50 text-red-600", icon: <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" /> }
+    : isThinking
+    ? { label: "Harun Hoca düşünüyor…", cls: "bg-slate-100 text-slate-700", icon: <span className="w-3 h-3 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" /> }
+    : isSpeaking
+    ? { label: "Harun Hoca konuşuyor…", cls: "bg-emerald-50 text-emerald-700", icon: <Volume2 className="w-3.5 h-3.5" /> }
+    : { label: "Mikrofona basıp konuşun", cls: "bg-slate-100 text-slate-600", icon: <Mic className="w-3.5 h-3.5" /> };
 
-        {/* AI Voice Avatar Circle */}
-        <div className="relative my-4">
-          <div
-            className={`w-24 h-24 rounded-3xl flex items-center justify-center transition-all duration-300 shadow-xl ${
-              isListening
-                ? "bg-red-500 text-white scale-110 animate-pulse ring-4 ring-red-400/40"
-                : isSpeaking
-                ? "bg-emerald-50 text-emerald-600 scale-105 border-4 border-emerald-400 shadow-glow"
-                : isThinking
-                ? "bg-amber-50 text-amber-500 animate-spin border-4 border-amber-300"
-                : "bg-slate-50 text-slate-700 border-2 border-slate-200"
-            }`}
-          >
-            <UserCheck className="w-12 h-12" />
+  return (
+    <>
+      <div className="sheet-backdrop" onClick={handleClose} aria-hidden />
+
+      <div role="dialog" aria-modal="true" aria-labelledby="voice-coach-title" className="sheet">
+        {/* Grabber (mobile) */}
+        <div className="sm:hidden flex justify-center pt-2.5" aria-hidden>
+          <span className="w-10 h-1 rounded-full bg-slate-200" />
+        </div>
+
+        {/* Header */}
+        <div className="flex items-center gap-2 px-4 pt-2 pb-3 sm:pt-4">
+          <div className="min-w-0 flex-1">
+            <h3 id="voice-coach-title" className="section-title truncate">
+              Sesli görüşme
+            </h3>
+            <p className="text-xs text-slate-500 line-clamp-2">
+              Profilinizi, ekipmanlarınızı ve hedefinizi bilerek konuşur
+            </p>
+          </div>
+          <button type="button" onClick={handleClose} aria-label="Kapat" className="icon-btn">
+            <X />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 pb-4">
+          {/* Avatar */}
+          <div className="flex flex-col items-center pt-2 pb-4">
+            <div className="relative">
+              {(isListening || isSpeaking) && (
+                <span
+                  aria-hidden
+                  className={`absolute inset-0 rounded-[1.75rem] animate-ping opacity-30 ${
+                    isListening ? "bg-red-400" : "bg-emerald-400"
+                  }`}
+                />
+              )}
+              <div
+                className={`relative w-24 h-24 rounded-[1.75rem] flex items-center justify-center transition-colors duration-200 ${
+                  isListening
+                    ? "bg-red-500 text-white"
+                    : isSpeaking
+                    ? "bg-emerald-600 text-white"
+                    : "bg-slate-100 text-slate-700"
+                }`}
+              >
+                <UserCheck className="w-11 h-11" />
+              </div>
+            </div>
+
+            <span
+              aria-live="polite"
+              className={`mt-4 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${status.cls}`}
+            >
+              {status.icon}
+              {status.label}
+            </span>
           </div>
 
-          {/* Sound waves indicator */}
-          {isSpeaking && (
-            <div className="absolute -bottom-2 inset-x-0 flex items-center justify-center gap-1">
-              <span className="w-1.5 h-4 bg-emerald-500 rounded-full animate-bounce" />
-              <span className="w-1.5 h-6 bg-emerald-600 rounded-full animate-bounce [animation-delay:0.15s]" />
-              <span className="w-1.5 h-3 bg-emerald-500 rounded-full animate-bounce [animation-delay:0.3s]" />
-            </div>
-          )}
+          {/* Live Transcript / Response */}
+          <div className="card-muted min-h-[7.5rem] text-sm text-slate-700 leading-relaxed space-y-3">
+            {transcript && (
+              <div>
+                <p className="eyebrow mb-0.5">Siz</p>
+                <p className="font-medium text-slate-900">&ldquo;{transcript}&rdquo;</p>
+              </div>
+            )}
+            {coachResponse ? (
+              <div className={transcript ? "pt-3 border-t border-slate-200" : ""}>
+                <p className="eyebrow text-emerald-600 mb-0.5">Harun Hoca</p>
+                <p className="whitespace-pre-wrap">{coachResponse}</p>
+              </div>
+            ) : !transcript ? (
+              <p className="text-slate-400 text-center py-3">
+                Örnek: &ldquo;Hocam, bench presste zorlandım ne yapalım?&rdquo; veya &ldquo;Bugün antrenman sonrası ne yemeliyim?&rdquo;
+              </p>
+            ) : null}
+          </div>
         </div>
 
-        <h3 className="text-xl font-extrabold text-slate-900 tracking-tight text-center">
-          Harun Hoca ile Canlı Sesli Görüşme
-        </h3>
-        <p className="text-xs text-slate-500 mt-0.5 text-center">
-          Profilinizi, ekipmanlarınızı ve hedefinizi bilerek konuşur
-        </p>
-
-        {/* Status Indicator */}
-        <div className="mt-3 mb-4">
-          {isListening && (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-red-50 text-red-600 border border-red-200 animate-pulse">
-              <span className="w-2 h-2 rounded-full bg-red-500" /> Sizi Dinliyor... (Konuşun)
-            </span>
-          )}
-          {isThinking && (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
-              <Sparkles className="w-3.5 h-3.5 animate-spin" /> Harun Hoca Düşünüyor...
-            </span>
-          )}
-          {isSpeaking && (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-              <Volume2 className="w-3.5 h-3.5 animate-bounce" /> Harun Hoca Konuşuyor...
-            </span>
-          )}
-          {!isListening && !isThinking && !isSpeaking && (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600">
-              Mikrofona basıp konuşun
-            </span>
-          )}
-        </div>
-
-        {/* Live Transcript / Response Box */}
-        <div className="w-full bg-slate-50 rounded-2xl p-4 border border-slate-200/80 min-h-[120px] max-h-[220px] overflow-y-auto text-xs text-slate-700 leading-relaxed mb-4 scrollbar-thin">
-          {transcript && (
-            <div className="mb-2 pb-2 border-b border-slate-200 text-slate-900 font-semibold">
-              <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Siz:</span>
-              &ldquo;{transcript}&rdquo;
-            </div>
-          )}
-          {coachResponse ? (
-            <div>
-              <span className="text-[10px] uppercase font-bold text-emerald-600 block mb-0.5">Harun Hoca:</span>
-              {coachResponse}
-            </div>
-          ) : !transcript ? (
-            <div className="text-slate-400 text-center py-4 italic">
-              Örnek: &ldquo;Hocam, bench presste zorlandım ne yapalım?&rdquo; veya &ldquo;Bugün antrenman sonrası ne yemeliyim?&rdquo;
-            </div>
-          ) : null}
-        </div>
-
-        {/* Controls */}
-        <div className="flex items-center gap-3 w-full">
+        {/* Footer controls */}
+        <div className="flex items-center gap-2 px-4 pt-3 pb-4 border-t border-slate-100">
           {isListening ? (
             <button
+              type="button"
               onClick={() => {
                 stopListening();
                 handleSendVoiceQuery();
               }}
-              className="flex-1 py-3.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-2xl tap-effect flex items-center justify-center gap-2 shadow-sm"
+              className="btn btn-lg flex-1 bg-red-600 text-white md:hover:bg-red-700"
             >
-              <MicOff className="w-4 h-4" /> Dinlemeyi Bitir ve Sor
+              <MicOff /> Bitir ve sor
             </button>
           ) : (
-            <button
-              onClick={startListening}
-              className="flex-1 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-2xl tap-effect flex items-center justify-center gap-2 shadow-sm"
-            >
-              <Mic className="w-4 h-4" /> Mikrofona Basıp Konuş
+            <button type="button" onClick={startListening} className="btn-primary btn-lg flex-1">
+              <Mic /> Konuşmaya başla
             </button>
           )}
 
           {transcript && !isListening && (
             <button
+              type="button"
               onClick={() => handleSendVoiceQuery()}
-              className="p-3.5 bg-slate-900 text-white rounded-2xl tap-effect flex items-center justify-center"
+              className="tap-effect shrink-0 w-[52px] h-[52px] rounded-2xl bg-slate-900 text-white flex items-center justify-center"
+              aria-label="Metni Gönder"
               title="Metni Gönder"
             >
-              <Send className="w-4 h-4" />
+              <Send className="w-5 h-5" />
             </button>
           )}
 
           {isSpeaking && (
             <button
+              type="button"
               onClick={stopSpeaking}
-              className="p-3.5 bg-slate-100 text-slate-700 rounded-2xl tap-effect flex items-center justify-center"
+              className="tap-effect shrink-0 w-[52px] h-[52px] rounded-2xl bg-slate-100 text-slate-700 flex items-center justify-center"
+              aria-label="Sesi Durdur"
               title="Sesi Durdur"
             >
-              <VolumeX className="w-4 h-4" />
+              <VolumeX className="w-5 h-5" />
             </button>
           )}
         </div>
       </div>
-    </div>
+    </>
   );
 }

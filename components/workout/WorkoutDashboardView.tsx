@@ -7,7 +7,7 @@ import { calculateNextRoutine } from "@/lib/workout-queue";
 import { getCurrentUser } from "@/lib/auth-pin";
 import WorkoutQueueCard from "@/components/workout/WorkoutQueueCard";
 import Link from "next/link";
-import { Dumbbell, Trophy, Flame, ChevronRight, Scale, Sparkles, History, Calendar, UserCheck, Camera } from "lucide-react";
+import { Dumbbell, Trophy, Flame, ChevronRight, Scale, History, Calendar, UserCheck, Camera, CheckCircle2 } from "lucide-react";
 
 export default function WorkoutDashboardView() {
   const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
@@ -25,17 +25,24 @@ export default function WorkoutDashboardView() {
   const fetchDashboardData = async () => {
     setLoading(true);
     const supabase = createClient();
+    const user = getCurrentUser();
 
     try {
-      // 1. Fetch active routines
-      const { data: routinesData } = await supabase
+      // 1. Fetch active routines for current user
+      let routinesQuery = supabase
         .from("workout_routines")
         .select("*")
         .eq("is_active", true)
         .order("sequence_order", { ascending: true });
 
-      // 2. Fetch last completed sessions
-      const { data: sessionsData } = await supabase
+      if (user?.id) {
+        routinesQuery = routinesQuery.eq("user_id", user.id);
+      }
+
+      const { data: routinesData } = await routinesQuery;
+
+      // 2. Fetch last completed sessions for current user
+      let sessionsQuery = supabase
         .from("workout_sessions")
         .select(`
           id,
@@ -49,6 +56,12 @@ export default function WorkoutDashboardView() {
         .not("completed_at", "is", null)
         .order("completed_at", { ascending: false })
         .limit(5);
+
+      if (user?.id) {
+        sessionsQuery = sessionsQuery.eq("user_id", user.id);
+      }
+
+      const { data: sessionsData } = await sessionsQuery;
 
       const routinesList = routinesData && routinesData.length > 0 ? (routinesData as WorkoutRoutine[]) : [];
       setRoutines(routinesList);
@@ -80,50 +93,60 @@ export default function WorkoutDashboardView() {
     nextRoutine: effectiveRoutine,
   };
 
-  return (
-    <div className="max-w-4xl mx-auto px-4 py-6 md:py-8 space-y-6">
-      {/* Top Welcome Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
-            Antrenman Paneli
-          </h1>
-          <p className="text-sm text-slate-500 mt-0.5">
-            {currentUser
-              ? `${currentUser.display_name || currentUser.username} • ${currentUser.current_weight_kg || 100} kg • ${currentUser.fitness_goal || "Recomp"}`
-              : "Döngüsel Antrenman ve Gelişim Takibi"}
-          </p>
-        </div>
+  const quickActions = [
+    { href: "/metrics#progress-photos", label: "Fotoğraf", sub: "Çek / ekle", icon: Camera },
+    { href: "/metrics", label: "Ölçüm", sub: "Tartım / kilo", icon: Scale },
+    { href: "/coach", label: "Harun Hoca", sub: "Danış", icon: UserCheck },
+  ];
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Link
-            href="/metrics#progress-photos"
-            className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-xs font-bold text-white shadow-sm shadow-emerald-500/20 flex items-center gap-1.5 tap-effect"
-          >
-            <Camera className="w-3.5 h-3.5" />
-            Fotoğraf Çek / Ekle
-          </Link>
-          <Link
-            href="/metrics"
-            className="px-3.5 py-2 rounded-xl bg-white border border-slate-200 hover:border-slate-300 text-xs font-semibold text-slate-700 shadow-sm flex items-center gap-1.5 tap-effect"
-          >
-            <Scale className="w-3.5 h-3.5 text-emerald-600" />
-            Tartım / Ölçüm
-          </Link>
-          <Link
-            href="/coach"
-            className="px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-xs font-semibold text-emerald-700 border border-emerald-200/60 shadow-sm flex items-center gap-1.5 tap-effect"
-          >
-            <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
-            Harun Hoca&apos;ya Danış
-          </Link>
-        </div>
-      </div>
+  const stats = [
+    { label: "Hedef süreç", value: "Recomp", meta: "Yağ yakımı & kas", icon: Flame },
+    { label: "Maks. direnç", value: "2× 24.5 kg", meta: "Ayarlanabilir dambıl", icon: Dumbbell },
+    { label: "Core & sırt", value: "Ab-Wheel", meta: "+ Barfiks demiri", icon: Trophy },
+    { label: "Tamamlanan", value: `${recentSessions.length} seans`, meta: "Son döngü kayıtları", icon: History },
+  ];
+
+  return (
+    <div className="page">
+      {/* Header */}
+      <header className="min-w-0">
+        <h1 className="page-title">Antrenman Paneli</h1>
+        <p className="page-subtitle truncate">
+          {currentUser
+            ? `${currentUser.display_name || currentUser.username} • ${currentUser.current_weight_kg || 100} kg • ${currentUser.fitness_goal || "Recomp"}`
+            : "Döngüsel Antrenman ve Gelişim Takibi"}
+        </p>
+      </header>
+
+      {/* Quick actions */}
+      <nav aria-label="Hızlı işlemler" className="grid grid-cols-3 gap-2.5">
+        {quickActions.map((a) => {
+          const Icon = a.icon;
+          return (
+            <Link
+              key={a.href}
+              href={a.href}
+              className="surface-card tap-effect min-w-0 flex flex-col items-start gap-2.5 p-3 md:hover:border-emerald-200"
+            >
+              <span className="flex items-center justify-center w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 shrink-0">
+                <Icon className="w-[18px] h-[18px]" />
+              </span>
+              <span className="min-w-0 w-full">
+                <span className="block text-[13px] font-bold text-slate-900 leading-tight truncate">{a.label}</span>
+                <span className="block text-xs text-slate-500 leading-tight mt-0.5 truncate">{a.sub}</span>
+              </span>
+            </Link>
+          );
+        })}
+      </nav>
 
       {/* Main Rotating Queue Card */}
       {loading ? (
-        <div className="surface-card p-12 flex items-center justify-center">
-          <div className="w-8 h-8 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+        <div className="card space-y-3" aria-busy="true">
+          <div className="skeleton h-3 w-28" />
+          <div className="skeleton h-7 w-3/4" />
+          <div className="skeleton h-4 w-1/2" />
+          <div className="skeleton h-[52px] w-full mt-4" />
         </div>
       ) : (
         <WorkoutQueueCard
@@ -134,82 +157,62 @@ export default function WorkoutDashboardView() {
       )}
 
       {/* Quick Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
-        <div className="surface-card p-4">
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-medium">Hedef Süreç</span>
-            <Flame className="w-4 h-4 text-amber-500" />
-          </div>
-          <p className="text-lg font-bold text-slate-800">Recomp</p>
-          <p className="text-[11px] text-slate-500 mt-0.5">Yağ Yakımı & Kas Kütlesi</p>
-        </div>
-
-        <div className="surface-card p-4">
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-medium">Maks. Direnç</span>
-            <Dumbbell className="w-4 h-4 text-emerald-500" />
-          </div>
-          <p className="text-lg font-bold text-slate-800">2x 24.5 kg</p>
-          <p className="text-[11px] text-slate-500 mt-0.5">Ayarlanabilir Dambıl</p>
-        </div>
-
-        <div className="surface-card p-4">
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-medium">Core & Sırt</span>
-            <Trophy className="w-4 h-4 text-emerald-500" />
-          </div>
-          <p className="text-lg font-bold text-slate-800">Ab-Wheel</p>
-          <p className="text-[11px] text-slate-500 mt-0.5">+ Barfiks Demiri</p>
-        </div>
-
-        <div className="surface-card p-4">
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-medium">Tamamlanan</span>
-            <History className="w-4 h-4 text-slate-400" />
-          </div>
-          <p className="text-lg font-bold text-slate-800">
-            {recentSessions.length} Seans
-          </p>
-          <p className="text-[11px] text-slate-500 mt-0.5">Son döngü kayıtları</p>
-        </div>
-      </div>
+      <section aria-label="Özet" className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-3">
+        {stats.map((s) => {
+          const Icon = s.icon;
+          return (
+            <div key={s.label} className="card min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <span className="eyebrow truncate">{s.label}</span>
+                <Icon className="w-4 h-4 text-emerald-600 shrink-0" />
+              </div>
+              <p className="mt-2.5 text-lg font-extrabold tracking-tight text-slate-900 tabular-nums leading-tight truncate">
+                {s.value}
+              </p>
+              <p className="mt-0.5 text-xs text-slate-500 truncate">{s.meta}</p>
+            </div>
+          );
+        })}
+      </section>
 
       {/* Recent Workout History */}
-      <div className="surface-card p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-emerald-600" />
-            <h3 className="text-base font-bold text-slate-800">Son Antrenman Geçmişi</h3>
-          </div>
-          <Link
-            href="/routines"
-            className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 flex items-center gap-1"
-          >
-            Tüm Programlar <ChevronRight className="w-3.5 h-3.5" />
+      <section className="card">
+        <div className="flex items-center justify-between gap-3 mb-1">
+          <h3 className="section-title flex items-center gap-2 min-w-0">
+            <Calendar className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span className="truncate">Son Antrenmanlar</span>
+          </h3>
+          <Link href="/routines" className="btn-ghost btn-sm shrink-0 -mr-2 text-emerald-700">
+            Programlar <ChevronRight />
           </Link>
         </div>
 
         {recentSessions.length === 0 ? (
-          <div className="text-center py-8 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-            <p className="text-xs text-slate-500 font-medium">
+          <div className="card-muted text-center py-8 mt-3">
+            <p className="text-sm text-slate-600 font-medium">
               Henüz tamamlanmış bir antrenman kaydı yok.
             </p>
-            <p className="text-[11px] text-slate-400 mt-1">
-              Yukarıdaki butona tıklayarak ilk seansınızı başlatın!
+            <p className="text-xs text-slate-500 mt-1">
+              Yukarıdaki butonla ilk seansını başlat!
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-slate-100">
+          <ul className="divide-y divide-slate-100">
             {recentSessions.map((session) => (
-              <div
-                key={session.id}
-                className="py-3.5 flex items-center justify-between hover:bg-slate-50/50 px-2 rounded-lg transition-colors"
-              >
-                <div>
-                  <h4 className="text-sm font-semibold text-slate-800">
+              <li key={session.id} className="py-3 flex items-center gap-3">
+                <span
+                  className="flex items-center justify-center w-9 h-9 rounded-full bg-emerald-50 text-emerald-600 shrink-0"
+                  role="img"
+                  aria-label="Tamamlandı"
+                  title="Tamamlandı"
+                >
+                  <CheckCircle2 className="w-[18px] h-[18px]" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <h4 className="text-sm font-semibold text-slate-900 truncate">
                     {session.routine?.name || "Özel Seans"}
                   </h4>
-                  <p className="text-xs text-slate-400 mt-0.5">
+                  <p className="text-xs text-slate-500 mt-0.5 tabular-nums truncate">
                     {session.completed_at
                       ? new Date(session.completed_at).toLocaleDateString("tr-TR", {
                           day: "numeric",
@@ -220,22 +223,14 @@ export default function WorkoutDashboardView() {
                       : "-"}
                   </p>
                 </div>
-
-                <div className="flex items-center gap-3">
-                  {session.rpe_score && (
-                    <span className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 font-bold text-xs">
-                      RPE: {session.rpe_score}/10
-                    </span>
-                  )}
-                  <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md">
-                    Tamamlandı
-                  </span>
-                </div>
-              </div>
+                {session.rpe_score && (
+                  <span className="chip shrink-0 tabular-nums">RPE {session.rpe_score}/10</span>
+                )}
+              </li>
             ))}
-          </div>
+          </ul>
         )}
-      </div>
+      </section>
     </div>
   );
 }
