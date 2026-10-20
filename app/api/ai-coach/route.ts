@@ -30,22 +30,20 @@ export async function POST(request: NextRequest) {
 
     // ── ACTION 1: APPLY FULL AI GENERATED PROGRAM TO SUPABASE ──
     if (action === "apply_full_program") {
-      const prog = generatedProgram as FullProgramResult;
-      if (!prog || !prog.routines || prog.routines.length === 0) {
-        return NextResponse.json({ error: "Program verisi bulunamadı." }, { status: 400 });
+      const prog = normalizeProgram(generatedProgram);
+      if (!prog) {
+        return NextResponse.json({ error: "Program verisi bulunamadı veya okunamadı." }, { status: 400 });
       }
-
-      // Deactivate older active routines for this user or generally
-      let query = supabase.from("workout_routines").update({ is_active: false });
-      if (userId) {
-        query = query.eq("user_id", userId);
-      }
-      await query;
 
       let createdRoutinesCount = 0;
       let createdExercisesCount = 0;
+      let firstError: string | null = null;
+      const createdRoutineIds: string[] = [];
 
-      const { data: allLibExercises } = await supabase.from("exercises").select("*");
+      const { data: allLibExercises, error: libErr } = await supabase.from("exercises").select("*");
+      if (libErr) {
+        return NextResponse.json({ error: `Program kaydedilemedi: ${libErr.message}` }, { status: 502 });
+      }
       const libMap = new Map((allLibExercises || []).map((e) => [e.name.toLowerCase().trim(), e]));
 
       for (const r of prog.routines) {
@@ -61,13 +59,17 @@ export async function POST(request: NextRequest) {
           .select()
           .single();
 
-        if (rErr || !newRoutine) continue;
+        if (rErr || !newRoutine) {
+          console.error("apply_full_program routine insert failed:", rErr);
+          firstError ??= rErr?.message || "Rutin oluşturulamadı.";
+          continue;
+        }
         createdRoutinesCount++;
+        createdRoutineIds.push(newRoutine.id);
 
-        for (let i = 0; i < (r.exercises || []).length; i++) {
+        const rows = [];
+        for (let i = 0; i < r.exercises.length; i++) {
           const ex = r.exercises[i];
-          let exerciseId = "";
-
           const cleanExName = ex.name.toLowerCase().trim();
           let matched = libMap.get(cleanExName);
 
@@ -77,42 +79,71 @@ export async function POST(request: NextRequest) {
             );
           }
 
-          if (matched) {
-            exerciseId = matched.id;
-          } else {
-            const { data: insertedEx } = await supabase
+          if (!matched) {
+            const { data: insertedEx, error: exErr } = await supabase
               .from("exercises")
               .insert({
                 name: ex.name,
-                target_muscle: ex.target_muscle || "Chest",
-                equipment: ex.equipment || "Dumbbell",
+                target_muscle: ex.target_muscle,
+                equipment: ex.equipment,
                 default_rest_seconds: 90,
                 instructions: ex.notes || null,
               })
               .select()
               .single();
 
-            if (insertedEx) {
-              exerciseId = insertedEx.id;
-              libMap.set(insertedEx.name.toLowerCase().trim(), insertedEx);
+            if (exErr || !insertedEx) {
+              console.error("apply_full_program exercise insert failed:", exErr);
+              firstError ??= exErr?.message || "Egzersiz oluşturulamadı.";
+              continue;
             }
+            matched = insertedEx;
+            libMap.set(insertedEx.name.toLowerCase().trim(), insertedEx);
           }
 
-          if (exerciseId) {
-            await supabase.from("routine_exercises").insert({
-              routine_id: newRoutine.id,
-              exercise_id: exerciseId,
-              order_in_routine: i + 1,
-              target_sets: ex.target_sets || 3,
-              target_reps: ex.target_reps || "10-12",
-              target_weight_kg: ex.target_weight_kg || 15.0,
-              rest_seconds: 90,
-              notes: ex.notes || null,
-            });
-            createdExercisesCount++;
+          rows.push({
+            routine_id: newRoutine.id,
+            exercise_id: matched.id,
+            order_in_routine: i + 1,
+            target_sets: ex.target_sets,
+            target_reps: ex.target_reps,
+            target_weight_kg: ex.target_weight_kg,
+            notes: ex.notes || null,
+          });
+        }
+
+        if (rows.length > 0) {
+          const { error: reErr } = await supabase.from("routine_exercises").insert(rows);
+          if (reErr) {
+            console.error("apply_full_program routine_exercises insert failed:", reErr);
+            firstError ??= reErr.message;
+          } else {
+            createdExercisesCount += rows.length;
           }
         }
       }
+
+      if (createdRoutinesCount === 0 || createdExercisesCount === 0) {
+        // Roll back half-written routines so the user keeps their current program
+        if (createdRoutineIds.length > 0) {
+          await supabase.from("workout_routines").delete().in("id", createdRoutineIds);
+        }
+        return NextResponse.json(
+          { error: `Program kaydedilemedi: ${firstError || "Bilinmeyen veritabanı hatası."}` },
+          { status: 502 }
+        );
+      }
+
+      // Only now retire the previous program, so a failed save never leaves the user without one
+      let deactivateQuery = supabase
+        .from("workout_routines")
+        .update({ is_active: false })
+        .eq("is_active", true)
+        .not("id", "in", `(${createdRoutineIds.join(",")})`);
+      if (userId) {
+        deactivateQuery = deactivateQuery.eq("user_id", userId);
+      }
+      await deactivateQuery;
 
       await supabase.from("ai_coach_logs").insert({
         user_id: userId || null,
@@ -183,7 +214,7 @@ export async function POST(request: NextRequest) {
         const rawAiResponse = await generateGeminiContent(
           [{ role: "user", content: prompt }],
           systemPrompt,
-          { temperature: 0.4, maxTokens: 2048, mode: "deep" }
+          { temperature: 0.4, maxTokens: 4096, mode: "deep" }
         );
 
         const jsonMatch = rawAiResponse.match(/```(?:json)?\s*([\s\S]*?)\s*```/) || [
@@ -439,7 +470,7 @@ SADECE JSON FORMATINDA DÖNÜŞ YAP.
       try {
         const rawAiResponse = await generateGeminiContent(chatList, chatSystemPrompt, {
           temperature: 0.5,
-          maxTokens: 2048,
+          maxTokens: 4096, // a full program proposal is truncated (unparseable JSON) at 2048
           mode: mode as "fast" | "deep",
         });
 
@@ -597,4 +628,49 @@ SADECE JSON FORMATINDA DÖNÜŞ YAP.
       { status: 500 }
     );
   }
+}
+
+const toNumber = (value: unknown, fallback: number): number => {
+  const n = typeof value === "number" ? value : parseFloat(String(value ?? "").replace(",", "."));
+  return Number.isFinite(n) ? n : fallback;
+};
+
+/**
+ * AI output is loosely shaped (missing sequence_order, "4" instead of 4, "22.5 kg",
+ * program wrapped in program_data, ...). Coerce it into values the DB columns accept.
+ */
+function normalizeProgram(raw: any): FullProgramResult | null {
+  const prog = raw?.program_data ?? raw;
+  if (!prog || !Array.isArray(prog.routines)) return null;
+
+  const routines = prog.routines
+    .filter((r: any) => r && typeof r === "object")
+    .map((r: any, idx: number) => ({
+      name: String(r.name || r.title || r.day || `Antrenman ${idx + 1}`).slice(0, 200),
+      sequence_order: Math.round(toNumber(r.sequence_order, idx + 1)) || idx + 1,
+      description: r.description ? String(r.description) : "",
+      exercises: (Array.isArray(r.exercises) ? r.exercises : [])
+        .map((ex: any) => (typeof ex === "string" ? { name: ex } : ex))
+        .filter((ex: any) => ex && String(ex.name || ex.exercise || "").trim())
+        .map((ex: any) => ({
+          name: String(ex.name || ex.exercise).trim(),
+          target_muscle: String(ex.target_muscle || ex.muscle || "Chest"),
+          equipment: String(ex.equipment || "Dumbbell"),
+          target_sets: Math.min(10, Math.max(1, Math.round(toNumber(ex.target_sets ?? ex.sets, 3)))),
+          target_reps: String(ex.target_reps ?? ex.reps ?? "10-12"),
+          target_weight_kg: Math.min(300, Math.max(0, Math.round(toNumber(ex.target_weight_kg ?? ex.weight_kg, 0) * 10) / 10)),
+          notes: ex.notes ? String(ex.notes) : undefined,
+        })),
+    }))
+    .filter((r: any) => r.exercises.length > 0);
+
+  if (routines.length === 0) return null;
+
+  return {
+    program_title: String(prog.program_title || prog.title || "Harun Hoca Programı"),
+    focus: String(prog.focus || ""),
+    rationale: String(prog.rationale || prog.description || ""),
+    estimated_duration_weeks: toNumber(prog.estimated_duration_weeks, 4),
+    routines,
+  };
 }

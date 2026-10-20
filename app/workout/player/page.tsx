@@ -31,27 +31,22 @@ function WorkoutPlayerContainer() {
     const supabase = createClient();
 
     try {
-      // 1. Fetch Routine
-      const { data: rData, error: rErr } = await supabase
-        .from("workout_routines")
-        .select("*")
-        .eq("id", routineId)
-        .single();
+      // Fetch the routine and its exercises (with exercise details) in parallel
+      const [{ data: rData, error: rErr }, { data: reData, error: reErr }] = await Promise.all([
+        supabase.from("workout_routines").select("*").eq("id", routineId).single(),
+        supabase
+          .from("routine_exercises")
+          .select(`
+            *,
+            exercise:exercises(*)
+          `)
+          .eq("routine_id", routineId)
+          .order("order_in_routine", { ascending: true }),
+      ]);
 
       if (rErr || !rData) {
-        throw new Error("Rutin bulunamadı.");
+        throw new Error(rErr && rErr.code !== "PGRST116" ? rErr.message : "Rutin bulunamadı.");
       }
-
-      // 2. Fetch Routine Exercises with Exercise details
-      const { data: reData, error: reErr } = await supabase
-        .from("routine_exercises")
-        .select(`
-          *,
-          exercise:exercises(*)
-        `)
-        .eq("routine_id", routineId)
-        .order("order_in_routine", { ascending: true });
-
       if (reErr) throw reErr;
 
       setRoutine(rData as WorkoutRoutine);

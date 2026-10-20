@@ -40,6 +40,30 @@ export function lockApp(): void {
 }
 
 /**
+ * Update app_users, tolerating columns the live DB doesn't have yet (e.g. `gender`
+ * when the migration wasn't run). PostgREST rejects the whole update with PGRST204
+ * for an unknown column, so drop that column and retry; the full profile is still
+ * kept in localStorage and sent to the coach from there.
+ */
+export async function updateUserProfile(
+  userId: string,
+  fields: Record<string, unknown>
+): Promise<{ error: string | null }> {
+  const supabase = createClient();
+  const pending = { ...fields };
+
+  while (Object.keys(pending).length > 0) {
+    const { error } = await supabase.from("app_users").update(pending).eq("id", userId);
+    if (!error) return { error: null };
+
+    const missing = error.code === "PGRST204" ? error.message.match(/'([^']+)' column/)?.[1] : undefined;
+    if (!missing || !(missing in pending)) return { error: error.message };
+    delete pending[missing];
+  }
+  return { error: "Profil güncellenemedi." };
+}
+
+/**
  * Register new user with Invitation PIN (4004)
  */
 export async function registerWithInvitationPin(

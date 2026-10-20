@@ -41,9 +41,17 @@ export default function RoutinesPage() {
         routinesQuery = routinesQuery.eq("user_id", currentUser.id);
       }
 
-      const { data: routinesData, error: rErr } = await routinesQuery;
+      // 2. Fetch all exercises (in parallel)
+      const exercisesQuery = supabase
+        .from("exercises")
+        .select("*")
+        .order("target_muscle", { ascending: true });
+
+      const [{ data: routinesData, error: rErr }, { data: exercisesData, error: eErr }] =
+        await Promise.all([routinesQuery, exercisesQuery]);
 
       if (rErr) throw rErr;
+      if (eErr) throw eErr;
 
       // Sort routine exercises by order_in_routine
       const parsedRoutines = (routinesData || []).map((r: any) => ({
@@ -52,14 +60,6 @@ export default function RoutinesPage() {
           (a: any, b: any) => a.order_in_routine - b.order_in_routine
         ),
       }));
-
-      // 2. Fetch all exercises
-      const { data: exercisesData, error: eErr } = await supabase
-        .from("exercises")
-        .select("*")
-        .order("target_muscle", { ascending: true });
-
-      if (eErr) throw eErr;
 
       setRoutines(parsedRoutines);
       setExercises((exercisesData as Exercise[]) || []);

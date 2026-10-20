@@ -105,6 +105,8 @@ export default function AiProgramGeneratorModal({
         alert(data.message || "Yeni program başarıyla yüklendi!");
         onProgramApplied();
         onClose();
+      } else {
+        alert(data.error || "Program veritabanına yüklenirken hata oluştu.");
       }
     } catch (err) {
       console.error("Error applying full program:", err);

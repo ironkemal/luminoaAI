@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { AppUser } from "@/types";
-import { createClient } from "@/lib/supabase/client";
-import { setCurrentUser, getCurrentUser } from "@/lib/auth-pin";
+import { setCurrentUser, getCurrentUser, updateUserProfile } from "@/lib/auth-pin";
 import { useLanguage } from "@/lib/i18n";
 import {
 
@@ -107,7 +106,6 @@ export default function UserSettingsModal({
 
     setIsSaving(true);
     setSaveSuccess(false);
-    const supabase = createClient();
 
     const parsedAge = parseInt(ageStr, 10) || 28;
     const parsedHeight = parseFloat(heightStr) || 180;
@@ -116,24 +114,21 @@ export default function UserSettingsModal({
     const parsedMaxDumbbell = parseFloat(maxDumbbellWeightStr) || 24.5;
 
     try {
-      const { error } = await supabase
-        .from("app_users")
-        .update({
-          display_name: displayName,
-          gender: gender,
-          age: parsedAge,
-          height_cm: parsedHeight,
-          current_weight_kg: parsedCurrentWeight,
-          target_weight_kg: parsedTargetWeight,
-          fitness_goal: fitnessGoal,
-          experience_level: experienceLevel,
-          workout_days_per_week: workoutDays,
-          equipment: selectedEquipment,
-          max_dumbbell_weight_kg: parsedMaxDumbbell,
-          injuries_or_limitations: injuriesLimitations.trim() || "Sakatlık yok",
-          onboarding_completed: true,
-        })
-        .eq("id", currentUser.id);
+      const { error } = await updateUserProfile(currentUser.id, {
+        display_name: displayName,
+        gender: gender,
+        age: parsedAge,
+        height_cm: parsedHeight,
+        current_weight_kg: parsedCurrentWeight,
+        target_weight_kg: parsedTargetWeight,
+        fitness_goal: fitnessGoal,
+        experience_level: experienceLevel,
+        workout_days_per_week: workoutDays,
+        equipment: selectedEquipment,
+        max_dumbbell_weight_kg: parsedMaxDumbbell,
+        injuries_or_limitations: injuriesLimitations.trim() || "Sakatlık yok",
+        onboarding_completed: true,
+      });
 
       if (error) {
         console.warn("Supabase update error:", error);

@@ -39,8 +39,6 @@ export default function WorkoutDashboardView() {
         routinesQuery = routinesQuery.eq("user_id", user.id);
       }
 
-      const { data: routinesData } = await routinesQuery;
-
       // 2. Fetch last completed sessions for current user
       let sessionsQuery = supabase
         .from("workout_sessions")
@@ -61,7 +59,10 @@ export default function WorkoutDashboardView() {
         sessionsQuery = sessionsQuery.eq("user_id", user.id);
       }
 
-      const { data: sessionsData } = await sessionsQuery;
+      const [{ data: routinesData }, { data: sessionsData }] = await Promise.all([
+        routinesQuery,
+        sessionsQuery,
+      ]);
 
       const routinesList = routinesData && routinesData.length > 0 ? (routinesData as WorkoutRoutine[]) : [];
       setRoutines(routinesList);

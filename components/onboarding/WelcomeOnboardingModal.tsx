@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { AppUser } from "@/types";
 import { createClient } from "@/lib/supabase/client";
-import { setCurrentUser } from "@/lib/auth-pin";
+import { setCurrentUser, updateUserProfile } from "@/lib/auth-pin";
 import { useLanguage } from "@/lib/i18n";
 import {
   Sparkles,
@@ -147,24 +147,21 @@ export default function WelcomeOnboardingModal({
 
     try {
       // 1. Update user record in Supabase
-      const { error: userErr } = await supabase
-        .from("app_users")
-        .update({
-          gender: gender,
-          age: parsedAge,
-          height_cm: parsedHeight,
-          current_weight_kg: parsedCurrentWeight,
-          target_weight_kg: parsedTargetWeight,
-          fitness_goal: fitnessGoal,
-          experience_level: experienceLevel,
-          workout_days_per_week: workoutDays,
-          equipment: selectedEquipment,
-          max_dumbbell_weight_kg: parsedMaxDumbbell,
-          injuries_or_limitations: compiledLimitations || "Sakatlık yok",
-          health_notes: customInjuryNotes || null,
-          onboarding_completed: true,
-        })
-        .eq("id", user.id);
+      const { error: userErr } = await updateUserProfile(user.id, {
+        gender: gender,
+        age: parsedAge,
+        height_cm: parsedHeight,
+        current_weight_kg: parsedCurrentWeight,
+        target_weight_kg: parsedTargetWeight,
+        fitness_goal: fitnessGoal,
+        experience_level: experienceLevel,
+        workout_days_per_week: workoutDays,
+        equipment: selectedEquipment,
+        max_dumbbell_weight_kg: parsedMaxDumbbell,
+        injuries_or_limitations: compiledLimitations || "Sakatlık yok",
+        health_notes: customInjuryNotes || null,
+        onboarding_completed: true,
+      });
 
       if (userErr) {
         console.warn("User update error:", userErr);
