@@ -1,0 +1,7 @@
+<resources>
+    <color name="background">#F6F7F5</color>
+    <color name="primary">#0E9F6E</color>
+    <color name="primary_dark">#057A55</color>
+    <color name="foreground">#0F1A17</color>
+    <color name="muted">#64748B</color>
+</resources>

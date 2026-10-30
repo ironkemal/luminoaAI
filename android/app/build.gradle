@@ -1,0 +1,55 @@
+plugins {
+    id "com.android.application"
+}
+
+// Live web app the APK opens. Override with: ./gradlew assembleRelease -PappUrl=https://...
+def appUrl = project.findProperty("appUrl") ?: "https://lumino.infinitymade.de"
+
+android {
+    namespace "de.infinitymade.luminofit"
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "de.infinitymade.luminofit"
+        minSdk 26
+        targetSdk 34
+        versionCode((project.findProperty("versionCode") ?: "1") as int)
+        versionName "1.0." + (project.findProperty("versionCode") ?: "1")
+        buildConfigField "String", "APP_URL", "\"${appUrl}\""
+    }
+
+    signingConfigs {
+        // Fixed key committed to the repo so every CI build can be installed
+        // over the previous one without losing app data. Personal sideload only.
+        shared {
+            storeFile file("lumino-fit.keystore")
+            storePassword "luminofit"
+            keyAlias "luminofit"
+            keyPassword "luminofit"
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.shared
+        }
+        debug {
+            signingConfig signingConfigs.shared
+        }
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation "androidx.core:core:1.13.1"
+    implementation "androidx.webkit:webkit:1.11.0"
+}

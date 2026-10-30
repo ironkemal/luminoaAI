@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Lumino Fit</string>
+    <string name="offline_title">Bağlantı yok</string>
+    <string name="offline_body">Lumino Fit\'e ulaşılamadı. İnternet bağlantını kontrol edip tekrar dene.</string>
+    <string name="retry">Tekrar dene</string>
+    <string name="choose_file">Dosya seç</string>
+    <string name="take_photo">Fotoğraf çek</string>
+</resources>
